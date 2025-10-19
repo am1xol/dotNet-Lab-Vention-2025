@@ -1,0 +1,58 @@
+# Общие системные файлы
+.DS_Store
+Thumbs.db
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Файлы сборки .NET
+bin/
+obj/
+[Bb]uild/
+*.exe
+*.dll
+*.pdb
+*.cache
+
+# Файлы пакетов NuGet
+**/packages/*
+*.nupkg
+.nuget/
+
+# Файлы Visual Studio
+.vs/
+.vscode/
+*.swp
+*.[Cc]ache/
+
+# Файлы Rider
+.idea/
+*.sln.iml
+
+# Файлы Node.js и React
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dist/
+build/
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Файлы базы данных
+*.mdf
+*.ldf
+App_Data/
+
+# Файлы покрытия тестов
+coverage/
+*.coverage
+*.coveragexml
+
+# Временные файлы
+tmp/
+temp/

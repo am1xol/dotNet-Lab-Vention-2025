@@ -92,4 +92,11 @@ public class TokenService : ITokenService
             return false;
         }
     }
+
+    public DateTime GetRefreshTokenExpiration()
+    {
+        var jwtSettings = _configuration.GetSection("Jwt");
+        var refreshTokenDays = int.Parse(jwtSettings["RefreshTokenExpirationDays"]!);
+        return DateTime.UtcNow.AddDays(refreshTokenDays);
+    }
 }

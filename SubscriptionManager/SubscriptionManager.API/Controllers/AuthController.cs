@@ -190,10 +190,68 @@ public class AuthController : ControllerBase
         var refreshToken = _tokenService.GenerateRefreshToken();
         var accessTokenExpiresAt = DateTime.UtcNow.AddMinutes(10);
 
+        user.RefreshToken = refreshToken;
+        user.RefreshTokenExpiresAt = _tokenService.GetRefreshTokenExpiration();
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _userRepository.UpdateAsync(user);
+        await _userRepository.SaveChangesAsync();
+
         response.Success = true;
         response.AccessToken = accessToken;
         response.RefreshToken = refreshToken;
         response.AccessTokenExpiresAt = accessTokenExpiresAt;
+
+        return Ok(response);
+    }
+
+    [HttpPost("refresh")]
+    [ProducesResponseType(typeof(RefreshTokenResponse), 200)]
+    [ProducesResponseType(typeof(RefreshTokenResponse), 400)]
+    [ProducesResponseType(typeof(RefreshTokenResponse), 401)]
+    public async Task<ActionResult<RefreshTokenResponse>> Refresh([FromBody] RefreshTokenRequest request)
+    {
+        var response = new RefreshTokenResponse();
+
+        if (!ModelState.IsValid)
+        {
+            response.Success = false;
+            response.Errors.AddRange(ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage));
+            return BadRequest(response);
+        }
+
+        var user = await _userRepository.GetByRefreshTokenAsync(request.RefreshToken);
+        if (user == null)
+        {
+            response.Success = false;
+            response.Errors.Add("Invalid refresh token");
+            return Unauthorized(response);
+        }
+
+        if (user.RefreshTokenExpiresAt < DateTime.UtcNow)
+        {
+            response.Success = false;
+            response.Errors.Add("Refresh token has expired");
+            return Unauthorized(response);
+        }
+
+        var newAccessToken = _tokenService.GenerateAccessToken(user);
+        var newRefreshToken = _tokenService.GenerateRefreshToken();
+        var newAccessTokenExpiresAt = DateTime.UtcNow.AddMinutes(10);
+
+        user.RefreshToken = newRefreshToken;
+        user.RefreshTokenExpiresAt = _tokenService.GetRefreshTokenExpiration();
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _userRepository.UpdateAsync(user);
+        await _userRepository.SaveChangesAsync();
+
+        response.Success = true;
+        response.AccessToken = newAccessToken;
+        response.RefreshToken = newRefreshToken;
+        response.AccessTokenExpiresAt = newAccessTokenExpiresAt;
 
         return Ok(response);
     }

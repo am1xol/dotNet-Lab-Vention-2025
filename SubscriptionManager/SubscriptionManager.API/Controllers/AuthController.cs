@@ -3,6 +3,7 @@ using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Models;
 using SubscriptionManager.Core.Models.Requests;
 using SubscriptionManager.Core.Models.Responses;
+using SubscriptionManager.Infrastructure.Services;
 
 namespace SubscriptionManager.API.Controllers;
 
@@ -14,17 +15,20 @@ public class AuthController : ControllerBase
     private readonly IPasswordHasher _passwordHasher;
     private readonly IVerificationCodeService _verificationCodeService;
     private readonly IEmailService _emailService;
+    private readonly ITokenService _tokenService;
 
     public AuthController(
         IUserRepository userRepository,
         IPasswordHasher passwordHasher,
         IVerificationCodeService verificationCodeService,
-        IEmailService emailService)
+        IEmailService emailService,
+        ITokenService tokenService)
     {
         _userRepository = userRepository;
         _passwordHasher = passwordHasher;
         _verificationCodeService = verificationCodeService;
         _emailService = emailService;
+        _tokenService = tokenService;
     }
 
     [HttpPost("register")]
@@ -141,5 +145,56 @@ public class AuthController : ControllerBase
         result.Success = true;
         result.UserId = user.Id.ToString();
         return Ok(result);
+    }
+
+    [HttpPost("login")]
+    [ProducesResponseType(typeof(LoginResponse), 200)]
+    [ProducesResponseType(typeof(LoginResponse), 400)]
+    [ProducesResponseType(typeof(LoginResponse), 401)]
+    public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest request)
+    {
+        var response = new LoginResponse();
+
+        if (!ModelState.IsValid)
+        {
+            response.Success = false;
+            response.Errors.AddRange(ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage));
+            return BadRequest(response);
+        }
+
+        var user = await _userRepository.GetByEmailAsync(request.Email);
+        if (user == null)
+        {
+            response.Success = false;
+            response.Errors.Add("Invalid email or password");
+            return Unauthorized(response);
+        }
+
+        if (!user.IsEmailVerified)
+        {
+            response.Success = false;
+            response.Errors.Add("Please verify your email before logging in");
+            return Unauthorized(response);
+        }
+
+        if (!_passwordHasher.VerifyPassword(request.Password, user.PasswordHash))
+        {
+            response.Success = false;
+            response.Errors.Add("Invalid email or password");
+            return Unauthorized(response);
+        }
+
+        var accessToken = _tokenService.GenerateAccessToken(user);
+        var refreshToken = _tokenService.GenerateRefreshToken();
+        var accessTokenExpiresAt = DateTime.UtcNow.AddMinutes(10);
+
+        response.Success = true;
+        response.AccessToken = accessToken;
+        response.RefreshToken = refreshToken;
+        response.AccessTokenExpiresAt = accessTokenExpiresAt;
+
+        return Ok(response);
     }
 }

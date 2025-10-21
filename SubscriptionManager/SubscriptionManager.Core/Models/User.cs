@@ -26,6 +26,10 @@ public class User
     [MinLength(1)]
     public string LastName { get; set; } = string.Empty;
 
+    public bool IsEmailVerified { get; set; }
+    public string? EmailVerificationCode { get; set; }
+    public DateTime? EmailVerificationCodeExpiresAt { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

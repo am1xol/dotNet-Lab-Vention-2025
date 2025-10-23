@@ -1,9 +1,12 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Models;
 using SubscriptionManager.Core.Models.Requests;
 using SubscriptionManager.Core.Models.Responses;
 using SubscriptionManager.Infrastructure.Services;
+using System.Security.Claims;
 
 namespace SubscriptionManager.API.Controllers;
 
@@ -16,19 +19,22 @@ public class AuthController : ControllerBase
     private readonly IVerificationCodeService _verificationCodeService;
     private readonly IEmailService _emailService;
     private readonly ITokenService _tokenService;
+    private readonly IConfiguration _configuration;
 
     public AuthController(
         IUserRepository userRepository,
         IPasswordHasher passwordHasher,
         IVerificationCodeService verificationCodeService,
         IEmailService emailService,
-        ITokenService tokenService)
+        ITokenService tokenService,
+        IConfiguration configuration)
     {
         _userRepository = userRepository;
         _passwordHasher = passwordHasher;
         _verificationCodeService = verificationCodeService;
         _emailService = emailService;
         _tokenService = tokenService;
+        _configuration = configuration;
     }
 
     [HttpPost("register")]
@@ -252,6 +258,39 @@ public class AuthController : ControllerBase
         response.AccessToken = newAccessToken;
         response.RefreshToken = newRefreshToken;
         response.AccessTokenExpiresAt = newAccessTokenExpiresAt;
+
+        return Ok(response);
+    }
+
+    [HttpGet("me")]
+    [Authorize]
+    [ProducesResponseType(typeof(UserDetailsResponse), 200)]
+    [ProducesResponseType(401)]
+    public async Task<ActionResult<UserDetailsResponse>> GetCurrentUser()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+        if (userIdClaim == null)
+        {
+            return Unauthorized("Invalid token");
+        }
+
+        var userId = Guid.Parse(userIdClaim.Value);
+
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null)
+        {
+            return Unauthorized("User not found");
+        }
+
+        var response = new UserDetailsResponse
+        {
+            Id = user.Id.ToString(),
+            Email = user.Email,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            IsEmailVerified = user.IsEmailVerified,
+            CreatedAt = user.CreatedAt
+        };
 
         return Ok(response);
     }

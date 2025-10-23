@@ -11,17 +11,20 @@ public class RegisterRequest
 {
     [Required]
     [EmailAddress]
+    [MaxLength(254)]
     public string Email { get; set; } = string.Empty;
 
     [Required]
-    [MinLength(6)]
+    [MinLength(8)]
     public string Password { get; set; } = string.Empty;
 
     [Required]
     [MinLength(1)]
+    [MaxLength(25)]
     public string FirstName { get; set; } = string.Empty;
 
     [Required]
     [MinLength(1)]
+    [MaxLength(25)]
     public string LastName { get; set; } = string.Empty;
 }

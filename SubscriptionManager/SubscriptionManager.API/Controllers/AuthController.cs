@@ -1,10 +1,12 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using EmailValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Models;
 using SubscriptionManager.Core.Models.Requests;
 using SubscriptionManager.Core.Models.Responses;
+using SubscriptionManager.Infrastructure.Repositories;
 using SubscriptionManager.Infrastructure.Services;
 using System.Security.Claims;
 
@@ -20,6 +22,7 @@ public class AuthController : ControllerBase
     private readonly IEmailService _emailService;
     private readonly ITokenService _tokenService;
     private readonly IConfiguration _configuration;
+    private readonly IRefreshTokenRepository _refreshTokenRepository;
 
     public AuthController(
         IUserRepository userRepository,
@@ -27,7 +30,8 @@ public class AuthController : ControllerBase
         IVerificationCodeService verificationCodeService,
         IEmailService emailService,
         ITokenService tokenService,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IRefreshTokenRepository refreshTokenRepository)
     {
         _userRepository = userRepository;
         _passwordHasher = passwordHasher;
@@ -35,6 +39,7 @@ public class AuthController : ControllerBase
         _emailService = emailService;
         _tokenService = tokenService;
         _configuration = configuration;
+        _refreshTokenRepository = refreshTokenRepository;
     }
 
     [HttpPost("register")]
@@ -51,6 +56,13 @@ public class AuthController : ControllerBase
             result.Errors.AddRange(ModelState.Values
                 .SelectMany(v => v.Errors)
                 .Select(e => e.ErrorMessage));
+            return BadRequest(result);
+        }
+
+        if (!EmailValidator.Validate(request.Email))
+        {
+            result.Success = false;
+            result.Errors.Add("Invalid email format");
             return BadRequest(result);
         }
 
@@ -161,12 +173,17 @@ public class AuthController : ControllerBase
     {
         var response = new LoginResponse();
 
-        if (!ModelState.IsValid)
+        if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
         {
             response.Success = false;
-            response.Errors.AddRange(ModelState.Values
-                .SelectMany(v => v.Errors)
-                .Select(e => e.ErrorMessage));
+            response.Errors.Add("Email and password are required");
+            return BadRequest(response);
+        }
+
+        if (!EmailValidator.Validate(request.Email))
+        {
+            response.Success = false;
+            response.Errors.Add("Invalid email format");
             return BadRequest(response);
         }
 
@@ -196,12 +213,19 @@ public class AuthController : ControllerBase
         var refreshToken = _tokenService.GenerateRefreshToken();
         var accessTokenExpiresAt = DateTime.UtcNow.AddMinutes(10);
 
-        user.RefreshToken = refreshToken;
-        user.RefreshTokenExpiresAt = _tokenService.GetRefreshTokenExpiration();
-        user.UpdatedAt = DateTime.UtcNow;
+        var refreshTokenEntity = new RefreshToken
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            Token = refreshToken,
+            DeviceName = "Web Browser",
+            ExpiresAt = _tokenService.GetRefreshTokenExpiration(),
+            CreatedAt = DateTime.UtcNow,
+            IsRevoked = false
+        };
 
-        await _userRepository.UpdateAsync(user);
-        await _userRepository.SaveChangesAsync();
+        await _refreshTokenRepository.AddAsync(refreshTokenEntity);
+        await _refreshTokenRepository.SaveChangesAsync();
 
         response.Success = true;
         response.AccessToken = accessToken;

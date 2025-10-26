@@ -23,6 +23,7 @@ public class AuthController : ControllerBase
     private readonly ITokenService _tokenService;
     private readonly IConfiguration _configuration;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
+    private readonly ILogger<AuthController> _logger;
 
     public AuthController(
         IUserRepository userRepository,
@@ -31,7 +32,8 @@ public class AuthController : ControllerBase
         IEmailService emailService,
         ITokenService tokenService,
         IConfiguration configuration,
-        IRefreshTokenRepository refreshTokenRepository)
+        IRefreshTokenRepository refreshTokenRepository,
+        ILogger<AuthController> logger)
     {
         _userRepository = userRepository;
         _passwordHasher = passwordHasher;
@@ -40,41 +42,33 @@ public class AuthController : ControllerBase
         _tokenService = tokenService;
         _configuration = configuration;
         _refreshTokenRepository = refreshTokenRepository;
+        _logger = logger;
     }
 
     [HttpPost("register")]
-    [ProducesResponseType(typeof(AuthResult), 200)]
-    [ProducesResponseType(typeof(AuthResult), 400)]
-    [ProducesResponseType(typeof(AuthResult), 409)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<AuthResult>> Register([FromBody] RegisterRequest request)
     {
-        var result = new AuthResult();
-
-        if (!ModelState.IsValid)
-        {
-            result.Success = false;
-            result.Errors.AddRange(ModelState.Values
-                .SelectMany(v => v.Errors)
-                .Select(e => e.ErrorMessage));
-            return BadRequest(result);
-        }
 
         if (!EmailValidator.Validate(request.Email))
         {
-            result.Success = false;
-            result.Errors.Add("Invalid email format");
-            return BadRequest(result);
+            return Problem(
+                title: "Invalid email format",
+                statusCode: StatusCodes.Status400BadRequest);
         }
 
         if (await _userRepository.ExistsByEmailAsync(request.Email))
         {
-            result.Success = false;
-            result.Errors.Add("Email already exists");
-            return Conflict(result);
+            return Problem(
+                title: "Email already exists",
+                statusCode: StatusCodes.Status409Conflict);
         }
 
         var verificationCode = _verificationCodeService.GenerateCode();
         var codeExpiresAt = _verificationCodeService.GetExpirationTime();
+        var now = DateTime.UtcNow;
 
         var user = new User
         {
@@ -86,8 +80,8 @@ public class AuthController : ControllerBase
             IsEmailVerified = false,
             EmailVerificationCode = verificationCode,
             EmailVerificationCodeExpiresAt = codeExpiresAt,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            CreatedAt = now,
+            UpdatedAt = now
         };
 
         await _userRepository.AddAsync(user);
@@ -99,119 +93,116 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Failed to send verification email: {ex.Message}");
+            _logger.LogError(ex, "Failed to send verification email to {Email}", user.Email);
         }
 
-        result.Success = true;
-        result.UserId = user.Id.ToString();
+        var result = new AuthResult
+        {
+            Success = true,
+            UserId = user.Id.ToString()
+        };
         return Ok(result);
     }
 
     [HttpPost("verify-email")]
-    [ProducesResponseType(typeof(AuthResult), 200)]
-    [ProducesResponseType(typeof(AuthResult), 400)]
-    [ProducesResponseType(typeof(AuthResult), 404)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<AuthResult>> VerifyEmail([FromBody] VerifyEmailRequest request)
     {
-        var result = new AuthResult();
-
-        if (!ModelState.IsValid)
-        {
-            result.Success = false;
-            result.Errors.AddRange(ModelState.Values
-                .SelectMany(v => v.Errors)
-                .Select(e => e.ErrorMessage));
-            return BadRequest(result);
-        }
 
         var user = await _userRepository.GetByEmailAsync(request.Email);
         if (user == null)
         {
-            result.Success = false;
-            result.Errors.Add("User not found");
-            return NotFound(result);
+            return Problem(
+                title: "User not found",
+                statusCode: StatusCodes.Status404NotFound);
         }
 
         if (user.IsEmailVerified)
         {
-            result.Success = false;
-            result.Errors.Add("Email is already verified");
-            return BadRequest(result);
+            return Problem(
+                title: "Email is already verified",
+                statusCode: StatusCodes.Status400BadRequest);
         }
 
         if (user.EmailVerificationCode != request.VerificationCode)
         {
-            result.Success = false;
-            result.Errors.Add("Invalid verification code");
-            return BadRequest(result);
+            return Problem(
+                title: "Invalid verification code",
+                statusCode: StatusCodes.Status400BadRequest);
         }
 
-        if (user.EmailVerificationCodeExpiresAt < DateTime.UtcNow)
+        var now = DateTime.UtcNow;
+        if (user.EmailVerificationCodeExpiresAt < now)
         {
-            result.Success = false;
-            result.Errors.Add("Verification code has expired");
-            return BadRequest(result);
+            return Problem(
+                title: "Verification code has expired",
+                statusCode: StatusCodes.Status400BadRequest);
         }
 
         user.IsEmailVerified = true;
         user.EmailVerificationCode = null;
         user.EmailVerificationCodeExpiresAt = null;
-        user.UpdatedAt = DateTime.UtcNow;
+        user.UpdatedAt = now;
 
         await _userRepository.SaveChangesAsync();
 
-        result.Success = true;
-        result.UserId = user.Id.ToString();
+        var result = new AuthResult
+        {
+            Success = true,
+            UserId = user.Id.ToString()
+        };
         return Ok(result);
     }
 
     [HttpPost("login")]
-    [ProducesResponseType(typeof(LoginResponse), 200)]
-    [ProducesResponseType(typeof(LoginResponse), 400)]
-    [ProducesResponseType(typeof(LoginResponse), 401)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest request)
     {
-        var response = new LoginResponse();
 
         if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
         {
-            response.Success = false;
-            response.Errors.Add("Email and password are required");
-            return BadRequest(response);
+            return Problem(
+                title: "Email and password are required",
+                statusCode: StatusCodes.Status400BadRequest);
         }
 
         if (!EmailValidator.Validate(request.Email))
         {
-            response.Success = false;
-            response.Errors.Add("Invalid email format");
-            return BadRequest(response);
+            return Problem(
+                title: "Invalid email format",
+                statusCode: StatusCodes.Status400BadRequest);
         }
 
         var user = await _userRepository.GetByEmailAsync(request.Email);
         if (user == null)
         {
-            response.Success = false;
-            response.Errors.Add("Invalid email or password");
-            return Unauthorized(response);
+            return Problem(
+                title: "Invalid email or password",
+                statusCode: StatusCodes.Status401Unauthorized);
         }
 
         if (!user.IsEmailVerified)
         {
-            response.Success = false;
-            response.Errors.Add("Please verify your email before logging in");
-            return Unauthorized(response);
+            return Problem(
+                title: "Please verify your email before logging in",
+                statusCode: StatusCodes.Status401Unauthorized);
         }
 
         if (!_passwordHasher.VerifyPassword(request.Password, user.PasswordHash))
         {
-            response.Success = false;
-            response.Errors.Add("Invalid email or password");
-            return Unauthorized(response);
+            return Problem(
+                title: "Invalid email or password",
+                statusCode: StatusCodes.Status401Unauthorized);
         }
 
         var accessToken = _tokenService.GenerateAccessToken(user);
         var refreshToken = _tokenService.GenerateRefreshToken();
-        var accessTokenExpiresAt = DateTime.UtcNow.AddMinutes(10);
+        var now = DateTime.UtcNow;
+        var accessTokenExpiresAt = now.AddMinutes(10);
 
         var refreshTokenEntity = new RefreshToken
         {
@@ -220,90 +211,114 @@ public class AuthController : ControllerBase
             Token = refreshToken,
             DeviceName = "Web Browser",
             ExpiresAt = _tokenService.GetRefreshTokenExpiration(),
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = now,
             IsRevoked = false
         };
 
         await _refreshTokenRepository.AddAsync(refreshTokenEntity);
         await _refreshTokenRepository.SaveChangesAsync();
 
-        response.Success = true;
-        response.AccessToken = accessToken;
-        response.RefreshToken = refreshToken;
-        response.AccessTokenExpiresAt = accessTokenExpiresAt;
+        var response = new LoginResponse
+        {
+            Success = true,
+            AccessToken = accessToken,
+            RefreshToken = refreshToken,
+            AccessTokenExpiresAt = accessTokenExpiresAt
+        };
 
         return Ok(response);
     }
 
     [HttpPost("refresh")]
-    [ProducesResponseType(typeof(RefreshTokenResponse), 200)]
-    [ProducesResponseType(typeof(RefreshTokenResponse), 400)]
-    [ProducesResponseType(typeof(RefreshTokenResponse), 401)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<RefreshTokenResponse>> Refresh([FromBody] RefreshTokenRequest request)
     {
-        var response = new RefreshTokenResponse();
 
-        if (!ModelState.IsValid)
+        var refreshTokenEntity = await _refreshTokenRepository.GetByTokenAsync(request.RefreshToken);
+        if (refreshTokenEntity == null)
         {
-            response.Success = false;
-            response.Errors.AddRange(ModelState.Values
-                .SelectMany(v => v.Errors)
-                .Select(e => e.ErrorMessage));
-            return BadRequest(response);
+            return Problem(
+                title: "Invalid refresh token",
+                statusCode: StatusCodes.Status401Unauthorized);
         }
 
-        var user = await _userRepository.GetByRefreshTokenAsync(request.RefreshToken);
-        if (user == null)
+        var now = DateTime.UtcNow;
+        if (refreshTokenEntity.ExpiresAt < now)
         {
-            response.Success = false;
-            response.Errors.Add("Invalid refresh token");
-            return Unauthorized(response);
+            return Problem(
+                title: "Refresh token has expired",
+                statusCode: StatusCodes.Status401Unauthorized);
         }
 
-        if (user.RefreshTokenExpiresAt < DateTime.UtcNow)
+        if (refreshTokenEntity.IsRevoked)
         {
-            response.Success = false;
-            response.Errors.Add("Refresh token has expired");
-            return Unauthorized(response);
+            return Problem(
+                title: "Refresh token has been revoked",
+                statusCode: StatusCodes.Status401Unauthorized);
         }
 
+        var user = refreshTokenEntity.User;
         var newAccessToken = _tokenService.GenerateAccessToken(user);
         var newRefreshToken = _tokenService.GenerateRefreshToken();
-        var newAccessTokenExpiresAt = DateTime.UtcNow.AddMinutes(10);
+        var newAccessTokenExpiresAt = now.AddMinutes(10);
 
-        user.RefreshToken = newRefreshToken;
-        user.RefreshTokenExpiresAt = _tokenService.GetRefreshTokenExpiration();
-        user.UpdatedAt = DateTime.UtcNow;
+        refreshTokenEntity.IsRevoked = true;
 
-        await _userRepository.UpdateAsync(user);
-        await _userRepository.SaveChangesAsync();
+        var newRefreshTokenEntity = new RefreshToken
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            Token = newRefreshToken,
+            DeviceName = refreshTokenEntity.DeviceName,
+            ExpiresAt = _tokenService.GetRefreshTokenExpiration(),
+            CreatedAt = now,
+            IsRevoked = false
+        };
 
-        response.Success = true;
-        response.AccessToken = newAccessToken;
-        response.RefreshToken = newRefreshToken;
-        response.AccessTokenExpiresAt = newAccessTokenExpiresAt;
+        await _refreshTokenRepository.UpdateAsync(refreshTokenEntity);
+        await _refreshTokenRepository.AddAsync(newRefreshTokenEntity);
+        await _refreshTokenRepository.SaveChangesAsync();
+
+        var response = new RefreshTokenResponse
+        {
+            Success = true,
+            AccessToken = newAccessToken,
+            RefreshToken = newRefreshToken,
+            AccessTokenExpiresAt = newAccessTokenExpiresAt
+        };
 
         return Ok(response);
     }
 
     [HttpGet("me")]
     [Authorize]
-    [ProducesResponseType(typeof(UserDetailsResponse), 200)]
-    [ProducesResponseType(401)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<UserDetailsResponse>> GetCurrentUser()
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
         if (userIdClaim == null)
         {
-            return Unauthorized("Invalid token");
+            return Problem(
+                title: "Invalid token",
+                statusCode: StatusCodes.Status401Unauthorized);
         }
 
-        var userId = Guid.Parse(userIdClaim.Value);
+        if (!Guid.TryParse(userIdClaim.Value, out var userId))
+        {
+            return Problem(
+                title: "Invalid user ID in token",
+                statusCode: StatusCodes.Status401Unauthorized);
+        }
 
         var user = await _userRepository.GetByIdAsync(userId);
         if (user == null)
         {
-            return Unauthorized("User not found");
+            return Problem(
+                title: "User not found",
+                statusCode: StatusCodes.Status401Unauthorized);
         }
 
         var response = new UserDetailsResponse

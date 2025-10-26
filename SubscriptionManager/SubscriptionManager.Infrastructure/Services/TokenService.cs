@@ -1,35 +1,31 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Security.Cryptography;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Models;
+using SubscriptionManager.Core.Options;
+using System;
+using System.Collections.Generic;
+using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace SubscriptionManager.Infrastructure.Services;
 
 public class TokenService : ITokenService
 {
-    private readonly IConfiguration _configuration;
+    private readonly JwtOptions _jwtOptions;
 
-    public TokenService(IConfiguration configuration)
+    public TokenService(IOptions<JwtOptions> jwtOptions)
     {
-        _configuration = configuration;
+        _jwtOptions = jwtOptions.Value;
     }
 
     public string GenerateAccessToken(User user)
     {
-        var jwtSettings = _configuration.GetSection("Jwt");
-        var secret = jwtSettings["Secret"];
-        var issuer = jwtSettings["Issuer"];
-        var audience = jwtSettings["Audience"];
-        var expirationMinutes = int.Parse(jwtSettings["AccessTokenExpirationMinutes"]!);
-
         var claims = new[]
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
@@ -39,14 +35,14 @@ public class TokenService : ITokenService
             new Claim("is_verified", user.IsEmailVerified.ToString())
         };
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret!));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.Secret));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var token = new JwtSecurityToken(
-            issuer: issuer,
-            audience: audience,
+            issuer: _jwtOptions.Issuer,
+            audience: _jwtOptions.Audience,
             claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(expirationMinutes),
+            expires: DateTime.UtcNow.AddMinutes(_jwtOptions.AccessTokenExpirationMinutes),
             signingCredentials: credentials
         );
 
@@ -61,17 +57,17 @@ public class TokenService : ITokenService
         return Convert.ToBase64String(randomNumber);
     }
 
+    public DateTime GetRefreshTokenExpiration()
+    {
+        return DateTime.UtcNow.AddDays(_jwtOptions.RefreshTokenExpirationDays);
+    }
+
     public bool ValidateToken(string token)
     {
         try
         {
-            var jwtSettings = _configuration.GetSection("Jwt");
-            var secret = jwtSettings["Secret"];
-            var issuer = jwtSettings["Issuer"];
-            var audience = jwtSettings["Audience"];
-
             var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.UTF8.GetBytes(secret!);
+            var key = Encoding.UTF8.GetBytes(_jwtOptions.Secret);
 
             tokenHandler.ValidateToken(token, new TokenValidationParameters
             {
@@ -79,8 +75,8 @@ public class TokenService : ITokenService
                 IssuerSigningKey = new SymmetricSecurityKey(key),
                 ValidateIssuer = true,
                 ValidateAudience = true,
-                ValidIssuer = issuer,
-                ValidAudience = audience,
+                ValidIssuer = _jwtOptions.Issuer,
+                ValidAudience = _jwtOptions.Audience,
                 ValidateLifetime = true,
                 ClockSkew = TimeSpan.Zero
             }, out _);
@@ -91,12 +87,5 @@ public class TokenService : ITokenService
         {
             return false;
         }
-    }
-
-    public DateTime GetRefreshTokenExpiration()
-    {
-        var jwtSettings = _configuration.GetSection("Jwt");
-        var refreshTokenDays = int.Parse(jwtSettings["RefreshTokenExpirationDays"]!);
-        return DateTime.UtcNow.AddDays(refreshTokenDays);
     }
 }

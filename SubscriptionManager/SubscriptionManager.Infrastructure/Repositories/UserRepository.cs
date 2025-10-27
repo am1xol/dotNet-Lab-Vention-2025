@@ -47,9 +47,10 @@ public class UserRepository : IUserRepository
             .FirstOrDefaultAsync(u => u.RefreshToken == refreshToken);
     }
 
-    public async Task UpdateAsync(User user)
+    public Task UpdateAsync(User user)
     {
         _context.Users.Update(user);
+        return Task.CompletedTask;
     }
 
     public async Task<User?> GetByIdAsync(Guid id)

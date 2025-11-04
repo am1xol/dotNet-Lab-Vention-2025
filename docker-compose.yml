@@ -17,6 +17,17 @@ services:
       retries: 3
       start_period: 40s
 
+  subscriptions-api:
+    build: .
+    ports:
+      - "8081:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=host.docker.internal,1433;Database=SubscriptionManagerDb;Trusted_Connection=false;User=sa;Password=YourPassword123!;TrustServerCertificate=true;
+      - Jwt__Secret=your-super-secret-jwt-key-here-32-chars-minimum
+      - Jwt__Issuer=auth-api
+      - Jwt__Audience=subscriptions-api
+
   sql-server:
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:

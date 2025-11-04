@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using SubscriptionManager.Core;
 using SubscriptionManager.Core.Models;
 using System;
 using System.Collections.Generic;
@@ -17,6 +18,9 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<User> Users { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
+
+    public DbSet<Subscription> Subscriptions { get; set; }
+    public DbSet<UserSubscription> UserSubscriptions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -47,5 +51,14 @@ public class ApplicationDbContext : DbContext
             .WithMany()
             .HasForeignKey(rt => rt.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Subscription>()
+            .Property(s => s.Price)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<UserSubscription>()
+            .HasOne(us => us.Subscription)
+            .WithMany()
+            .HasForeignKey(us => us.SubscriptionId);
     }
 }

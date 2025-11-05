@@ -28,4 +28,6 @@ public class RegisterRequest
     [MinLength(1)]
     [MaxLength(25)]
     public string LastName { get; set; } = string.Empty;
+
+    public string Role { get; set; } = "User";
 }

@@ -32,6 +32,7 @@ public class TokenService : ITokenService
             new Claim(ClaimTypes.Email, user.Email),
             new Claim(ClaimTypes.GivenName, user.FirstName),
             new Claim(ClaimTypes.Surname, user.LastName),
+            new Claim(ClaimTypes.Role, user.Role),
             new Claim("is_verified", user.IsEmailVerified.ToString())
         };
 

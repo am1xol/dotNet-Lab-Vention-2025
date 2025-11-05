@@ -36,4 +36,8 @@ public class User
 
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+
+    [Required]
+    [StringLength(5)]
+    public string Role { get; set; } = "User";
 }

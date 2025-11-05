@@ -66,6 +66,13 @@ public class AuthController : ControllerBase
                 statusCode: StatusCodes.Status409Conflict);
         }
 
+        if (!string.IsNullOrEmpty(request.Role) && request.Role != "User" && request.Role != "Admin")
+        {
+            return Problem(
+                title: "Invalid role. Allowed values: 'User' or 'Admin'",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
         var verificationCode = _verificationCodeService.GenerateCode();
         var codeExpiresAt = _verificationCodeService.GetExpirationTime();
         var now = DateTime.UtcNow;
@@ -78,6 +85,7 @@ public class AuthController : ControllerBase
             FirstName = request.FirstName,
             LastName = request.LastName,
             IsEmailVerified = false,
+            Role = request.Role ?? "User",
             EmailVerificationCode = verificationCode,
             EmailVerificationCodeExpiresAt = codeExpiresAt,
             CreatedAt = now,

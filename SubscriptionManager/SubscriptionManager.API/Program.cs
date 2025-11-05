@@ -17,6 +17,9 @@ builder.Services.Configure<JwtOptions>(
 builder.Services.Configure<PasswordHasherOptions>(
     builder.Configuration.GetSection(PasswordHasherOptions.SectionName));
 
+builder.Services.Configure<MinIOOptions>(
+    builder.Configuration.GetSection(MinIOOptions.SectionName));
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -50,6 +53,7 @@ builder.Services.AddScoped<IVerificationCodeService, VerificationCodeService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {

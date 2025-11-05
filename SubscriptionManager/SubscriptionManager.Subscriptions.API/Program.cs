@@ -3,10 +3,17 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using SubscriptionManager.Core.Models;
+using SubscriptionManager.Core.Options;
 using SubscriptionManager.Infrastructure.Data;
+using SubscriptionManager.Infrastructure.Services;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.Configure<MinIOOptions>(
+    builder.Configuration.GetSection(MinIOOptions.SectionName));
+
+builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

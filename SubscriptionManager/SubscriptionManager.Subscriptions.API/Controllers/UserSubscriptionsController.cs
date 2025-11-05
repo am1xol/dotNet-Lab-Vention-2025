@@ -1,10 +1,11 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using SubscriptionManager.Core;
 using SubscriptionManager.Core.Models;
 using SubscriptionManager.Infrastructure.Data;
-using SubscriptionManager.Core;
+using System.Security.Claims;
 
 namespace SubscriptionManager.Subscriptions.API.Controllers
 {
@@ -23,7 +24,7 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         [HttpPost("subscribe/{subscriptionId}")]
         public async Task<ActionResult<UserSubscription>> Subscribe(Guid subscriptionId)
         {
-            var userIdClaim = User.FindFirst("sub") ?? User.FindFirst("userId");
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
             {
                 return Unauthorized("Invalid user ID in token");
@@ -61,7 +62,7 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         [HttpGet("my-subscriptions")]
         public async Task<ActionResult<IEnumerable<UserSubscription>>> GetMySubscriptions()
         {
-            var userIdClaim = User.FindFirst("sub") ?? User.FindFirst("userId");
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
             {
                 return Unauthorized("Invalid user ID in token");
@@ -78,7 +79,7 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         [HttpPost("unsubscribe/{subscriptionId}")]
         public async Task<IActionResult> Unsubscribe(Guid subscriptionId)
         {
-            var userIdClaim = User.FindFirst("sub") ?? User.FindFirst("userId");
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
             {
                 return Unauthorized("Invalid user ID in token");

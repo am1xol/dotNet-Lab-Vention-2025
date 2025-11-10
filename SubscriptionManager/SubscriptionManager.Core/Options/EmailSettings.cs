@@ -15,7 +15,7 @@ namespace SubscriptionManager.Core.Options
         public string SenderEmail { get; set; } = "noreply@subscriptionmanager.com";
         public string SenderName { get; set; } = "Subscription Manager";
         public bool EnableSsl { get; set; } = false;
-        public bool UseAuthentication { get; set; } = true;
+        public bool UseAuthentication { get; set; } = false;
         public string UserName { get; set; } = "testuser";
         public string Password { get; set; } = "testpassword";
     }

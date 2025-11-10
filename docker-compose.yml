@@ -1,37 +1,33 @@
 version: '3.8'
 
 services:
-  subscriptionmanager-api:
-    build: .
+  auth-api:
+    build: 
+      context: .
+      dockerfile: SubscriptionManager/SubscriptionManager.Auth.API/Dockerfile
     ports:
-      - "8080:80"
+      - "8080:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Server=localhost,1433;Database=SubscriptionManagerDb;Trusted_Connection=false;User=sa;Password=YourPassword123!;TrustServerCertificate=true;
+      - ConnectionStrings__DefaultConnection=Server=sql-server,1433;Database=SubscriptionManagerDb;User=sa;Password=YourPassword123!;TrustServerCertificate=true;
       - MinIO__Endpoint=http://minio:9000
       - MinIO__AccessKey=minioadmin
       - MinIO__SecretKey=minioadmin
       - MinIO__BucketName=subscriptions
     depends_on:
       - sql-server
-      - minio
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+    networks:
+      - app-network
 
   subscriptions-api:
-    build: .
+    build:
+      context: .
+      dockerfile: SubscriptionManager/SubscriptionManager.Subscriptions.API/Dockerfile
     ports:
-      - "8081:80"
-    depends_on:
-      - sql-server
-      - minio
+      - "8081:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Server=host.docker.internal,1433;Database=SubscriptionManagerDb;Trusted_Connection=false;User=sa;Password=YourPassword123!;TrustServerCertificate=true;
+      - ConnectionStrings__DefaultConnection=Server=sql-server,1433;Database=SubscriptionManagerDb;User=sa;Password=YourPassword123!;TrustServerCertificate=true;
       - Jwt__Secret=your-super-secret-jwt-key-here-32-chars-minimum
       - Jwt__Issuer=auth-api
       - Jwt__Audience=subscriptions-api
@@ -39,6 +35,10 @@ services:
       - MinIO__AccessKey=minioadmin
       - MinIO__SecretKey=minioadmin
       - MinIO__BucketName=subscriptions
+    depends_on:
+      - sql-server
+    networks:
+      - app-network
 
   sql-server:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -47,6 +47,8 @@ services:
       - ACCEPT_EULA=Y
     ports:
       - "1433:1433"
+    networks:
+      - app-network
       
   minio:
     image: minio/minio
@@ -60,6 +62,8 @@ services:
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
+    networks:
+      - app-network
 
   mailpit:
     image: axllent/mailpit
@@ -69,6 +73,12 @@ services:
     environment:
       MP_SMTP_AUTH_ACCEPT_ANY: 1
       MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    networks:
+      - app-network
 
 volumes:
   minio_data:
+
+networks:
+  app-network:
+    driver: bridge

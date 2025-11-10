@@ -19,6 +19,9 @@ builder.Services.Configure<JwtOptions>(
 builder.Services.Configure<PasswordHasherOptions>(
     builder.Configuration.GetSection(PasswordHasherOptions.SectionName));
 
+builder.Services.Configure<VerificationCodeOptions>(
+    builder.Configuration.GetSection(VerificationCodeOptions.SectionName));
+
 builder.Services.Configure<MinIOOptions>(
     builder.Configuration.GetSection(MinIOOptions.SectionName));
 

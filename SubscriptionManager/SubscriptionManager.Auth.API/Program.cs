@@ -22,6 +22,9 @@ builder.Services.Configure<PasswordHasherOptions>(
 builder.Services.Configure<VerificationCodeOptions>(
     builder.Configuration.GetSection(VerificationCodeOptions.SectionName));
 
+builder.Services.Configure<EmailSettings>(
+    builder.Configuration.GetSection(EmailSettings.SectionName));
+
 builder.Services.Configure<MinIOOptions>(
     builder.Configuration.GetSection(MinIOOptions.SectionName));
 

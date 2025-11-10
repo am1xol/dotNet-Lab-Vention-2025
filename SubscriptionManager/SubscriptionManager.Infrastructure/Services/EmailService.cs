@@ -1,33 +1,43 @@
-﻿using System;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
+using SubscriptionManager.Core.Interfaces;
+using SubscriptionManager.Core.Options;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Net;
 using System.Net.Mail;
-using Microsoft.Extensions.Configuration;
-using SubscriptionManager.Core.Interfaces;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace SubscriptionManager.Infrastructure.Services;
 
 public class EmailService : IEmailService
 {
-    private readonly IConfiguration _configuration;
+    private readonly EmailSettings _emailSettings;
 
-    public EmailService(IConfiguration configuration)
+    public EmailService(IOptions<EmailSettings> emailSettings)
     {
-        _configuration = configuration;
+        _emailSettings = emailSettings.Value;
     }
 
     public async Task SendVerificationEmailAsync(string email, string verificationCode, string firstName)
     {
-        using var client = new SmtpClient("localhost", 1025);
-        client.EnableSsl = false;
-        client.Credentials = null;
+        using var client = new SmtpClient(_emailSettings.SmtpServer, _emailSettings.SmtpPort);
+        client.EnableSsl = _emailSettings.EnableSsl;
+
+        if (_emailSettings.UseAuthentication)
+        {
+            client.Credentials = new NetworkCredential(_emailSettings.UserName, _emailSettings.Password);
+        }
+        else
+        {
+            client.Credentials = null;
+        }
 
         var mailMessage = new MailMessage
         {
-            From = new MailAddress("noreply@subscriptionmanager.com"),
+            From = new MailAddress(_emailSettings.SenderEmail, _emailSettings.SenderName),
             Subject = "Verify your email address",
             Body = $"""
             Hello {firstName},
@@ -41,7 +51,7 @@ public class EmailService : IEmailService
             If you didn't create an account, please ignore this email.
 
             Best regards,
-            Subscription Manager Team
+            {_emailSettings.SenderName}
             """,
             IsBodyHtml = false
         };

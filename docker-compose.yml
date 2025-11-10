@@ -15,9 +15,15 @@ services:
       - MinIO__SecretKey=minioadmin
       - MinIO__BucketName=subscriptions
     depends_on:
-      - sql-server
+      - sql-server-init
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   subscriptions-api:
     build:
@@ -36,17 +42,40 @@ services:
       - MinIO__SecretKey=minioadmin
       - MinIO__BucketName=subscriptions
     depends_on:
+      - sql-server-init
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  sql-server-init:
+    image: mcr.microsoft.com/mssql-tools
+    depends_on:
       - sql-server
     networks:
       - app-network
+    command: |
+      /bin/bash -c "
+      echo 'Waiting for SQL Server to start...'
+      sleep 30s
+      echo 'Creating database...'
+      /opt/mssql-tools/bin/sqlcmd -S sql-server -U sa -P 'YourPassword123!' -d master -Q \"IF NOT EXISTS(SELECT name FROM sys.databases WHERE name = 'SubscriptionManagerDb') CREATE DATABASE SubscriptionManagerDb;\"
+      echo 'Database creation completed'"
 
   sql-server:
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
       - SA_PASSWORD=YourPassword123!
       - ACCEPT_EULA=Y
+      - MSSQL_PID=Developer
     ports:
       - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
     networks:
       - app-network
       
@@ -78,6 +107,7 @@ services:
 
 volumes:
   minio_data:
+  sqlserver_data:
 
 networks:
   app-network:

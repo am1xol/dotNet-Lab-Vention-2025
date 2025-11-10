@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using SubscriptionManager.Core;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Models;
 using SubscriptionManager.Core.Options;
@@ -33,7 +34,7 @@ public class TokenService : ITokenService
             new Claim(ClaimTypes.GivenName, user.FirstName),
             new Claim(ClaimTypes.Surname, user.LastName),
             new Claim(ClaimTypes.Role, user.Role),
-            new Claim("is_verified", user.IsEmailVerified.ToString())
+            new Claim(ClaimTypesConstants.IsVerified, user.IsEmailVerified.ToString())
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.Secret));
@@ -61,32 +62,5 @@ public class TokenService : ITokenService
     public DateTime GetRefreshTokenExpiration()
     {
         return DateTime.UtcNow.AddDays(_jwtOptions.RefreshTokenExpirationDays);
-    }
-
-    public bool ValidateToken(string token)
-    {
-        try
-        {
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.UTF8.GetBytes(_jwtOptions.Secret);
-
-            tokenHandler.ValidateToken(token, new TokenValidationParameters
-            {
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(key),
-                ValidateIssuer = true,
-                ValidateAudience = true,
-                ValidIssuer = _jwtOptions.Issuer,
-                ValidAudience = _jwtOptions.Audience,
-                ValidateLifetime = true,
-                ClockSkew = TimeSpan.Zero
-            }, out _);
-
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
     }
 }

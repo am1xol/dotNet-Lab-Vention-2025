@@ -1,26 +1,41 @@
-﻿using System;
+﻿using Microsoft.Extensions.Options;
+using SubscriptionManager.Core.Interfaces;
+using SubscriptionManager.Core.Options;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using SubscriptionManager.Core.Interfaces;
 
 namespace SubscriptionManager.Infrastructure.Services;
 
 public class VerificationCodeService : IVerificationCodeService
 {
-    private const int CODE_LENGTH = 6;
-    private const int EXPIRATION_HOURS = 24;
+    private readonly VerificationCodeOptions _options;
+    private static readonly Random _globalRandom = new();
+    private static readonly ThreadLocal<Random> _localRandom = new(() =>
+    {
+        lock (_globalRandom)
+        {
+            return new Random(_globalRandom.Next());
+        }
+    });
+
+    public VerificationCodeService(IOptions<VerificationCodeOptions> options)
+    {
+        _options = options.Value;
+    }
 
     public string GenerateCode()
     {
-        var random = new Random();
-        var code = random.Next(100000, 999999).ToString();
+        var random = _localRandom.Value!;
+        var maxValue = (int)Math.Pow(10, _options.Length);
+        var code = random.Next(0, maxValue).ToString($"D{_options.Length}");
         return code;
     }
 
     public DateTime GetExpirationTime()
     {
-        return DateTime.UtcNow.AddHours(EXPIRATION_HOURS);
+        return DateTime.UtcNow.AddHours(_options.ExpirationHours);
     }
 }

@@ -60,7 +60,7 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         }
 
         [HttpGet("my-subscriptions")]
-        public async Task<ActionResult<IEnumerable<UserSubscription>>> GetMySubscriptions()
+        public async Task<ActionResult<Dictionary<string, List<UserSubscription>>>> GetMySubscriptions()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
@@ -68,15 +68,22 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 return Unauthorized("Invalid user ID in token");
             }
 
+            var currentDate = DateTime.UtcNow;
+
             var subscriptions = await _context.UserSubscriptions
-                .Where(us => us.UserId == userId)
-                .Where(us => us.IsActive)
+                .Where(us => us.UserId == userId &&
+                             us.IsActive &&
+                             (!us.CancelledAt.HasValue || currentDate <= us.ValidUntil))
                 .Include(us => us.Subscription)
                 .ToListAsync();
 
-            var validSubscriptions = subscriptions.Where(us => us.IsValid).ToList();
+            Console.WriteLine($"Valid subscriptions: {subscriptions.Count}");
 
-            return Ok(validSubscriptions);
+            var groupedSubscriptions = subscriptions
+                .GroupBy(us => us.Subscription.Category)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            return Ok(groupedSubscriptions);
         }
 
         [HttpPost("unsubscribe/{subscriptionId}")]

@@ -299,46 +299,4 @@ public class AuthController : ControllerBase
 
         return Ok(response);
     }
-
-    [HttpGet("me")]
-    [Authorize]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<UserDetailsResponse>> GetCurrentUser()
-    {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
-        if (userIdClaim == null)
-        {
-            return Problem(
-                title: "Invalid token",
-                statusCode: StatusCodes.Status401Unauthorized);
-        }
-
-        if (!Guid.TryParse(userIdClaim.Value, out var userId))
-        {
-            return Problem(
-                title: "Invalid user ID in token",
-                statusCode: StatusCodes.Status401Unauthorized);
-        }
-
-        var user = await _userRepository.GetByIdAsync(userId);
-        if (user == null)
-        {
-            return Problem(
-                title: "User not found",
-                statusCode: StatusCodes.Status401Unauthorized);
-        }
-
-        var response = new UserDetailsResponse
-        {
-            Id = user.Id.ToString(),
-            Email = user.Email,
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            IsEmailVerified = user.IsEmailVerified,
-            CreatedAt = user.CreatedAt
-        };
-
-        return Ok(response);
-    }
 }

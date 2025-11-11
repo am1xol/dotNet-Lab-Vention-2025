@@ -21,11 +21,17 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Subscription>>> GetSubscriptions()
+        public async Task<ActionResult<Dictionary<string, List<Subscription>>>> GetSubscriptions()
         {
-            return await _context.Subscriptions
+            var subscriptions = await _context.Subscriptions
                 .Where(s => s.IsActive)
                 .ToListAsync();
+
+            var groupedSubscriptions = subscriptions
+                .GroupBy(s => s.Category)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            return Ok(groupedSubscriptions);
         }
 
         [HttpGet("{id}")]

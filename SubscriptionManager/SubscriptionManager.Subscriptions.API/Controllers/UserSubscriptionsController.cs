@@ -69,11 +69,14 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             }
 
             var subscriptions = await _context.UserSubscriptions
-                .Where(us => us.UserId == userId && us.IsActive)
+                .Where(us => us.UserId == userId)
+                .Where(us => us.IsActive)
                 .Include(us => us.Subscription)
                 .ToListAsync();
 
-            return Ok(subscriptions);
+            var validSubscriptions = subscriptions.Where(us => us.IsValid).ToList();
+
+            return Ok(validSubscriptions);
         }
 
         [HttpPost("unsubscribe/{subscriptionId}")]
@@ -93,10 +96,17 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 return NotFound("Subscription not found");
             }
 
-            userSubscription.IsActive = false;
+            userSubscription.CancelledAt = DateTime.UtcNow;
+
+            userSubscription.ValidUntil = userSubscription.NextBillingDate;
+
             await _context.SaveChangesAsync();
 
-            return Ok("Unsubscribed successfully");
+            return Ok(new
+            {
+                Message = "Subscription cancelled successfully",
+                ValidUntil = userSubscription.ValidUntil
+            });
         }
 
         private DateTime CalculateNextBillingDate(string period)

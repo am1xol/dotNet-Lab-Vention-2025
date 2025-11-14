@@ -21,6 +21,7 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<Subscription> Subscriptions { get; set; }
     public DbSet<UserSubscription> UserSubscriptions { get; set; }
+    public DbSet<StoredFile> StoredFiles { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -43,14 +44,30 @@ public class ApplicationDbContext : DbContext
             .IsRequired();
 
         modelBuilder.Entity<RefreshToken>()
-        .HasIndex(rt => rt.Token)
-        .IsUnique();
+            .HasIndex(rt => rt.Token)
+            .IsUnique();
 
         modelBuilder.Entity<RefreshToken>()
             .HasOne(rt => rt.User)
             .WithMany()
             .HasForeignKey(rt => rt.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<StoredFile>()
+            .HasIndex(f => f.ObjectName)
+            .IsUnique();
+
+        modelBuilder.Entity<StoredFile>()
+            .HasOne(f => f.User)
+            .WithMany()
+            .HasForeignKey(f => f.UserId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<Subscription>()
+            .HasOne(s => s.IconFile)
+            .WithMany(f => f.Subscriptions)
+            .HasForeignKey(s => s.IconFileId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         modelBuilder.Entity<Subscription>()
             .Property(s => s.Price)
@@ -59,6 +76,10 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<UserSubscription>()
             .HasOne(us => us.Subscription)
             .WithMany()
-            .HasForeignKey(us => us.SubscriptionId);
+            .HasForeignKey(us => us.SubscriptionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<UserSubscription>()
+            .HasIndex(us => us.UserId);
     }
 }

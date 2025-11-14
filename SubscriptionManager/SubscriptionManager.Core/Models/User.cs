@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using System.ComponentModel.DataAnnotations;
 
 namespace SubscriptionManager.Core.Models;
 
@@ -28,10 +29,14 @@ public class User
     public string LastName { get; set; } = string.Empty;
 
     public bool IsEmailVerified { get; set; }
+    [JsonIgnore]
     public string? EmailVerificationCode { get; set; }
+    [JsonIgnore]
     public DateTime? EmailVerificationCodeExpiresAt { get; set; }
 
+    [JsonIgnore]
     public string? RefreshToken { get; set; }
+    [JsonIgnore]
     public DateTime? RefreshTokenExpiresAt { get; set; }
 
     public DateTime CreatedAt { get; set; }

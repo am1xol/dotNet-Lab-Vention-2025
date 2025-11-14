@@ -3,8 +3,10 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SubscriptionManager.Core;
+using SubscriptionManager.Core.DTOs;
 using SubscriptionManager.Core.Models;
 using SubscriptionManager.Infrastructure.Data;
+using SubscriptionManager.Infrastructure.Services;
 using System.Security.Claims;
 
 namespace SubscriptionManager.Subscriptions.API.Controllers
@@ -15,14 +17,19 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
     public class UserSubscriptionsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly IFileStorageService _fileStorageService;
 
-        public UserSubscriptionsController(ApplicationDbContext context)
+        public UserSubscriptionsController(ApplicationDbContext context, IFileStorageService fileStorageService)
         {
             _context = context;
+            _fileStorageService = fileStorageService;
         }
 
         [HttpPost("subscribe/{subscriptionId}")]
-        public async Task<ActionResult<UserSubscription>> Subscribe(Guid subscriptionId)
+        [ProducesResponseType(typeof(SubscribeResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<SubscribeResponse>> Subscribe(Guid subscriptionId)
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
@@ -56,11 +63,20 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             _context.UserSubscriptions.Add(userSubscription);
             await _context.SaveChangesAsync();
 
-            return Ok(userSubscription);
+            return Ok(new SubscribeResponse
+            {
+                Id = userSubscription.Id,
+                UserId = userSubscription.UserId,
+                SubscriptionId = userSubscription.SubscriptionId,
+                StartDate = userSubscription.StartDate,
+                NextBillingDate = userSubscription.NextBillingDate,
+                IsActive = userSubscription.IsActive
+            });
         }
 
         [HttpGet("my-subscriptions")]
-        public async Task<ActionResult<Dictionary<string, List<UserSubscription>>>> GetMySubscriptions()
+        [ProducesResponseType(typeof(Dictionary<string, List<UserSubscriptionDto>>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<Dictionary<string, List<UserSubscriptionDto>>>> GetMySubscriptions()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
@@ -70,16 +86,56 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
 
             var currentDate = DateTime.UtcNow;
 
-            var subscriptions = await _context.UserSubscriptions
+            var userSubscriptions = await _context.UserSubscriptions
                 .Where(us => us.UserId == userId &&
                              us.IsActive &&
                              (!us.CancelledAt.HasValue || currentDate <= us.ValidUntil))
                 .Include(us => us.Subscription)
+                .Select(us => new UserSubscriptionDto
+                {
+                    Id = us.Id,
+                    UserId = us.UserId,
+                    SubscriptionId = us.SubscriptionId,
+                    StartDate = us.StartDate,
+                    NextBillingDate = us.NextBillingDate,
+                    CancelledAt = us.CancelledAt,
+                    ValidUntil = us.ValidUntil,
+                    IsActive = us.IsActive,
+                    IsValid = us.IsValid,
+                    Subscription = new SubscriptionDto
+                    {
+                        Id = us.Subscription.Id,
+                        Name = us.Subscription.Name,
+                        Description = us.Subscription.Description,
+                        Price = us.Subscription.Price,
+                        Period = us.Subscription.Period,
+                        Category = us.Subscription.Category,
+                        IconFileId = us.Subscription.IconFileId,
+                        IconUrl = null,
+                        IsActive = us.Subscription.IsActive,
+                        CreatedAt = us.Subscription.CreatedAt,
+                        UpdatedAt = us.Subscription.UpdatedAt
+                    }
+                })
                 .ToListAsync();
 
-            Console.WriteLine($"Valid subscriptions: {subscriptions.Count}");
+            foreach (var userSubscription in userSubscriptions)
+            {
+                if (userSubscription.Subscription.IconFileId.HasValue)
+                {
+                    try
+                    {
+                        userSubscription.Subscription.IconUrl = await _fileStorageService.GetPresignedUrlAsync(
+                            userSubscription.Subscription.IconFileId.Value);
+                    }
+                    catch
+                    {
+                        userSubscription.Subscription.IconUrl = null;
+                    }
+                }
+            }
 
-            var groupedSubscriptions = subscriptions
+            var groupedSubscriptions = userSubscriptions
                 .GroupBy(us => us.Subscription.Category)
                 .ToDictionary(g => g.Key, g => g.ToList());
 

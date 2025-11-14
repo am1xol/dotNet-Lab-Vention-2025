@@ -10,7 +10,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Server=sql-server,1433;Database=SubscriptionManagerDb;User=sa;Password=YourPassword123!;TrustServerCertificate=true;
-      - MinIO__Endpoint=http://minio:9000
+      - MinIO__Endpoint=minio:9000
       - MinIO__AccessKey=minioadmin
       - MinIO__SecretKey=minioadmin
       - MinIO__BucketName=subscriptions
@@ -34,7 +34,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Server=sql-server,1433;Database=SubscriptionManagerDb;User=sa;Password=YourPassword123!;TrustServerCertificate=true;
-      - MinIO__Endpoint=http://minio:9000
+      - MinIO__Endpoint=minio:9000
       - MinIO__AccessKey=minioadmin
       - MinIO__SecretKey=minioadmin
       - MinIO__BucketName=subscriptions

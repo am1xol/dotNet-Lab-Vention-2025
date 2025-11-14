@@ -118,6 +118,8 @@ namespace SubscriptionManager.Subscriptions.API
                     tags: new[] { "database", "sql" }
                 );
 
+            services.AddScoped<IFileStorageService, FileStorageService>();
+
             return services;
         }
     }

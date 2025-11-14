@@ -1,10 +1,13 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using SubscriptionManager.Core;
+using SubscriptionManager.Core.DTOs;
 using SubscriptionManager.Core.Models;
 using SubscriptionManager.Infrastructure.Data;
-using SubscriptionManager.Core;
+using SubscriptionManager.Infrastructure.Services;
+using System.Security.Claims;
 
 namespace SubscriptionManager.Subscriptions.API.Controllers
 {
@@ -14,18 +17,37 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
     public class SubscriptionsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly IFileStorageService _fileStorageService;
 
-        public SubscriptionsController(ApplicationDbContext context)
+        public SubscriptionsController(ApplicationDbContext context, IFileStorageService fileStorageService)
         {
             _context = context;
+            _fileStorageService = fileStorageService;
         }
 
         [HttpGet]
-        public async Task<ActionResult<Dictionary<string, List<Subscription>>>> GetSubscriptions()
+        [ProducesResponseType(typeof(Dictionary<string, List<SubscriptionDto>>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<Dictionary<string, List<SubscriptionDto>>>> GetSubscriptions()
         {
             var subscriptions = await _context.Subscriptions
                 .Where(s => s.IsActive)
+                .Select(s => MapToDto(s))
                 .ToListAsync();
+
+            foreach (var subscription in subscriptions)
+            {
+                if (subscription.IconFileId.HasValue)
+                {
+                    try
+                    {
+                        subscription.IconUrl = await _fileStorageService.GetPresignedUrlAsync(subscription.IconFileId.Value);
+                    }
+                    catch
+                    {
+                        subscription.IconUrl = null;
+                    }
+                }
+            }
 
             var groupedSubscriptions = subscriptions
                 .GroupBy(s => s.Category)
@@ -35,39 +57,98 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<Subscription>> GetSubscription(Guid id)
+        [ProducesResponseType(typeof(SubscriptionDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<SubscriptionDto>> GetSubscription(Guid id)
         {
-            var subscription = await _context.Subscriptions.FindAsync(id);
+            var subscription = await _context.Subscriptions
+                .FirstOrDefaultAsync(s => s.Id == id && s.IsActive);
 
-            if (subscription == null || !subscription.IsActive)
+            if (subscription == null)
             {
                 return NotFound();
             }
 
-            return subscription;
+            var subscriptionDto = MapToDto(subscription);
+
+            if (subscription.IconFileId.HasValue)
+            {
+                try
+                {
+                    subscriptionDto.IconUrl = await _fileStorageService.GetPresignedUrlAsync(subscription.IconFileId.Value);
+                }
+                catch
+                {
+                    subscriptionDto.IconUrl = null;
+                }
+            }
+
+            return subscriptionDto;
         }
 
         [HttpPost]
         [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<Subscription>> CreateSubscription(Subscription subscription)
+        [ProducesResponseType(typeof(SubscriptionDto), StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<SubscriptionDto>> CreateSubscription(CreateSubscriptionRequest request)
         {
-            subscription.Id = Guid.NewGuid();
-            subscription.CreatedAt = DateTime.UtcNow;
-            subscription.UpdatedAt = DateTime.UtcNow;
+            if (request.IconFileId.HasValue)
+            {
+                var fileExists = await _context.StoredFiles.AnyAsync(f => f.Id == request.IconFileId.Value);
+                if (!fileExists)
+                {
+                    return BadRequest("Icon file not found");
+                }
+            }
+
+            var subscription = new Subscription
+            {
+                Id = Guid.NewGuid(),
+                Name = request.Name,
+                Description = request.Description,
+                Price = request.Price,
+                Period = request.Period,
+                Category = request.Category,
+                IconFileId = request.IconFileId,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
 
             _context.Subscriptions.Add(subscription);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetSubscription), new { id = subscription.Id }, subscription);
+            var subscriptionDto = MapToDto(subscription);
+
+            if (subscription.IconFileId.HasValue)
+            {
+                try
+                {
+                    subscriptionDto.IconUrl = await _fileStorageService.GetPresignedUrlAsync(subscription.IconFileId.Value);
+                }
+                catch
+                {
+                    subscriptionDto.IconUrl = null;
+                }
+            }
+
+            return CreatedAtAction(nameof(GetSubscription), new { id = subscription.Id }, subscriptionDto);
         }
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> UpdateSubscription(Guid id, Subscription subscription)
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> UpdateSubscription(Guid id, UpdateSubscriptionRequest request)
         {
-            if (id != subscription.Id)
+            if (request.IconFileId.HasValue)
             {
-                return BadRequest();
+                var fileExists = await _context.StoredFiles.AnyAsync(f => f.Id == request.IconFileId.Value);
+                if (!fileExists)
+                {
+                    return BadRequest("Icon file not found");
+                }
             }
 
             var existingSubscription = await _context.Subscriptions.FindAsync(id);
@@ -76,12 +157,12 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 return NotFound();
             }
 
-            existingSubscription.Name = subscription.Name;
-            existingSubscription.Description = subscription.Description;
-            existingSubscription.Price = subscription.Price;
-            existingSubscription.Period = subscription.Period;
-            existingSubscription.Category = subscription.Category;
-            existingSubscription.IconUrl = subscription.IconUrl;
+            existingSubscription.Name = request.Name;
+            existingSubscription.Description = request.Description;
+            existingSubscription.Price = request.Price;
+            existingSubscription.Period = request.Period;
+            existingSubscription.Category = request.Category;
+            existingSubscription.IconFileId = request.IconFileId;
             existingSubscription.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
@@ -91,6 +172,8 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> DeleteSubscription(Guid id)
         {
             var subscription = await _context.Subscriptions.FindAsync(id);
@@ -105,6 +188,24 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+
+        private static SubscriptionDto MapToDto(Subscription subscription)
+        {
+            return new SubscriptionDto
+            {
+                Id = subscription.Id,
+                Name = subscription.Name,
+                Description = subscription.Description,
+                Price = subscription.Price,
+                Period = subscription.Period,
+                Category = subscription.Category,
+                IconFileId = subscription.IconFileId,
+                IconUrl = null,
+                IsActive = subscription.IsActive,
+                CreatedAt = subscription.CreatedAt,
+                UpdatedAt = subscription.UpdatedAt
+            };
         }
     }
 }

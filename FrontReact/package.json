@@ -6,6 +6,7 @@
     "@types/axios": "^0.9.36",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
+    "@types/react-router-dom": "^5.3.3",
     "@typescript-eslint/eslint-plugin": "^8.46.4",
     "@typescript-eslint/parser": "^8.46.4",
     "@vitejs/plugin-react": "^5.1.1",
@@ -32,6 +33,7 @@
     "axios": "^1.13.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-router-dom": "^7.9.6",
     "zustand": "^5.0.8"
   },
   "scripts": {

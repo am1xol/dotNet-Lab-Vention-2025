@@ -33,3 +33,8 @@ export interface User {
   isEmailVerified: boolean;
   role: string;
 }
+
+export interface VerifyEmailRequest {
+  email: string;
+  verificationCode: string;
+}

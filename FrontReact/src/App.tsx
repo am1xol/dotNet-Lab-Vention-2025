@@ -4,6 +4,7 @@ import { Container, Typography, Button, AppBar, Toolbar } from '@mui/material';
 import { useAuthStore } from './store/auth-store';
 import { SignIn } from './components/SignIn';
 import { SignUp } from './components/SignUp';
+import { AnimatedForm } from './components/AnimatedForm';
 
 function Home() {
   const { user, isAuthenticated, logout } = useAuthStore();
@@ -30,10 +31,14 @@ function Home() {
 function AuthPages() {
   const [isSignIn, setIsSignIn] = useState(true);
 
-  return isSignIn ? (
-    <SignIn onToggleMode={() => setIsSignIn(false)} />
-  ) : (
-    <SignUp onToggleMode={() => setIsSignIn(true)} />
+  return (
+    <AnimatedForm key={isSignIn ? 'signin' : 'signup'}>
+      {isSignIn ? (
+        <SignIn onToggleMode={() => setIsSignIn(false)} />
+      ) : (
+        <SignUp onToggleMode={() => setIsSignIn(true)} />
+      )}
+    </AnimatedForm>
   );
 }
 

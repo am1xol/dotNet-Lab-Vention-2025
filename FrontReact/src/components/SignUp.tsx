@@ -17,6 +17,7 @@ import { styled } from '@mui/material/styles';
 import { authService } from '../services/auth-service';
 import { RegisterRequest, VerifyEmailRequest } from '../types/auth';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSnackbar } from 'notistack';
 
 const AnimatedCardContent = styled(motion.div)({
   width: '100%',
@@ -106,6 +107,7 @@ interface SignUpProps {
 type SignUpStep = 'registration' | 'verification';
 
 export const SignUp: React.FC<SignUpProps> = ({ onToggleMode }) => {
+  const { enqueueSnackbar } = useSnackbar();
   const [step, setStep] = useState<SignUpStep>('registration');
   const [formData, setFormData] = useState<RegisterRequest>({
     email: '',
@@ -221,11 +223,9 @@ export const SignUp: React.FC<SignUpProps> = ({ onToggleMode }) => {
     }
   };
 
-  const handleVerificationSubmit = async (
-    event: React.FormEvent<HTMLFormElement>
-  ) => {
+  const handleVerificationSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
+    
     if (!validateVerificationInputs()) {
       return;
     }
@@ -236,16 +236,19 @@ export const SignUp: React.FC<SignUpProps> = ({ onToggleMode }) => {
     try {
       const verifyData: VerifyEmailRequest = {
         email: formData.email,
-        verificationCode: verificationCode,
+        verificationCode: verificationCode
       };
-
-      const result = await authService.verifyEmail(
-        verifyData.email,
-        verifyData.verificationCode
-      );
-
+      
+      const result = await authService.verifyEmail(verifyData.email, verifyData.verificationCode);
+      
       if (result.success) {
         setSuccess(true);
+        enqueueSnackbar('Email verified successfully! You can now sign in.', { 
+          variant: 'success',
+        });
+        setTimeout(() => {
+          onToggleMode();
+        }, 2000);
       } else {
         setError(result.error || 'Verification failed');
       }

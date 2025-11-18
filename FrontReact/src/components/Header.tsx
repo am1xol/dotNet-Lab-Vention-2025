@@ -6,12 +6,26 @@ import {
   Button,
   Box,
 } from '@mui/material';
+import { useSnackbar } from 'notistack';
 import { useAuthStore } from '../store/auth-store';
 import { useNavigate } from 'react-router-dom';
 
 const Header: React.FC = () => {
   const { isAuthenticated, logout, user } = useAuthStore();
   const navigate = useNavigate();
+  const { enqueueSnackbar } = useSnackbar();
+
+  const handleLogout = () => {
+    logout();
+    enqueueSnackbar('You have been successfully signed out', { 
+      variant: 'info',
+      anchorOrigin: {
+        vertical: 'top',
+        horizontal: 'right',
+      },
+    });
+    navigate('/');
+  };
 
   return (
     <AppBar 
@@ -95,7 +109,7 @@ const Header: React.FC = () => {
               </Typography>
               <Button
                 variant="outlined"
-                onClick={logout}
+                onClick={handleLogout}
                 sx={{
                   color: '#7E57C2',
                   borderColor: '#7E57C2',
@@ -119,45 +133,45 @@ const Header: React.FC = () => {
             <>
               <Button
                 variant="outlined"
-                onClick={() => navigate('/auth')}
+                onClick={() => navigate('/auth?form=signin')} 
                 sx={{
-                  color: '#7E57C2',
-                  borderColor: '#7E57C2',
-                  borderRadius: 2,
-                  fontWeight: 600,
-                  fontSize: '0.9rem',
-                  padding: '8px 24px',
-                  minWidth: 'auto',
-                  borderWidth: '2px',
-                  '&:hover': {
+                    color: '#7E57C2',
+                    borderColor: '#7E57C2',
+                    borderRadius: 2,
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    padding: '8px 24px',
+                    minWidth: 'auto',
+                    borderWidth: '2px',
+                    '&:hover': {
                     borderColor: '#5E35B1',
                     backgroundColor: 'rgba(126, 87, 194, 0.08)',
                     borderWidth: '2px',
-                  },
+                    },
                 }}
-              >
+                >
                 Sign In
-              </Button>
-              <Button
+                </Button>
+                <Button
                 variant="contained"
-                onClick={() => navigate('/auth')}
+                onClick={() => navigate('/auth?form=signup')}
                 sx={{
-                  background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
-                  borderRadius: 2,
-                  fontWeight: 600,
-                  fontSize: '0.9rem',
-                  padding: '8px 24px',
-                  minWidth: 'auto',
-                  boxShadow: '0 4px 15px rgba(126, 87, 194, 0.4)',
-                  border: '2px solid transparent',
-                  '&:hover': {
+                    background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                    borderRadius: 2,
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    padding: '8px 24px',
+                    minWidth: 'auto',
+                    boxShadow: '0 4px 15px rgba(126, 87, 194, 0.4)',
+                    border: '2px solid transparent',
+                    '&:hover': {
                     boxShadow: '0 6px 20px rgba(126, 87, 194, 0.5)',
                     background: 'linear-gradient(135deg, #5E35B1 0%, #7E57C2 100%)',
-                  },
+                    },
                 }}
-              >
+                >
                 Sign Up
-              </Button>
+                </Button>
             </>
           )}
         </Box>

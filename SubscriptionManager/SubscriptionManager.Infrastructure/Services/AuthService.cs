@@ -1,4 +1,5 @@
-﻿using SubscriptionManager.Core.Constants;
+﻿using Microsoft.Extensions.Logging;
+using SubscriptionManager.Core.Constants;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Models;
 using SubscriptionManager.Core.Models.Requests;
@@ -14,6 +15,7 @@ public class AuthService : IAuthService
     private readonly IEmailService _emailService;
     private readonly ITokenService _tokenService;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
+    private readonly ILogger<AuthService> _logger;
 
     public AuthService(
         IUserRepository userRepository,
@@ -21,7 +23,8 @@ public class AuthService : IAuthService
         IVerificationCodeService verificationCodeService,
         IEmailService emailService,
         ITokenService tokenService,
-        IRefreshTokenRepository refreshTokenRepository)
+        IRefreshTokenRepository refreshTokenRepository,
+        ILogger<AuthService> logger)
     {
         _userRepository = userRepository;
         _passwordHasher = passwordHasher;
@@ -29,6 +32,7 @@ public class AuthService : IAuthService
         _emailService = emailService;
         _tokenService = tokenService;
         _refreshTokenRepository = refreshTokenRepository;
+        _logger = logger;
     }
 
     public async Task<AuthResult> RegisterAsync(RegisterRequest request)
@@ -210,5 +214,67 @@ public class AuthService : IAuthService
             RefreshToken = newRefreshToken,
             AccessTokenExpiresAt = now.AddMinutes(10)
         };
+    }
+
+    public async Task<ForgotPasswordResponse> ForgotPasswordAsync(ForgotPasswordRequest request)
+    {
+        var user = await _userRepository.GetByEmailAsync(request.Email);
+        if (user == null)
+        {
+            // Для безопасности возвращаем успех даже если email не найден
+            return new ForgotPasswordResponse { Success = true, Message = "If the email exists, a reset code has been sent." };
+        }
+
+        // Генерируем 6-значный код (используем тот же подход что и для верификации email)
+        var resetCode = new Random().Next(100000, 999999).ToString();
+        var expiresAt = DateTime.UtcNow.AddHours(1); // Код действует 1 час
+
+        // Сохраняем в базу
+        user.PasswordResetToken = resetCode; // Используем код как токен для простоты
+        user.PasswordResetCode = resetCode;
+        user.PasswordResetExpiresAt = expiresAt;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _userRepository.SaveChangesAsync();
+
+        try
+        {
+            // Отправляем email с кодом
+            await _emailService.SendPasswordResetEmailAsync(user.Email, resetCode, user.FirstName);
+        }
+        catch (Exception ex)
+        {
+            // Добавляем логгер в конструктор если его нет
+            _logger.LogError(ex, "Failed to send password reset email to {Email}", user.Email);
+        }
+
+        return new ForgotPasswordResponse { Success = true, Message = "If the email exists, a reset code has been sent." };
+    }
+
+    public async Task<ForgotPasswordResponse> ResetPasswordAsync(ResetPasswordRequest request)
+    {
+        var user = await _userRepository.GetByEmailAsync(request.Email);
+        if (user == null)
+        {
+            return new ForgotPasswordResponse { Success = false, Error = "Invalid reset token" };
+        }
+
+        // Проверяем код и время
+        if (user.PasswordResetCode != request.ResetToken ||
+            user.PasswordResetExpiresAt < DateTime.UtcNow)
+        {
+            return new ForgotPasswordResponse { Success = false, Error = "Invalid or expired reset code" };
+        }
+
+        // Обновляем пароль
+        user.PasswordHash = _passwordHasher.HashPassword(request.NewPassword);
+        user.PasswordResetToken = null;
+        user.PasswordResetCode = null;
+        user.PasswordResetExpiresAt = null;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _userRepository.SaveChangesAsync();
+
+        return new ForgotPasswordResponse { Success = true, Message = "Password has been reset successfully" };
     }
 }

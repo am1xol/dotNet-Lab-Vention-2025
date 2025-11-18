@@ -38,3 +38,19 @@ export interface VerifyEmailRequest {
   email: string;
   verificationCode: string;
 }
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  email: string;
+  resetToken: string;
+  newPassword: string;
+}
+
+export interface ForgotPasswordResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+}

@@ -5,6 +5,7 @@ import {
   Typography,
   Stack,
   Card,
+  Button,
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../store/auth-store';
@@ -12,7 +13,7 @@ import Header from './Header';
 import FloatingIcons from './FloatingServiceIcons';
 
 const LandingPage: React.FC = () => {
-  useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
 
   const features = [
     { 
@@ -49,58 +50,128 @@ const LandingPage: React.FC = () => {
           justifyContent="center"
           sx={{ minHeight: '80vh', textAlign: 'center', py: 8 }}
         >
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <Typography
-              variant="h2"
-              sx={{
-                fontWeight: 800,
-                fontSize: { xs: '2.5rem', md: '3.5rem' },
-                background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                color: 'transparent',
-                mb: 2,
-              }}
+          {/* ДЛЯ АВТОРИЗОВАННЫХ ПОЛЬЗОВАТЕЛЕЙ */}
+          {isAuthenticated ? (
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
             >
-              Subscription
-            </Typography>
-            <Typography
-              variant="h2"
-              sx={{
-                fontWeight: 800,
-                fontSize: { xs: '2.5rem', md: '3.5rem' },
-                color: '#5E35B1',
-                mb: 4,
-              }}
-            >
-              Management Made Simple
-            </Typography>
-          </motion.div>
+              <Typography
+                variant="h2"
+                sx={{
+                  fontWeight: 800,
+                  fontSize: { xs: '2.5rem', md: '3.5rem' },
+                  background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                  backgroundClip: 'text',
+                  WebkitBackgroundClip: 'text',
+                  color: 'transparent',
+                  mb: 2,
+                }}
+              >
+                Welcome back!
+              </Typography>
+              <Typography
+                variant="h2"
+                sx={{
+                  fontWeight: 800,
+                  fontSize: { xs: '2.5rem', md: '3.5rem' },
+                  color: '#5E35B1',
+                  mb: 3,
+                }}
+              >
+                {user?.email}
+              </Typography>
+              
+              <Typography
+                variant="h5"
+                sx={{
+                  color: 'text.secondary',
+                  maxWidth: '600px',
+                  mb: 4,
+                  fontWeight: 400,
+                  lineHeight: 1.6,
+                }}
+              >
+                Ready to manage your subscriptions?
+              </Typography>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-          >
-            <Typography
-              variant="h6"
-              sx={{
-                color: 'text.secondary',
-                maxWidth: '600px',
-                mb: 6,
-                fontWeight: 400,
-                lineHeight: 1.6,
-                fontSize: '1.2rem',
-              }}
-            >
-              Take control of your digital subscriptions. Track, manage, and optimize 
-              all your recurring payments from one beautiful interface.
-            </Typography>
-          </motion.div>
+              <Button
+                variant="contained"
+                size="large"
+                onClick={() => {/* Позже переход в dashboard */}}
+                sx={{
+                  py: 2,
+                  px: 4,
+                  fontSize: '1.1rem',
+                  background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                  borderRadius: 3,
+                  boxShadow: '0 8px 32px rgba(126, 87, 194, 0.3)',
+                  '&:hover': {
+                    boxShadow: '0 12px 40px rgba(126, 87, 194, 0.4)',
+                  },
+                }}
+              >
+                Go to Dashboard
+              </Button>
+            </motion.div>
+          ) : (
+            /* ДЛЯ НЕАВТОРИЗОВАННЫХ ПОЛЬЗОВАТЕЛЕЙ */
+            <>
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8 }}
+              >
+                <Typography
+                  variant="h2"
+                  sx={{
+                    fontWeight: 800,
+                    fontSize: { xs: '2.5rem', md: '3.5rem' },
+                    background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                    backgroundClip: 'text',
+                    WebkitBackgroundClip: 'text',
+                    color: 'transparent',
+                    mb: 2,
+                  }}
+                >
+                  Subscription
+                </Typography>
+                <Typography
+                  variant="h2"
+                  sx={{
+                    fontWeight: 800,
+                    fontSize: { xs: '2.5rem', md: '3.5rem' },
+                    color: '#5E35B1',
+                    mb: 4,
+                  }}
+                >
+                  Management Made Simple
+                </Typography>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.2 }}
+              >
+                <Typography
+                  variant="h6"
+                  sx={{
+                    color: 'text.secondary',
+                    maxWidth: '600px',
+                    mb: 6,
+                    fontWeight: 400,
+                    lineHeight: 1.6,
+                    fontSize: '1.2rem',
+                  }}
+                >
+                  Take control of your digital subscriptions. Track, manage, and optimize 
+                  all your recurring payments from one beautiful interface.
+                </Typography>
+              </motion.div>
+            </>
+          )}
 
           <motion.div
             initial={{ opacity: 0, y: 30 }}

@@ -125,4 +125,52 @@ public class AuthController : ControllerBase
 
         return Ok(result);
     }
+
+    [HttpPost("forgot-password")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ForgotPasswordResponse>> ForgotPassword([FromBody] ForgotPasswordRequest request)
+    {
+        if (!EmailValidator.Validate(request.Email))
+        {
+            return Problem(
+                title: "Invalid email format",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var result = await _authService.ForgotPasswordAsync(request);
+
+        if (!result.Success)
+        {
+            return Problem(
+                title: result.Error,
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        return Ok(result);
+    }
+
+    [HttpPost("reset-password")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ForgotPasswordResponse>> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        if (!EmailValidator.Validate(request.Email))
+        {
+            return Problem(
+                title: "Invalid email format",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var result = await _authService.ResetPasswordAsync(request);
+
+        if (!result.Success)
+        {
+            return Problem(
+                title: result.Error,
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        return Ok(result);
+    }
 }

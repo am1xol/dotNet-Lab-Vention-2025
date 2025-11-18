@@ -45,4 +45,8 @@ public class User
     [Required]
     [StringLength(5)]
     public string Role { get; set; } = "User";
+
+    public string? PasswordResetToken { get; set; }
+    public string? PasswordResetCode { get; set; }
+    public DateTime? PasswordResetExpiresAt { get; set; }
 }

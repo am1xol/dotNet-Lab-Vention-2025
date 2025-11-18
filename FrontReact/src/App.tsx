@@ -1,35 +1,13 @@
-import { useState } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { Container, Typography, Button, AppBar, Toolbar } from '@mui/material';
-import { useAuthStore } from './store/auth-store';
+import { GlobalStyles } from '@mui/material';
+import LandingPage from './components/LandingPage';
 import { SignIn } from './components/SignIn';
 import { SignUp } from './components/SignUp';
 import { AnimatedForm } from './components/AnimatedForm';
 
-function Home() {
-  const { user, isAuthenticated, logout } = useAuthStore();
-
-  return (
-    <Container sx={{ mt: 4 }}>
-      <Typography variant="h3" gutterBottom>
-        Welcome to Subscription Manager
-      </Typography>
-      {isAuthenticated ? (
-        <div>
-          <Typography variant="h5">Hello, {user?.email}!</Typography>
-          <Button variant="outlined" onClick={logout} sx={{ mt: 2 }}>
-            Logout
-          </Button>
-        </div>
-      ) : (
-        <Typography>Please sign in or register.</Typography>
-      )}
-    </Container>
-  );
-}
-
 function AuthPages() {
-  const [isSignIn, setIsSignIn] = useState(true);
+  const [isSignIn, setIsSignIn] = React.useState(true);
 
   return (
     <AnimatedForm key={isSignIn ? 'signin' : 'signup'}>
@@ -43,22 +21,32 @@ function AuthPages() {
 }
 
 function App() {
-  const { isAuthenticated } = useAuthStore();
-
   return (
-    <Router>
-      <AppBar position="static">
-        <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Subscription Manager
-          </Typography>
-        </Toolbar>
-      </AppBar>
-
-      <Routes>
-        <Route path="/" element={isAuthenticated ? <Home /> : <AuthPages />} />
-      </Routes>
-    </Router>
+    <>
+      <GlobalStyles
+        styles={{
+          '*': {
+            boxSizing: 'border-box',
+          },
+          'html, body': {
+            margin: 0,
+            padding: 0,
+            backgroundColor: '#F5F3FF',
+            overflowX: 'hidden',
+          },
+          '#root': {
+            minHeight: '100vh',
+            backgroundColor: '#F5F3FF',
+          },
+        }}
+      />
+      <Router>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/auth" element={<AuthPages />} />
+        </Routes>
+      </Router>
+    </>
   );
 }
 

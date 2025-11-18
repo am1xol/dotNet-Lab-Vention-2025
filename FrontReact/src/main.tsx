@@ -7,6 +7,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { queryClient } from './lib/react-query';
 import theme from './theme';
 import App from './App';
+import './fonts.css';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -18,5 +19,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <ReactQueryDevtools initialIsOpen={false} />
       </ThemeProvider>
     </QueryClientProvider>
-  </React.StrictMode>
+  </React.StrictMode>,
 );

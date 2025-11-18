@@ -1,0 +1,23 @@
+@font-face {
+  font-family: 'Klavika Basic';
+  src: url('/fonts/klavika-bold.otf') format('opentype'),
+       url('/fonts/klavika-bold.woff2') format('woff2'),
+       url('/fonts/klavika-bold.woff') format('woff'),
+       url('/fonts/klavika-bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Klavika Basic Fallback';
+  src: local('Arial Bold'), local('Helvetica Bold');
+  font-weight: 700;
+  ascent-override: 85%;
+  descent-override: 15%;
+  line-gap-override: 0%;
+}
+
+* {
+  font-family: 'Klavika Basic', 'Klavika Basic Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+}

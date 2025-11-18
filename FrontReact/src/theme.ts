@@ -1,6 +1,74 @@
 import { createTheme } from '@mui/material/styles';
 
 const theme = createTheme({
+  typography: {
+    fontFamily: '"Klavika Basic", "Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+    h1: {
+      fontWeight: 700,
+      fontSize: '3.5rem',
+      lineHeight: 1.2,
+    },
+    h2: {
+      fontWeight: 700,
+      fontSize: '3rem',
+      lineHeight: 1.3,
+    },
+    h3: {
+      fontWeight: 700,
+      fontSize: '2.5rem',
+      lineHeight: 1.3,
+    },
+    h4: {
+      fontWeight: 700,
+      fontSize: '2rem',
+      lineHeight: 1.4,
+    },
+    h5: {
+      fontWeight: 700,
+      fontSize: '1.5rem',
+      lineHeight: 1.4,
+    },
+    h6: {
+      fontWeight: 700,
+      fontSize: '1.25rem',
+      lineHeight: 1.4,
+    },
+    subtitle1: {
+      fontWeight: 700,
+      fontSize: '1rem',
+      lineHeight: 1.5,
+    },
+    subtitle2: {
+      fontWeight: 700,
+      fontSize: '0.875rem',
+      lineHeight: 1.5,
+    },
+    body1: {
+      fontWeight: 700,
+      fontSize: '1rem',
+      lineHeight: 1.5,
+    },
+    body2: {
+      fontWeight: 700,
+      fontSize: '0.875rem',
+      lineHeight: 1.5,
+    },
+    button: {
+      fontWeight: 700,
+      textTransform: 'none',
+    },
+    caption: {
+      fontWeight: 700,
+      fontSize: '0.75rem',
+      lineHeight: 1.5,
+    },
+    overline: {
+      fontWeight: 700,
+      fontSize: '0.75rem',
+      lineHeight: 1.5,
+      textTransform: 'uppercase',
+    },
+  },
   palette: {
     primary: {
       main: '#7E57C2',
@@ -19,16 +87,6 @@ const theme = createTheme({
       paper: '#FFFFFF',
     },
   },
-  typography: {
-    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-    h4: {
-      fontWeight: 700,
-      color: '#5E35B1',
-    },
-    h5: {
-      fontWeight: 600,
-    },
-  },
   shape: {
     borderRadius: 16,
   },
@@ -38,7 +96,7 @@ const theme = createTheme({
         root: {
           borderRadius: 12,
           textTransform: 'none',
-          fontWeight: 600,
+          fontWeight: 700,
           padding: '12px 24px',
           boxShadow: '0 4px 14px 0 rgba(126, 87, 194, 0.2)',
           '&:hover': {
@@ -82,8 +140,15 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           color: '#5E35B1',
-          fontWeight: 600,
+          fontWeight: 700,
           marginBottom: '8px',
+        },
+      },
+    },
+    MuiTypography: {
+      styleOverrides: {
+        root: {
+          fontFamily: '"Klavika Basic", "Inter", "Roboto", "Helvetica", "Arial", sans-serif',
         },
       },
     },

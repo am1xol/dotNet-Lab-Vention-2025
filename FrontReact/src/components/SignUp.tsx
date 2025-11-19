@@ -167,7 +167,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onToggleMode }) => {
     if (!formData.password || formData.password.length < 6) {
       setPasswordError(true);
       setPasswordErrorMessage(
-        'Password must contain uppercase and lowercase letters, as well as numbers.'
+        'The password must contain numbers, uppercase and lowercase letters.'
       );
       isValid = false;
     }

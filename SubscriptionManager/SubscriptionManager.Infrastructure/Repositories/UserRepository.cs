@@ -47,10 +47,15 @@ public class UserRepository : IUserRepository
             .FirstOrDefaultAsync(u => u.RefreshToken == refreshToken);
     }
 
-    public Task UpdateAsync(User user)
+    public async Task UpdateAsync(User user)
     {
         _context.Users.Update(user);
-        return Task.CompletedTask;
+        await _context.SaveChangesAsync();
+    }
+    public async Task<bool> IsEmailTakenAsync(string email, Guid excludeUserId)
+    {
+        return await _context.Users
+            .AnyAsync(u => u.Email == email && u.Id != excludeUserId);
     }
 
     public async Task<User?> GetByIdAsync(Guid id)

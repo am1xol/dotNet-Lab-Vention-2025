@@ -221,16 +221,13 @@ public class AuthService : IAuthService
         var user = await _userRepository.GetByEmailAsync(request.Email);
         if (user == null)
         {
-            // Для безопасности возвращаем успех даже если email не найден
             return new ForgotPasswordResponse { Success = true, Message = "If the email exists, a reset code has been sent." };
         }
 
-        // Генерируем 6-значный код (используем тот же подход что и для верификации email)
         var resetCode = new Random().Next(100000, 999999).ToString();
-        var expiresAt = DateTime.UtcNow.AddHours(1); // Код действует 1 час
+        var expiresAt = DateTime.UtcNow.AddHours(1);
 
-        // Сохраняем в базу
-        user.PasswordResetToken = resetCode; // Используем код как токен для простоты
+        user.PasswordResetToken = resetCode;
         user.PasswordResetCode = resetCode;
         user.PasswordResetExpiresAt = expiresAt;
         user.UpdatedAt = DateTime.UtcNow;
@@ -239,12 +236,10 @@ public class AuthService : IAuthService
 
         try
         {
-            // Отправляем email с кодом
             await _emailService.SendPasswordResetEmailAsync(user.Email, resetCode, user.FirstName);
         }
         catch (Exception ex)
         {
-            // Добавляем логгер в конструктор если его нет
             _logger.LogError(ex, "Failed to send password reset email to {Email}", user.Email);
         }
 
@@ -259,14 +254,12 @@ public class AuthService : IAuthService
             return new ForgotPasswordResponse { Success = false, Error = "Invalid reset token" };
         }
 
-        // Проверяем код и время
         if (user.PasswordResetCode != request.ResetToken ||
             user.PasswordResetExpiresAt < DateTime.UtcNow)
         {
             return new ForgotPasswordResponse { Success = false, Error = "Invalid or expired reset code" };
         }
 
-        // Обновляем пароль
         user.PasswordHash = _passwordHasher.HashPassword(request.NewPassword);
         user.PasswordResetToken = null;
         user.PasswordResetCode = null;

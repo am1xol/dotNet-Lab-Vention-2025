@@ -109,7 +109,7 @@ const Header: React.FC = () => {
               </Typography>
               <Button
                 variant="outlined"
-                onClick={handleLogout}
+                onClick={() => navigate('/profile')}
                 sx={{
                   color: '#7E57C2',
                   borderColor: '#7E57C2',
@@ -117,6 +117,27 @@ const Header: React.FC = () => {
                   fontWeight: 600,
                   fontSize: '0.9rem',
                   padding: '8px 20px',
+                  minWidth: 'auto',
+                  borderWidth: '2px',
+                  '&:hover': {
+                    borderColor: '#5E35B1',
+                    backgroundColor: 'rgba(126, 87, 194, 0.08)',
+                    borderWidth: '2px',
+                  },
+                }}
+              >
+                Profile
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={handleLogout}
+                sx={{
+                  color: '#7E57C2',
+                  borderColor: '#7E57C2',
+                  borderRadius: 2,
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                  padding: '6px 16px',
                   minWidth: 'auto',
                   borderWidth: '2px',
                   '&:hover': {

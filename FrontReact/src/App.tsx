@@ -7,6 +7,7 @@ import { SignUp } from './components/SignUp';
 import { ForgotPasswordForm } from './components/ForgotPasswordForm';
 import { ResetPasswordForm } from './components/ResetPasswordForm';
 import { AnimatedForm } from './components/AnimatedForm';
+import { UserProfile } from './components/UserProfile';
 
 type AuthPage = 'signin' | 'signup' | 'forgot-password' | 'reset-password';
 
@@ -85,6 +86,7 @@ function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/auth" element={<AuthPages />} />
+          <Route path="/profile" element={<UserProfile />} />
         </Routes>
       </Router>
     </>

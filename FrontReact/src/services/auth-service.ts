@@ -1,4 +1,6 @@
-import axios from 'axios';
+import api from './api';
+import { useAuthStore } from '../store/auth-store';
+import { userService } from './user-service';
 import {
   RegisterRequest,
   LoginRequest,
@@ -13,14 +15,33 @@ import {
 const API_BASE_URL = 'http://localhost:8080/api';
 
 export const authService = {
-  async register(data: RegisterRequest): Promise<AuthResult> {
-    const response = await axios.post(`${API_BASE_URL}/auth/register`, data);
-    return response.data as AuthResult;
+  async login(data: LoginRequest): Promise<LoginResponse> {
+    const response = await api.post(`${API_BASE_URL}/auth/login`, data);
+    const result = response.data as LoginResponse;
+    
+    if (result.success && result.accessToken && result.refreshToken) {
+      useAuthStore.getState().login(
+        null, 
+        {
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken
+        }
+      );
+      
+      try {
+        const userProfile = await userService.getProfile();
+        useAuthStore.getState().setUser(userProfile);
+      } catch (error) {
+        console.error('Failed to fetch user profile:', error);
+      }
+    }
+    
+    return result;
   },
 
-  async login(data: LoginRequest): Promise<LoginResponse> {
-    const response = await axios.post(`${API_BASE_URL}/auth/login`, data);
-    return response.data as LoginResponse;
+  async register(data: RegisterRequest): Promise<AuthResult> {
+    const response = await api.post(`${API_BASE_URL}/auth/register`, data);
+    return response.data as AuthResult;
   },
 
   async verifyEmail(
@@ -31,7 +52,7 @@ export const authService = {
       email,
       verificationCode,
     };
-    const response = await axios.post(
+    const response = await api.post(
       `${API_BASE_URL}/auth/verify-email`,
       verifyData
     );
@@ -40,12 +61,12 @@ export const authService = {
 
   async forgotPassword(email: string): Promise<ForgotPasswordResponse> {
     const data: ForgotPasswordRequest = { email };
-    const response = await axios.post(`${API_BASE_URL}/auth/forgot-password`, data);
+    const response = await api.post(`${API_BASE_URL}/auth/forgot-password`, data);
     return response.data as ForgotPasswordResponse;
   },
 
   async resetPassword(data: ResetPasswordRequest): Promise<ForgotPasswordResponse> {
-    const response = await axios.post(`${API_BASE_URL}/auth/reset-password`, data);
+    const response = await api.post(`${API_BASE_URL}/auth/reset-password`, data);
     return response.data as ForgotPasswordResponse;
   },
 };

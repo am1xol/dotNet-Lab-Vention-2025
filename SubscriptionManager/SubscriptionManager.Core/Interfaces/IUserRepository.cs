@@ -16,4 +16,5 @@ public interface IUserRepository
     Task AddAsync(User user);
     Task SaveChangesAsync();
     Task UpdateAsync(User user);
+    Task<bool> IsEmailTakenAsync(string email, Guid excludeUserId);
 }

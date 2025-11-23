@@ -25,9 +25,10 @@ namespace SubscriptionManager.Tests
                 IsEmailVerified = true,
                 CreatedAt = DateTime.UtcNow
             };
-
+            
             var userRepository = new TestUserRepository(user);
-            var controller = new UsersController(userRepository, null!);
+            var mockLogger = new Mock<ILogger<UsersController>>();
+            var controller = new UsersController(userRepository, null!, mockLogger.Object);
 
             var claims = new[]
             {
@@ -56,7 +57,8 @@ namespace SubscriptionManager.Tests
         public async Task GetCurrentUser_WithoutUserIdClaim_ReturnsUnauthorized()
         {
             var userRepository = new TestUserRepository(null!);
-            var controller = new UsersController(userRepository, null!);
+            var mockLogger = new Mock<ILogger<UsersController>>();
+            var controller = new UsersController(userRepository, null!, mockLogger.Object);
 
             var claims = new Claim[] { };
             var identity = new ClaimsIdentity(claims, "Test");
@@ -76,7 +78,8 @@ namespace SubscriptionManager.Tests
         public async Task GetCurrentUser_WithInvalidUserId_ReturnsUnauthorized()
         {
             var userRepository = new TestUserRepository(null!);
-            var controller = new UsersController(userRepository, null!);
+            var mockLogger = new Mock<ILogger<UsersController>>();
+            var controller = new UsersController(userRepository, null!, mockLogger.Object);
 
             var claims = new[]
             {
@@ -100,7 +103,8 @@ namespace SubscriptionManager.Tests
         {
             var userId = Guid.NewGuid();
             var userRepository = new TestUserRepository(null!);
-            var controller = new UsersController(userRepository, null!);
+            var mockLogger = new Mock<ILogger<UsersController>>();
+            var controller = new UsersController(userRepository, null!, mockLogger.Object);
 
             var claims = new[]
             {
@@ -132,6 +136,10 @@ namespace SubscriptionManager.Tests
             public Task<User?> GetByEmailAsync(string email) => Task.FromResult<User?>(null);
             public Task<User?> GetByRefreshTokenAsync(string refreshToken) => Task.FromResult<User?>(null);
             public Task<bool> ExistsByEmailAsync(string email) => Task.FromResult(false);
+            public Task<bool> IsEmailTakenAsync(string email, Guid excludeUserId)
+            {
+                return Task.FromResult(false);
+            }
             public Task AddAsync(User user) => Task.CompletedTask;
             public Task UpdateAsync(User user) => Task.CompletedTask;
             public Task SaveChangesAsync() => Task.CompletedTask;

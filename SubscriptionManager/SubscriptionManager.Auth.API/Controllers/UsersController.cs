@@ -58,7 +58,8 @@ namespace SubscriptionManager.Auth.API.Controllers
                 FirstName = user.FirstName,
                 LastName = user.LastName,
                 IsEmailVerified = user.IsEmailVerified,
-                CreatedAt = user.CreatedAt
+                CreatedAt = user.CreatedAt,
+                Role = user.Role
             };
 
             return Ok(response);

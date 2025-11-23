@@ -1,11 +1,6 @@
-export interface UserProfile {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  isEmailVerified: boolean;
-  createdAt: string;
-}
+import { User } from './auth';
+
+export type UserProfile = User;
 
 export interface UpdateProfileRequest {
   firstName: string;

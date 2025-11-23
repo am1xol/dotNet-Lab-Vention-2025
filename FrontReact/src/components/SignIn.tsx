@@ -16,7 +16,7 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import { useAuthStore } from '../store/auth-store';
+
 import { authService } from '../services/auth-service';
 import { LoginRequest } from '../types/auth';
 import { useSnackbar } from 'notistack';
@@ -104,7 +104,10 @@ interface SignInProps {
   onShowForgotPassword: () => void;
 }
 
-export const SignIn: React.FC<SignInProps> = ({ onToggleMode, onShowForgotPassword }) => {
+export const SignIn: React.FC<SignInProps> = ({
+  onToggleMode,
+  onShowForgotPassword,
+}) => {
   const [formData, setFormData] = useState<LoginRequest>({
     email: '',
     password: '',
@@ -116,7 +119,6 @@ export const SignIn: React.FC<SignInProps> = ({ onToggleMode, onShowForgotPasswo
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
 
-  const login = useAuthStore((state) => state.login);
   const { enqueueSnackbar } = useSnackbar();
   const navigate = useNavigate();
 
@@ -156,7 +158,7 @@ export const SignIn: React.FC<SignInProps> = ({ onToggleMode, onShowForgotPasswo
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    
+
     if (!validateInputs()) {
       return;
     }
@@ -166,29 +168,19 @@ export const SignIn: React.FC<SignInProps> = ({ onToggleMode, onShowForgotPasswo
 
     try {
       const result = await authService.login(formData);
-      
-      if (result.success && result.accessToken && result.refreshToken) {
-        const userData = {
-          email: formData.email,
-        };
-        
-        login(userData, {
-          accessToken: result.accessToken,
-          refreshToken: result.refreshToken
-        });
-        
-        enqueueSnackbar('Successfully signed in!', { 
+
+      if (result.success) {
+        enqueueSnackbar('Successfully signed in!', {
           variant: 'success',
           anchorOrigin: {
             vertical: 'top',
             horizontal: 'right',
           },
         });
-        
+
         setTimeout(() => {
-          navigate('/');
+          navigate('/dashboard');
         }, 1000);
-        
       } else {
         setError(result.error || 'Login failed');
       }
@@ -320,7 +312,7 @@ export const SignIn: React.FC<SignInProps> = ({ onToggleMode, onShowForgotPasswo
               type="button"
               onClick={onShowForgotPassword}
               variant="body2"
-              sx={{ 
+              sx={{
                 color: '#7E57C2',
                 fontWeight: 600,
                 textDecoration: 'none',

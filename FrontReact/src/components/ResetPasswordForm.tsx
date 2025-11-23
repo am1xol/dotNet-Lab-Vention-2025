@@ -85,14 +85,14 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
   const [resetToken, setResetToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  
+
   const [resetTokenError, setResetTokenError] = useState(false);
   const [passwordError, setPasswordError] = useState(false);
   const [confirmPasswordError, setConfirmPasswordError] = useState(false);
-  
+
   const [resetTokenErrorMessage, setResetTokenErrorMessage] = useState('');
   const [passwordErrorMessage, setPasswordErrorMessage] = useState('');
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState(false);
@@ -111,7 +111,9 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
     setError('');
   };
 
-  const handleConfirmPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleConfirmPasswordChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     setConfirmPassword(e.target.value);
     setConfirmPasswordError(false);
     setError('');
@@ -122,7 +124,9 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
 
     if (!resetToken || resetToken.length !== 6) {
       setResetTokenError(true);
-      setResetTokenErrorMessage('Please enter the 6-digit code from your email.');
+      setResetTokenErrorMessage(
+        'Please enter the 6-digit code from your email.'
+      );
       isValid = false;
     }
 
@@ -143,7 +147,7 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -157,7 +161,7 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
         resetToken,
         newPassword,
       });
-      
+
       if (result.success) {
         setSuccess(true);
       } else {
@@ -189,8 +193,8 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
             <Typography
               component="h1"
               variant="h4"
-              sx={{ 
-                textAlign: 'center', 
+              sx={{
+                textAlign: 'center',
                 mb: 2,
                 background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
                 backgroundClip: 'text',
@@ -201,14 +205,15 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
               Password Reset!
             </Typography>
 
-            <Alert 
-              severity="success" 
-              sx={{ 
+            <Alert
+              severity="success"
+              sx={{
                 mb: 3,
                 borderRadius: 3,
               }}
             >
-              Your password has been reset successfully. You can now sign in with your new password.
+              Your password has been reset successfully. You can now sign in
+              with your new password.
             </Alert>
 
             <Button
@@ -243,8 +248,8 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
         <Typography
           component="h1"
           variant="h4"
-          sx={{ 
-            textAlign: 'center', 
+          sx={{
+            textAlign: 'center',
             mb: 1,
             background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
             backgroundClip: 'text',
@@ -255,14 +260,18 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
           Create New Password
         </Typography>
 
-        <Typography variant="body1" sx={{ textAlign: 'center', color: 'text.secondary', mb: 3 }}>
-          Enter the 6-digit code sent to <strong>{email}</strong> and your new password.
+        <Typography
+          variant="body1"
+          sx={{ textAlign: 'center', color: 'text.secondary', mb: 3 }}
+        >
+          Enter the 6-digit code sent to <strong>{email}</strong> and your new
+          password.
         </Typography>
 
         {error && (
-          <Alert 
-            severity="error" 
-            sx={{ 
+          <Alert
+            severity="error"
+            sx={{
               mb: 2,
               borderRadius: 3,
             }}
@@ -365,7 +374,7 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
             type="button"
             onClick={onBackToForgotPassword}
             variant="body2"
-            sx={{ 
+            sx={{
               color: '#7E57C2',
               fontWeight: 600,
               textDecoration: 'none',
@@ -381,7 +390,7 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
             type="button"
             onClick={onBackToSignIn}
             variant="body2"
-            sx={{ 
+            sx={{
               color: '#7E57C2',
               fontWeight: 600,
               textDecoration: 'none',

@@ -105,7 +105,7 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    
+
     if (!validateEmail()) {
       return;
     }
@@ -115,7 +115,7 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
 
     try {
       const result = await authService.forgotPassword(email);
-      
+
       if (result.success) {
         setSuccess(true);
         setTimeout(() => onShowResetForm(email), 2000);
@@ -148,8 +148,8 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
             <Typography
               component="h1"
               variant="h4"
-              sx={{ 
-                textAlign: 'center', 
+              sx={{
+                textAlign: 'center',
                 mb: 2,
                 background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
                 backgroundClip: 'text',
@@ -160,18 +160,21 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
               Check Your Email
             </Typography>
 
-            <Alert 
-              severity="success" 
-              sx={{ 
+            <Alert
+              severity="success"
+              sx={{
                 mb: 3,
                 borderRadius: 3,
               }}
             >
-              We sent a password reset code to <strong>{email}</strong>. 
-              Please check your email and enter the code on the next screen.
+              We sent a password reset code to <strong>{email}</strong>. Please
+              check your email and enter the code on the next screen.
             </Alert>
 
-            <Typography variant="body2" sx={{ textAlign: 'center', color: 'text.secondary', mb: 3 }}>
+            <Typography
+              variant="body2"
+              sx={{ textAlign: 'center', color: 'text.secondary', mb: 3 }}
+            >
               Redirecting to reset form...
             </Typography>
           </motion.div>
@@ -193,8 +196,8 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
         <Typography
           component="h1"
           variant="h4"
-          sx={{ 
-            textAlign: 'center', 
+          sx={{
+            textAlign: 'center',
             mb: 1,
             background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
             backgroundClip: 'text',
@@ -205,14 +208,18 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
           Reset Password
         </Typography>
 
-        <Typography variant="body1" sx={{ textAlign: 'center', color: 'text.secondary', mb: 3 }}>
-          Enter your email address and we'll send you a code to reset your password.
+        <Typography
+          variant="body1"
+          sx={{ textAlign: 'center', color: 'text.secondary', mb: 3 }}
+        >
+          Enter your email address and we'll send you a code to reset your
+          password.
         </Typography>
 
         {error && (
-          <Alert 
-            severity="error" 
-            sx={{ 
+          <Alert
+            severity="error"
+            sx={{
               mb: 2,
               borderRadius: 3,
             }}
@@ -274,7 +281,7 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
             type="button"
             onClick={onBackToSignIn}
             variant="body2"
-            sx={{ 
+            sx={{
               color: '#7E57C2',
               fontWeight: 600,
               textDecoration: 'none',

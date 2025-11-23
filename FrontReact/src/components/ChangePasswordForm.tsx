@@ -46,7 +46,7 @@ export const ChangePasswordForm: React.FC = () => {
         currentPassword: formData.currentPassword,
         newPassword: formData.newPassword,
       });
-      
+
       enqueueSnackbar('Password changed successfully!', { variant: 'success' });
       setFormData({
         currentPassword: '',
@@ -62,7 +62,10 @@ export const ChangePasswordForm: React.FC = () => {
 
   return (
     <Card sx={{ p: 4 }}>
-      <Typography variant="h5" sx={{ mb: 3, color: '#7E57C2', fontWeight: 600 }}>
+      <Typography
+        variant="h5"
+        sx={{ mb: 3, color: '#7E57C2', fontWeight: 600 }}
+      >
         Change Password
       </Typography>
 

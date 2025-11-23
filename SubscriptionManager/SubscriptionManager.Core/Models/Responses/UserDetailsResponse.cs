@@ -14,4 +14,5 @@ public class UserDetailsResponse
     public string LastName { get; set; } = string.Empty;
     public bool IsEmailVerified { get; set; }
     public DateTime CreatedAt { get; set; }
+    public string Role { get; set; } = "User";
 }

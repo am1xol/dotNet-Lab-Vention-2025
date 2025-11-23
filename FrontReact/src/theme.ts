@@ -2,7 +2,8 @@ import { createTheme } from '@mui/material/styles';
 
 const theme = createTheme({
   typography: {
-    fontFamily: '"Klavika Basic", "Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+    fontFamily:
+      '"Klavika Basic", "Inter", "Roboto", "Helvetica", "Arial", sans-serif',
     h1: {
       fontWeight: 700,
       fontSize: '3.5rem',
@@ -148,7 +149,8 @@ const theme = createTheme({
     MuiTypography: {
       styleOverrides: {
         root: {
-          fontFamily: '"Klavika Basic", "Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+          fontFamily:
+            '"Klavika Basic", "Inter", "Roboto", "Helvetica", "Arial", sans-serif',
         },
       },
     },

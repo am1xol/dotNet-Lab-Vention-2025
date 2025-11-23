@@ -11,23 +11,21 @@ import {
   ForgotPasswordResponse,
   ResetPasswordRequest,
 } from '../types/auth';
+import { UserProfile } from '../types/user';
 
 const API_BASE_URL = 'http://localhost:8080/api';
 
 export const authService = {
   async login(data: LoginRequest): Promise<LoginResponse> {
-    const response = await api.post(`${API_BASE_URL}/auth/login`, data);
+    const response = await api.post(`${API_BASE_URL}/Auth/login`, data);
     const result = response.data as LoginResponse;
-    
+
     if (result.success && result.accessToken && result.refreshToken) {
-      useAuthStore.getState().login(
-        null, 
-        {
-          accessToken: result.accessToken,
-          refreshToken: result.refreshToken
-        }
-      );
-      
+      useAuthStore.getState().login({} as UserProfile, {
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      });
+
       try {
         const userProfile = await userService.getProfile();
         useAuthStore.getState().setUser(userProfile);
@@ -35,12 +33,12 @@ export const authService = {
         console.error('Failed to fetch user profile:', error);
       }
     }
-    
+
     return result;
   },
 
   async register(data: RegisterRequest): Promise<AuthResult> {
-    const response = await api.post(`${API_BASE_URL}/auth/register`, data);
+    const response = await api.post(`${API_BASE_URL}/Auth/register`, data);
     return response.data as AuthResult;
   },
 
@@ -53,7 +51,7 @@ export const authService = {
       verificationCode,
     };
     const response = await api.post(
-      `${API_BASE_URL}/auth/verify-email`,
+      `${API_BASE_URL}/Auth/verify-email`,
       verifyData
     );
     return response.data as AuthResult;
@@ -61,12 +59,20 @@ export const authService = {
 
   async forgotPassword(email: string): Promise<ForgotPasswordResponse> {
     const data: ForgotPasswordRequest = { email };
-    const response = await api.post(`${API_BASE_URL}/auth/forgot-password`, data);
+    const response = await api.post(
+      `${API_BASE_URL}/Auth/forgot-password`,
+      data
+    );
     return response.data as ForgotPasswordResponse;
   },
 
-  async resetPassword(data: ResetPasswordRequest): Promise<ForgotPasswordResponse> {
-    const response = await api.post(`${API_BASE_URL}/auth/reset-password`, data);
+  async resetPassword(
+    data: ResetPasswordRequest
+  ): Promise<ForgotPasswordResponse> {
+    const response = await api.post(
+      `${API_BASE_URL}/Auth/reset-password`,
+      data
+    );
     return response.data as ForgotPasswordResponse;
   },
 };

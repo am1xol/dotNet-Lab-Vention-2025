@@ -60,7 +60,8 @@ export const UserProfile: React.FC = () => {
       <Box
         sx={{
           minHeight: '100vh',
-          background: 'linear-gradient(135deg, #F5F3FF 0%, #EDE7F6 50%, #E8EAF6 100%)',
+          background:
+            'linear-gradient(135deg, #F5F3FF 0%, #EDE7F6 50%, #E8EAF6 100%)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -76,7 +77,8 @@ export const UserProfile: React.FC = () => {
       <Box
         sx={{
           minHeight: '100vh',
-          background: 'linear-gradient(135deg, #F5F3FF 0%, #EDE7F6 50%, #E8EAF6 100%)',
+          background:
+            'linear-gradient(135deg, #F5F3FF 0%, #EDE7F6 50%, #E8EAF6 100%)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -93,13 +95,14 @@ export const UserProfile: React.FC = () => {
     <Box
       sx={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #F5F3FF 0%, #EDE7F6 50%, #E8EAF6 100%)',
+        background:
+          'linear-gradient(135deg, #F5F3FF 0%, #EDE7F6 50%, #E8EAF6 100%)',
         position: 'relative',
         overflow: 'hidden',
       }}
     >
       <FloatingIcons />
-      
+
       <Header />
 
       <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1, py: 4 }}>
@@ -109,10 +112,27 @@ export const UserProfile: React.FC = () => {
           transition={{ duration: 0.6 }}
         >
           {/* Header */}
-          <Card sx={{ p: 4, mb: 4, background: 'rgba(255, 255, 255, 0.7)', backdropFilter: 'blur(20px)' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+          <Card
+            sx={{
+              p: 4,
+              mb: 4,
+              background: 'rgba(255, 255, 255, 0.7)',
+              backdropFilter: 'blur(20px)',
+            }}
+          >
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                mb: 3,
+              }}
+            >
               <Box>
-                <Typography variant="h3" sx={{ color: '#7E57C2', fontWeight: 700, mb: 1 }}>
+                <Typography
+                  variant="h3"
+                  sx={{ color: '#7E57C2', fontWeight: 700, mb: 1 }}
+                >
                   Profile Settings
                 </Typography>
                 <Typography variant="h6" sx={{ color: 'text.secondary' }}>
@@ -134,7 +154,13 @@ export const UserProfile: React.FC = () => {
 
             {/* User Info */}
             <Stack spacing={2} sx={{ mt: 3 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
                 <Typography variant="body1" sx={{ fontWeight: 600 }}>
                   Account Created:
                 </Typography>
@@ -142,15 +168,23 @@ export const UserProfile: React.FC = () => {
                   {formatDate(user.createdAt)}
                 </Typography>
               </Box>
-              
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
                 <Typography variant="body1" sx={{ fontWeight: 600 }}>
                   Email Status:
                 </Typography>
-                <Typography 
-                  variant="body1" 
-                  sx={{ 
-                    color: user.isEmailVerified ? 'success.main' : 'warning.main',
+                <Typography
+                  variant="body1"
+                  sx={{
+                    color: user.isEmailVerified
+                      ? 'success.main'
+                      : 'warning.main',
                     fontWeight: 600,
                   }}
                 >

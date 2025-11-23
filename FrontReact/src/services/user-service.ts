@@ -1,18 +1,25 @@
 import api from './api';
-import { UserProfile, UpdateProfileRequest, ChangePasswordRequest, ChangePasswordResponse } from '../types/user';
+import { User } from '../types/auth';
+import {
+  UpdateProfileRequest,
+  ChangePasswordRequest,
+  ChangePasswordResponse,
+} from '../types/user';
 
 export const userService = {
-  async getProfile(): Promise<UserProfile> {
+  async getProfile(): Promise<User> {
     const response = await api.get(`/me`);
-    return response.data as UserProfile;
+    return response.data as User;
   },
 
-  async updateProfile(data: UpdateProfileRequest): Promise<UserProfile> {
+  async updateProfile(data: UpdateProfileRequest): Promise<User> {
     const response = await api.put(`/profile`, data);
-    return response.data as UserProfile;
+    return response.data as User;
   },
 
-  async changePassword(data: ChangePasswordRequest): Promise<ChangePasswordResponse> {
+  async changePassword(
+    data: ChangePasswordRequest
+  ): Promise<ChangePasswordResponse> {
     const response = await api.put(`/change-password`, data);
     return response.data as ChangePasswordResponse;
   },

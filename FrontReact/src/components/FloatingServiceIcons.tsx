@@ -16,8 +16,8 @@ const generatePositions = (count: number) => {
   const positions = [];
   for (let i = 0; i < count; i++) {
     positions.push({
-      x: `${10 + (i * 14) % 75}%`,
-      y: `${15 + (i * 18) % 65}%`,
+      x: `${10 + ((i * 14) % 75)}%`,
+      y: `${15 + ((i * 18) % 65)}%`,
       rotation: -8 + Math.random() * 16,
     });
   }
@@ -49,7 +49,6 @@ const FloatingServiceIcons: React.FC = () => {
         zIndex: 0,
       }}
     >
-
       {/* Фоновые кружки */}
       {backgroundCircles.map((circle, index) => (
         <Box
@@ -68,11 +67,10 @@ const FloatingServiceIcons: React.FC = () => {
         />
       ))}
 
-
       {/* Иконки сервисов */}
       {services.map((service, index) => {
         const position = positions[index];
-        
+
         return (
           <motion.div
             key={service.name}
@@ -82,56 +80,47 @@ const FloatingServiceIcons: React.FC = () => {
               height: `${service.size}px`,
               left: position.x,
               top: position.y,
-              opacity: 0.75, 
+              opacity: 0.75,
               filter: 'drop-shadow(0 10px 30px rgba(0,0,0,0.5))',
               transform: `rotate(${position.rotation}deg)`,
-              zIndex: 1, 
+              zIndex: 1,
             }}
             initial={{
               y: 0,
               rotateZ: position.rotation,
             }}
             animate={{
-              y: [
-                0,
-                -25,
-                0,
-                15,  
-                0
-              ],
+              y: [0, -25, 0, 15, 0],
               rotateZ: [
                 position.rotation,
                 position.rotation - 3,
                 position.rotation + 2,
-                position.rotation
+                position.rotation,
               ],
-              scale: [
-                1,
-                1.08,
-                1,
-                0.96, 
-                1
-              ],
+              scale: [1, 1.08, 1, 0.96, 1],
             }}
             transition={{
               duration: 7 + index * 0.8,
               repeat: Infinity,
               repeatType: 'reverse',
-              ease: "easeInOut",
+              ease: 'easeInOut',
               times: [0, 0.3, 0.6, 0.8, 1],
             }}
           >
-            {<img
-              src={`/icons/${service.name.toLowerCase().replace(' ', '-')}.png`}
-              alt={service.name}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'contain',
-                filter: 'brightness(1.15) contrast(1.15) drop-shadow(0 8px 16px rgba(0,0,0,0.5))',
-                borderRadius: '12px',
-              }}
-            /> }
+            {
+              <img
+                src={`/icons/${service.name.toLowerCase().replace(' ', '-')}.png`}
+                alt={service.name}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  filter:
+                    'brightness(1.15) contrast(1.15) drop-shadow(0 8px 16px rgba(0,0,0,0.5))',
+                  borderRadius: '12px',
+                }}
+              />
+            }
           </motion.div>
         );
       })}
@@ -144,7 +133,8 @@ const FloatingServiceIcons: React.FC = () => {
           width: '60px',
           height: '60px',
           borderRadius: '50%',
-          background: 'linear-gradient(135deg, rgba(126, 87, 194, 0.1), rgba(179, 157, 219, 0.05))',
+          background:
+            'linear-gradient(135deg, rgba(126, 87, 194, 0.1), rgba(179, 157, 219, 0.05))',
           filter: 'blur(15px)',
           opacity: 0.6,
         }}
@@ -157,7 +147,8 @@ const FloatingServiceIcons: React.FC = () => {
           width: '80px',
           height: '80px',
           borderRadius: '50%',
-          background: 'linear-gradient(135deg, rgba(206, 147, 216, 0.08), rgba(126, 87, 194, 0.12))',
+          background:
+            'linear-gradient(135deg, rgba(206, 147, 216, 0.08), rgba(126, 87, 194, 0.12))',
           filter: 'blur(20px)',
           opacity: 0.5,
         }}

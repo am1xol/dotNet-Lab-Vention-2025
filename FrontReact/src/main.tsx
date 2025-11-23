@@ -15,7 +15,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <ThemeProvider theme={theme}>
-        <SnackbarProvider 
+        <SnackbarProvider
           maxSnack={3}
           anchorOrigin={{
             vertical: 'top',
@@ -29,5 +29,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         </SnackbarProvider>
       </ThemeProvider>
     </QueryClientProvider>
-  </React.StrictMode>,
+  </React.StrictMode>
 );

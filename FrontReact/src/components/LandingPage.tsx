@@ -1,32 +1,28 @@
 import React from 'react';
-import {
-  Box,
-  Container,
-  Typography,
-  Stack,
-  Card,
-  Button,
-} from '@mui/material';
+import { Box, Container, Typography, Stack, Card, Button } from '@mui/material';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../store/auth-store';
 import Header from './Header';
 import FloatingIcons from './FloatingServiceIcons';
+import { useNavigate } from 'react-router-dom';
 
 const LandingPage: React.FC = () => {
   const { isAuthenticated, user } = useAuthStore();
+  const navigate = useNavigate();
 
   const features = [
-    { 
-      title: 'Centralized Management', 
-      description: 'Manage all your subscriptions in one convenient dashboard' 
+    {
+      title: 'Centralized Management',
+      description: 'Manage all your subscriptions in one convenient dashboard',
     },
-    { 
-      title: 'Cost Tracking', 
-      description: 'Monitor your spending and optimize your subscription budget' 
+    {
+      title: 'Cost Tracking',
+      description:
+        'Monitor your spending and optimize your subscription budget',
     },
-    { 
-      title: 'Renewal Alerts', 
-      description: 'Get notified before payments and never miss a renewal' 
+    {
+      title: 'Renewal Alerts',
+      description: 'Get notified before payments and never miss a renewal',
     },
   ];
 
@@ -34,13 +30,14 @@ const LandingPage: React.FC = () => {
     <Box
       sx={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #F5F3FF 0%, #EDE7F6 50%, #E8EAF6 100%)',
+        background:
+          'linear-gradient(135deg, #F5F3FF 0%, #EDE7F6 50%, #E8EAF6 100%)',
         position: 'relative',
         overflow: 'hidden',
       }}
     >
       <FloatingIcons />
-      
+
       <Header />
 
       <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
@@ -62,7 +59,8 @@ const LandingPage: React.FC = () => {
                 sx={{
                   fontWeight: 800,
                   fontSize: { xs: '2.5rem', md: '3.5rem' },
-                  background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                  background:
+                    'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
                   backgroundClip: 'text',
                   WebkitBackgroundClip: 'text',
                   color: 'transparent',
@@ -82,7 +80,7 @@ const LandingPage: React.FC = () => {
               >
                 {user?.email}
               </Typography>
-              
+
               <Typography
                 variant="h5"
                 sx={{
@@ -99,12 +97,13 @@ const LandingPage: React.FC = () => {
               <Button
                 variant="contained"
                 size="large"
-                onClick={() => {/* Позже переход в dashboard */}}
+                onClick={() => navigate('/dashboard')}
                 sx={{
                   py: 2,
                   px: 4,
                   fontSize: '1.1rem',
-                  background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                  background:
+                    'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
                   borderRadius: 3,
                   boxShadow: '0 8px 32px rgba(126, 87, 194, 0.3)',
                   '&:hover': {
@@ -128,7 +127,8 @@ const LandingPage: React.FC = () => {
                   sx={{
                     fontWeight: 800,
                     fontSize: { xs: '2.5rem', md: '3.5rem' },
-                    background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                    background:
+                      'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
                     backgroundClip: 'text',
                     WebkitBackgroundClip: 'text',
                     color: 'transparent',
@@ -166,8 +166,9 @@ const LandingPage: React.FC = () => {
                     fontSize: '1.2rem',
                   }}
                 >
-                  Take control of your digital subscriptions. Track, manage, and optimize 
-                  all your recurring payments from one beautiful interface.
+                  Take control of your digital subscriptions. Track, manage, and
+                  optimize all your recurring payments from one beautiful
+                  interface.
                 </Typography>
               </motion.div>
             </>
@@ -182,9 +183,9 @@ const LandingPage: React.FC = () => {
             <Box
               sx={{
                 display: 'grid',
-                gridTemplateColumns: { 
-                  xs: '1fr', 
-                  md: 'repeat(3, 1fr)'
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  md: 'repeat(3, 1fr)',
                 },
                 gap: 4,
                 maxWidth: '1000px',
@@ -218,20 +219,20 @@ const LandingPage: React.FC = () => {
                       },
                     }}
                   >
-                    <Typography 
-                      variant="h5" 
-                      sx={{ 
-                        color: '#7E57C2', 
-                        mb: 2, 
+                    <Typography
+                      variant="h5"
+                      sx={{
+                        color: '#7E57C2',
+                        mb: 2,
                         fontWeight: 600,
                         fontSize: '1.3rem',
                       }}
                     >
                       {feature.title}
                     </Typography>
-                    <Typography 
-                      variant="body1" 
-                      sx={{ 
+                    <Typography
+                      variant="body1"
+                      sx={{
                         color: 'text.secondary',
                         lineHeight: 1.6,
                       }}

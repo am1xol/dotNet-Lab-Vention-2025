@@ -223,9 +223,11 @@ export const SignUp: React.FC<SignUpProps> = ({ onToggleMode }) => {
     }
   };
 
-  const handleVerificationSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleVerificationSubmit = async (
+    event: React.FormEvent<HTMLFormElement>
+  ) => {
     event.preventDefault();
-    
+
     if (!validateVerificationInputs()) {
       return;
     }
@@ -236,14 +238,17 @@ export const SignUp: React.FC<SignUpProps> = ({ onToggleMode }) => {
     try {
       const verifyData: VerifyEmailRequest = {
         email: formData.email,
-        verificationCode: verificationCode
+        verificationCode: verificationCode,
       };
-      
-      const result = await authService.verifyEmail(verifyData.email, verifyData.verificationCode);
-      
+
+      const result = await authService.verifyEmail(
+        verifyData.email,
+        verifyData.verificationCode
+      );
+
       if (result.success) {
         setSuccess(true);
-        enqueueSnackbar('Email verified successfully! You can now sign in.', { 
+        enqueueSnackbar('Email verified successfully! You can now sign in.', {
           variant: 'success',
         });
         setTimeout(() => {

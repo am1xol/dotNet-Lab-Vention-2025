@@ -32,6 +32,7 @@ export interface User {
   lastName: string;
   isEmailVerified: boolean;
   role: string;
+  createdAt: string;
 }
 
 export interface VerifyEmailRequest {

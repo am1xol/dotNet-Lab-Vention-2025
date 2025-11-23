@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 interface AuthState {
-  [x: string]: any;
   user: any | null;
   isAuthenticated: boolean;
   accessToken: string | null;

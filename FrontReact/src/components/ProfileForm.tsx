@@ -18,7 +18,10 @@ interface ProfileFormProps {
   onProfileUpdated: (user: UserProfile) => void;
 }
 
-export const ProfileForm: React.FC<ProfileFormProps> = ({ user, onProfileUpdated }) => {
+export const ProfileForm: React.FC<ProfileFormProps> = ({
+  user,
+  onProfileUpdated,
+}) => {
   const [formData, setFormData] = useState<UpdateProfileRequest>({
     firstName: user.firstName,
     lastName: user.lastName,
@@ -60,14 +63,17 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, onProfileUpdated
     }
   };
 
-  const hasChanges = 
+  const hasChanges =
     formData.firstName !== user.firstName ||
     formData.lastName !== user.lastName ||
     formData.email !== user.email;
 
   return (
     <Card sx={{ p: 4, mb: 4 }}>
-      <Typography variant="h5" sx={{ mb: 3, color: '#7E57C2', fontWeight: 600 }}>
+      <Typography
+        variant="h5"
+        sx={{ mb: 3, color: '#7E57C2', fontWeight: 600 }}
+      >
         Personal Information
       </Typography>
 
@@ -109,7 +115,9 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ user, onProfileUpdated
             onChange={handleChange}
             required
             size="medium"
-            helperText={user.isEmailVerified ? 'Email verified' : 'Email not verified'}
+            helperText={
+              user.isEmailVerified ? 'Email verified' : 'Email not verified'
+            }
           />
 
           <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>

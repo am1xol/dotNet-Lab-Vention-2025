@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation,
+} from 'react-router-dom';
 import { GlobalStyles } from '@mui/material';
 import LandingPage from './components/LandingPage';
 import { SignIn } from './components/SignIn';
@@ -8,6 +13,7 @@ import { ForgotPasswordForm } from './components/ForgotPasswordForm';
 import { ResetPasswordForm } from './components/ResetPasswordForm';
 import { AnimatedForm } from './components/AnimatedForm';
 import { UserProfile } from './components/UserProfile';
+import { DashboardPage } from './pages/DashboardPage';
 
 type AuthPage = 'signin' | 'signup' | 'forgot-password' | 'reset-password';
 
@@ -19,7 +25,7 @@ const AuthPages: React.FC = () => {
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const form = searchParams.get('form');
-    
+
     if (form === 'signup') {
       setCurrentPage('signup');
     } else if (form === 'signin') {
@@ -37,8 +43,8 @@ const AuthPages: React.FC = () => {
   return (
     <AnimatedForm key={currentPage}>
       {currentPage === 'signin' && (
-        <SignIn 
-          onToggleMode={() => setCurrentPage('signup')} 
+        <SignIn
+          onToggleMode={() => setCurrentPage('signup')}
           onShowForgotPassword={handleShowForgotPassword}
         />
       )}
@@ -46,13 +52,13 @@ const AuthPages: React.FC = () => {
         <SignUp onToggleMode={() => setCurrentPage('signin')} />
       )}
       {currentPage === 'forgot-password' && (
-        <ForgotPasswordForm 
+        <ForgotPasswordForm
           onBackToSignIn={handleBackToSignIn}
           onShowResetForm={handleShowResetForm}
         />
       )}
       {currentPage === 'reset-password' && (
-        <ResetPasswordForm 
+        <ResetPasswordForm
           email={resetEmail}
           onBackToSignIn={handleBackToSignIn}
           onBackToForgotPassword={() => setCurrentPage('forgot-password')}
@@ -87,6 +93,7 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/auth" element={<AuthPages />} />
           <Route path="/profile" element={<UserProfile />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
         </Routes>
       </Router>
     </>

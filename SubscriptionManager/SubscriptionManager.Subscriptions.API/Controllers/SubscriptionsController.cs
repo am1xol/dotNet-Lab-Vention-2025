@@ -86,6 +86,37 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             return subscriptionDto;
         }
 
+        [HttpGet("admin/all")]
+        [Authorize(Roles = "Admin")]
+        [ProducesResponseType(typeof(Dictionary<string, List<SubscriptionDto>>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<Dictionary<string, List<SubscriptionDto>>>> GetAllSubscriptionsForAdmin()
+        {
+            var subscriptions = await _context.Subscriptions
+                .Select(s => MapToDto(s))
+                .ToListAsync();
+
+            foreach (var subscription in subscriptions)
+            {
+                if (subscription.IconFileId.HasValue)
+                {
+                    try
+                    {
+                        subscription.IconUrl = await _fileStorageService.GetPresignedUrlAsync(subscription.IconFileId.Value);
+                    }
+                    catch
+                    {
+                        subscription.IconUrl = null;
+                    }
+                }
+            }
+
+            var groupedSubscriptions = subscriptions
+                .GroupBy(s => s.Category)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            return Ok(groupedSubscriptions);
+        }
+
         [HttpPost]
         [Authorize(Roles = "Admin")]
         [ProducesResponseType(typeof(SubscriptionDto), StatusCodes.Status201Created)]
@@ -172,8 +203,6 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> DeleteSubscription(Guid id)
         {
             var subscription = await _context.Subscriptions.FindAsync(id);
@@ -182,12 +211,79 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 return NotFound();
             }
 
-            subscription.IsActive = false;
+            var activeUserSubscriptions = await _context.UserSubscriptions
+                .Where(us => us.SubscriptionId == id && us.IsActive)
+                .ToListAsync();
+
+            if (activeUserSubscriptions.Any())
+            {
+                return BadRequest(new
+                {
+                    message = "Cannot delete subscription with active users. Cancel all user subscriptions first or deactivate instead.",
+                    activeUsersCount = activeUserSubscriptions.Count
+                });
+            }
+
+            var anyUserSubscriptions = await _context.UserSubscriptions
+                .AnyAsync(us => us.SubscriptionId == id);
+
+            if (anyUserSubscriptions)
+            {
+
+                subscription.IsActive = false;
+                subscription.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    message = "Subscription deactivated because it has historical user data. It cannot be fully deleted.",
+                    subscriptionId = subscription.Id
+                });
+            }
+            else
+            {
+                _context.Subscriptions.Remove(subscription);
+                await _context.SaveChangesAsync();
+
+                return NoContent();
+            }
+        }
+
+        [HttpPatch("{id}/active")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateSubscriptionActive(Guid id, [FromBody] UpdateActiveRequest request)
+        {
+            var subscription = await _context.Subscriptions.FindAsync(id);
+            if (subscription == null)
+            {
+                return NotFound();
+            }
+
+            if (!request.IsActive && subscription.IsActive)
+            {
+                var activeUserSubscriptions = await _context.UserSubscriptions
+                    .Where(us => us.SubscriptionId == id && us.IsActive)
+                    .ToListAsync();
+
+                foreach (var userSubscription in activeUserSubscriptions)
+                {
+                    userSubscription.CancelledAt = DateTime.UtcNow;
+                    userSubscription.ValidUntil = userSubscription.NextBillingDate;
+                }
+            }
+
+            subscription.IsActive = request.IsActive;
             subscription.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+
+        public class UpdateActiveRequest
+        {
+            public bool IsActive { get; set; }
         }
 
         private static SubscriptionDto MapToDto(Subscription subscription)

@@ -17,6 +17,7 @@ namespace SubscriptionManager.Core.DTOs
         public DateTime? ValidUntil { get; set; }
         public bool IsActive { get; set; }
         public bool IsValid { get; set; }
+        public string? Status { get; set; }
         public SubscriptionDto Subscription { get; set; } = null!;
     }
 

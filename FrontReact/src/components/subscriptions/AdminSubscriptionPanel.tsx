@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -15,10 +15,21 @@ import {
   Chip,
   Alert,
   MenuItem,
+  Switch,
+  FormControlLabel,
+  IconButton,
 } from '@mui/material';
-import { Add, Edit, Delete } from '@mui/icons-material';
+import {
+  Add,
+  Edit,
+  Delete,
+  Visibility,
+  VisibilityOff,
+  CloudUpload,
+} from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { subscriptionService } from '../../services/subscription-service';
+import { fileService } from '../../services/file-service';
 import {
   Subscription,
   CreateSubscriptionRequest,
@@ -36,7 +47,13 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
   onSubscriptionUpdated,
   onSubscriptionDeleted,
 }) => {
+  const [uploading, setUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadedFileId, setUploadedFileId] = useState<string | undefined>(
+    undefined
+  );
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [showOnlyActive, setShowOnlyActive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -64,10 +81,43 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
     'Other',
   ];
 
+  const handleFileSelect = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setSelectedFile(file);
+    setUploading(true);
+
+    try {
+      const result = await fileService.uploadFile(file);
+      setUploadedFileId(result.fileId);
+      setFormData((prev) => ({ ...prev, iconFileId: result.fileId }));
+    } catch (err: any) {
+      setError('Failed to upload file');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveFile = async () => {
+    if (uploadedFileId) {
+      try {
+        await fileService.deleteFile(uploadedFileId);
+      } catch (err) {
+        console.error('Failed to delete file:', err);
+      }
+    }
+    setSelectedFile(null);
+    setUploadedFileId(undefined);
+    setFormData((prev) => ({ ...prev, iconFileId: undefined }));
+  };
+
   const loadSubscriptions = async () => {
     try {
       setLoading(true);
-      const data = await subscriptionService.getSubscriptions();
+      const data = await subscriptionService.getSubscriptionsForAdmin();
       const allSubscriptions = Object.values(data).flat();
       setSubscriptions(allSubscriptions);
     } catch (err) {
@@ -78,7 +128,7 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     loadSubscriptions();
   }, []);
 
@@ -129,7 +179,45 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
       onSubscriptionDeleted();
       await loadSubscriptions();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete subscription');
+      const errorMessage = err.message || 'Failed to delete subscription';
+      setError(errorMessage);
+    }
+  };
+
+  const handleToggleActive = async (subscription: Subscription) => {
+    try {
+      const newActiveStatus = !subscription.isActive;
+
+      if (!newActiveStatus) {
+        const confirmMessage = `Deactivating "${subscription.name}" will automatically unsubscribe all users at the end of their billing period. Continue?`;
+        if (!window.confirm(confirmMessage)) {
+          return;
+        }
+      }
+
+      await subscriptionService.toggleSubscriptionActive(
+        subscription.id,
+        newActiveStatus
+      );
+
+      setSubscriptions((prev) =>
+        prev.map((sub) =>
+          sub.id === subscription.id
+            ? { ...sub, isActive: newActiveStatus }
+            : sub
+        )
+      );
+
+      if (!newActiveStatus) {
+        setError(
+          `Subscription "${subscription.name}" deactivated. Users will be unsubscribed at the end of their billing periods.`
+        );
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data?.message || 'Failed to update subscription status'
+      );
+      await loadSubscriptions();
     }
   };
 
@@ -142,6 +230,8 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
       category: '',
       iconFileId: undefined,
     });
+    setSelectedFile(null);
+    setUploadedFileId(undefined);
     setSelectedSubscription(null);
   };
 
@@ -163,13 +253,21 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
     setDeleteDialogOpen(true);
   };
 
+  const getFilteredSubscriptions = () => {
+    return showOnlyActive
+      ? subscriptions.filter((sub) => sub.isActive)
+      : subscriptions;
+  };
+
   if (loading) {
     return (
-      <Box textAlign="center" py={8}>
+      <Box display="flex" justifyContent="center" py={8}>
         <Typography>Loading subscriptions...</Typography>
       </Box>
     );
   }
+
+  const filteredSubscriptions = getFilteredSubscriptions();
 
   return (
     <Box>
@@ -179,6 +277,7 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
         </Alert>
       )}
 
+      {/* Header */}
       <Box
         sx={{
           display: 'flex',
@@ -187,9 +286,17 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
           mb: 4,
         }}
       >
-        <Typography variant="h4" sx={{ color: '#7E57C2', fontWeight: 600 }}>
-          Manage Subscriptions
-        </Typography>
+        <Box>
+          <Typography
+            variant="h4"
+            sx={{ color: '#7E57C2', fontWeight: 600, mb: 1 }}
+          >
+            Subscription Management
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Create, edit, and manage all subscriptions
+          </Typography>
+        </Box>
         <Button
           variant="contained"
           startIcon={<Add />}
@@ -199,152 +306,352 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
             borderRadius: 2,
             fontWeight: 600,
             px: 3,
-            py: 1,
+            py: 1.5,
           }}
         >
           Create New
         </Button>
       </Box>
 
-      <Grid container spacing={3}>
-        {subscriptions.map((subscription, index) => (
-          <Grid size={{ xs: 12, md: 6, lg: 4 }} key={subscription.id}>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-            >
-              <Card
-                sx={{
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  background: 'rgba(255, 255, 255, 0.8)',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
-                  borderRadius: 3,
-                }}
+      {/* Stats */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <Card
+            sx={{
+              background: 'rgba(126, 87, 194, 0.1)',
+              border: '1px solid rgba(126, 87, 194, 0.2)',
+            }}
+          >
+            <CardContent>
+              <Typography color="text.secondary" gutterBottom>
+                Total Subscriptions
+              </Typography>
+              <Typography
+                variant="h4"
+                sx={{ color: '#7E57C2', fontWeight: 600 }}
               >
-                <CardContent sx={{ flexGrow: 1 }}>
-                  <Box display="flex" alignItems="flex-start" mb={2}>
-                    {subscription.iconUrl ? (
-                      <Box
-                        component="img"
-                        src={subscription.iconUrl}
-                        sx={{
-                          width: 50,
-                          height: 50,
-                          mr: 2,
-                          borderRadius: 2,
-                          objectFit: 'cover',
-                        }}
-                      />
-                    ) : (
-                      <Box
-                        sx={{
-                          width: 50,
-                          height: 50,
-                          mr: 2,
-                          borderRadius: 2,
-                          bgcolor: 'primary.main',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'white',
-                          fontWeight: 'bold',
-                          fontSize: '1.2rem',
-                        }}
-                      >
-                        {subscription.name.charAt(0)}
-                      </Box>
-                    )}
-                    <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant="h6" fontWeight={600}>
-                        {subscription.name}
-                      </Typography>
-                      <Box display="flex" gap={1} mt={1}>
-                        <Chip
-                          label={subscription.category}
-                          size="small"
-                          color="primary"
-                          variant="outlined"
-                        />
-                        <Chip
-                          label={subscription.period}
-                          size="small"
-                          color="secondary"
-                        />
-                      </Box>
-                    </Box>
-                  </Box>
-
-                  <Typography
-                    color="text.secondary"
-                    sx={{
-                      mb: 2,
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {subscription.description}
-                  </Typography>
-
-                  <Box
-                    display="flex"
-                    justifyContent="space-between"
-                    alignItems="center"
-                  >
-                    <Typography
-                      variant="h5"
-                      color="primary.main"
-                      fontWeight="bold"
-                    >
-                      ${subscription.price}
-                    </Typography>
-                    <Chip
-                      label={subscription.isActive ? 'Active' : 'Inactive'}
-                      color={subscription.isActive ? 'success' : 'default'}
-                      size="small"
-                    />
-                  </Box>
-                </CardContent>
-
-                <CardActions sx={{ p: 2, pt: 0 }}>
-                  <Button
-                    startIcon={<Edit />}
-                    onClick={() => openEditDialog(subscription)}
-                    sx={{
-                      color: '#7E57C2',
-                      borderColor: '#7E57C2',
-                      '&:hover': {
-                        backgroundColor: 'rgba(126, 87, 194, 0.08)',
-                      },
-                    }}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    startIcon={<Delete />}
-                    onClick={() => openDeleteDialog(subscription)}
-                    sx={{
-                      color: '#f44336',
-                      borderColor: '#f44336',
-                      '&:hover': {
-                        backgroundColor: 'rgba(244, 67, 54, 0.08)',
-                      },
-                    }}
-                  >
-                    Delete
-                  </Button>
-                </CardActions>
-              </Card>
-            </motion.div>
-          </Grid>
-        ))}
+                {subscriptions.length}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <Card
+            sx={{
+              background: 'rgba(76, 175, 80, 0.1)',
+              border: '1px solid rgba(76, 175, 80, 0.2)',
+            }}
+          >
+            <CardContent>
+              <Typography color="text.secondary" gutterBottom>
+                Active
+              </Typography>
+              <Typography
+                variant="h4"
+                sx={{ color: '#4CAF50', fontWeight: 600 }}
+              >
+                {subscriptions.filter((s) => s.isActive).length}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <Card
+            sx={{
+              background: 'rgba(244, 67, 54, 0.1)',
+              border: '1px solid rgba(244, 67, 54, 0.2)',
+            }}
+          >
+            <CardContent>
+              <Typography color="text.secondary" gutterBottom>
+                Inactive
+              </Typography>
+              <Typography
+                variant="h4"
+                sx={{ color: '#f44336', fontWeight: 600 }}
+              >
+                {subscriptions.filter((s) => !s.isActive).length}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <Card
+            sx={{
+              background: 'rgba(255, 152, 0, 0.1)',
+              border: '1px solid rgba(255, 152, 0, 0.2)',
+            }}
+          >
+            <CardContent>
+              <Typography color="text.secondary" gutterBottom>
+                Categories
+              </Typography>
+              <Typography
+                variant="h4"
+                sx={{ color: '#FF9800', fontWeight: 600 }}
+              >
+                {new Set(subscriptions.map((s) => s.category)).size}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
 
+      {/* Controls */}
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          mb: 3,
+        }}
+      >
+        <Typography variant="body2" color="text.secondary">
+          Showing {filteredSubscriptions.length} of {subscriptions.length}{' '}
+          subscriptions
+        </Typography>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={showOnlyActive}
+              onChange={(e) => setShowOnlyActive(e.target.checked)}
+              color="primary"
+            />
+          }
+          label="Show only active"
+        />
+      </Box>
+
+      {/* Subscriptions Grid */}
+      {filteredSubscriptions.length === 0 ? (
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          py={8}
+          sx={{
+            background: 'rgba(0,0,0,0.02)',
+            borderRadius: 2,
+            border: '1px dashed rgba(0,0,0,0.1)',
+          }}
+        >
+          <Typography variant="h6" color="text.secondary">
+            {showOnlyActive
+              ? 'No active subscriptions found'
+              : 'No subscriptions found'}
+          </Typography>
+        </Box>
+      ) : (
+        <Grid container spacing={3}>
+          {filteredSubscriptions.map((subscription, index) => (
+            <Grid size={{ xs: 12, md: 6, lg: 4 }} key={subscription.id}>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+              >
+                <Card
+                  sx={{
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    background: subscription.isActive
+                      ? 'rgba(255, 255, 255, 0.8)'
+                      : 'rgba(0, 0, 0, 0.04)',
+                    backdropFilter: 'blur(10px)',
+                    border: subscription.isActive
+                      ? '1px solid rgba(255, 255, 255, 0.3)'
+                      : '1px solid rgba(0, 0, 0, 0.1)',
+                    borderRadius: 3,
+                    opacity: subscription.isActive ? 1 : 0.8,
+                    position: 'relative',
+                  }}
+                >
+                  {!subscription.isActive && (
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        zIndex: 1,
+                      }}
+                    >
+                      <Chip
+                        label="Inactive"
+                        color="default"
+                        size="small"
+                        variant="filled"
+                        sx={{
+                          backgroundColor: 'rgba(0,0,0,0.3)',
+                          color: 'white',
+                        }}
+                      />
+                    </Box>
+                  )}
+
+                  <CardContent sx={{ flexGrow: 1 }}>
+                    <Box
+                      display="flex"
+                      alignItems="flex-start"
+                      justifyContent="space-between"
+                      mb={2}
+                    >
+                      <Box display="flex" alignItems="flex-start" flexGrow={1}>
+                        {subscription.iconUrl ? (
+                          <Box
+                            component="img"
+                            src={subscription.iconUrl}
+                            sx={{
+                              width: 50,
+                              height: 50,
+                              mr: 2,
+                              borderRadius: 2,
+                              objectFit: 'cover',
+                              filter: subscription.isActive
+                                ? 'none'
+                                : 'grayscale(100%)',
+                            }}
+                          />
+                        ) : (
+                          <Box
+                            sx={{
+                              width: 50,
+                              height: 50,
+                              mr: 2,
+                              borderRadius: 2,
+                              bgcolor: subscription.isActive
+                                ? 'primary.main'
+                                : 'grey.500',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'white',
+                              fontWeight: 'bold',
+                              fontSize: '1.2rem',
+                            }}
+                          >
+                            {subscription.name.charAt(0)}
+                          </Box>
+                        )}
+                        <Box sx={{ flexGrow: 1 }}>
+                          <Typography
+                            variant="h6"
+                            fontWeight={600}
+                            sx={{
+                              color: subscription.isActive
+                                ? 'text.primary'
+                                : 'text.secondary',
+                            }}
+                          >
+                            {subscription.name}
+                          </Typography>
+                          <Box display="flex" gap={1} mt={1} flexWrap="wrap">
+                            <Chip
+                              label={subscription.category}
+                              size="small"
+                              color="primary"
+                              variant="outlined"
+                            />
+                            <Chip
+                              label={subscription.period}
+                              size="small"
+                              color="secondary"
+                            />
+                          </Box>
+                        </Box>
+                      </Box>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={subscription.isActive}
+                            onChange={() => handleToggleActive(subscription)}
+                            color="success"
+                          />
+                        }
+                        label=""
+                      />
+                    </Box>
+
+                    <Typography
+                      color={
+                        subscription.isActive ? 'text.secondary' : 'grey.500'
+                      }
+                      sx={{
+                        mb: 2,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {subscription.description}
+                    </Typography>
+
+                    <Box
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="center"
+                    >
+                      <Typography
+                        variant="h5"
+                        color={
+                          subscription.isActive ? 'primary.main' : 'grey.500'
+                        }
+                        fontWeight="bold"
+                      >
+                        ${subscription.price}
+                      </Typography>
+                      <Chip
+                        label={subscription.isActive ? 'Active' : 'Inactive'}
+                        color={subscription.isActive ? 'success' : 'default'}
+                        size="small"
+                        icon={
+                          subscription.isActive ? (
+                            <Visibility />
+                          ) : (
+                            <VisibilityOff />
+                          )
+                        }
+                      />
+                    </Box>
+                  </CardContent>
+
+                  <CardActions sx={{ p: 2, pt: 0 }}>
+                    <Button
+                      size="small"
+                      startIcon={<Edit />}
+                      onClick={() => openEditDialog(subscription)}
+                      sx={{
+                        color: '#7E57C2',
+                        '&:hover': {
+                          backgroundColor: 'rgba(126, 87, 194, 0.08)',
+                        },
+                      }}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      size="small"
+                      startIcon={<Delete />}
+                      onClick={() => openDeleteDialog(subscription)}
+                      sx={{
+                        color: '#f44336',
+                        '&:hover': {
+                          backgroundColor: 'rgba(244, 67, 54, 0.08)',
+                        },
+                      }}
+                    >
+                      Delete
+                    </Button>
+                  </CardActions>
+                </Card>
+              </motion.div>
+            </Grid>
+          ))}
+        </Grid>
+      )}
+
+      {/* Create Dialog */}
       <Dialog
         open={createDialogOpen}
         onClose={() => setCreateDialogOpen(false)}
@@ -424,6 +731,43 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
                 ))}
               </TextField>
             </Grid>
+            <Grid size={{ xs: 12 }}>
+              <Box>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  style={{ display: 'none' }}
+                  id="file-upload"
+                />
+                <label htmlFor="file-upload">
+                  <Button
+                    variant="outlined"
+                    component="span"
+                    startIcon={<CloudUpload />}
+                    disabled={uploading}
+                    fullWidth
+                  >
+                    {uploading ? 'Uploading...' : 'Upload Icon'}
+                  </Button>
+                </label>
+                {selectedFile && (
+                  <Box
+                    sx={{
+                      mt: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                    }}
+                  >
+                    <Typography variant="body2">{selectedFile.name}</Typography>
+                    <IconButton size="small" onClick={handleRemoveFile}>
+                      <Delete />
+                    </IconButton>
+                  </Box>
+                )}
+              </Box>
+            </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
@@ -440,6 +784,7 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
         </DialogActions>
       </Dialog>
 
+      {/* Edit Dialog */}
       <Dialog
         open={editDialogOpen}
         onClose={() => setEditDialogOpen(false)}
@@ -519,6 +864,43 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
                 ))}
               </TextField>
             </Grid>
+            <Grid size={{ xs: 12 }}>
+              <Box>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  style={{ display: 'none' }}
+                  id="file-upload-edit"
+                />
+                <label htmlFor="file-upload-edit">
+                  <Button
+                    variant="outlined"
+                    component="span"
+                    startIcon={<CloudUpload />}
+                    disabled={uploading}
+                    fullWidth
+                  >
+                    {uploading ? 'Uploading...' : 'Upload Icon'}
+                  </Button>
+                </label>
+                {selectedFile && (
+                  <Box
+                    sx={{
+                      mt: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                    }}
+                  >
+                    <Typography variant="body2">{selectedFile.name}</Typography>
+                    <IconButton size="small" onClick={handleRemoveFile}>
+                      <Delete />
+                    </IconButton>
+                  </Box>
+                )}
+              </Box>
+            </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
@@ -535,6 +917,7 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
         </DialogActions>
       </Dialog>
 
+      {/* Delete Dialog */}
       <Dialog
         open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
@@ -544,14 +927,21 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
         <DialogTitle>Delete Subscription</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete "{selectedSubscription?.name}"? This
-            action cannot be undone.
+            Are you sure you want to permanently delete "
+            {selectedSubscription?.name}"? This action will remove the
+            subscription from the system.
+            {selectedSubscription?.isActive && (
+              <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                Note: This subscription is currently active and may have active
+                users.
+              </Typography>
+            )}
           </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
           <Button onClick={handleDelete} variant="contained" color="error">
-            Delete
+            Delete Permanently
           </Button>
         </DialogActions>
       </Dialog>

@@ -34,6 +34,25 @@ export const subscriptionService = {
   },
 
   async deleteSubscription(id: string): Promise<void> {
-    await api.delete(`${API_BASE_URL}/Subscriptions/${id}`);
+    try {
+      await api.delete(`${API_BASE_URL}/Subscriptions/${id}`);
+    } catch (error: any) {
+      if (error.response?.status === 400) {
+        const errorMessage =
+          error.response.data?.message ||
+          'Cannot delete subscription with active users';
+        throw new Error(errorMessage);
+      }
+      throw error;
+    }
+  },
+
+  async toggleSubscriptionActive(id: string, isActive: boolean): Promise<void> {
+    await api.patch(`${API_BASE_URL}/Subscriptions/${id}/active`, { isActive });
+  },
+
+  async getSubscriptionsForAdmin(): Promise<GroupedSubscriptions> {
+    const response = await api.get(`${API_BASE_URL}/Subscriptions/admin/all`);
+    return response.data as GroupedSubscriptions;
   },
 };

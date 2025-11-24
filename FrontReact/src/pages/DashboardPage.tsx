@@ -19,6 +19,7 @@ import { useAuthStore } from '../store/auth-store';
 import { subscriptionService } from '../services/subscription-service';
 import { userSubscriptionService } from '../services/user-subscription-service';
 import { SubscriptionCard } from '../components/subscriptions/SubscriptionCard';
+import { AdminSubscriptionPanel } from '../components/subscriptions/AdminSubscriptionPanel';
 import {
   GroupedSubscriptions,
   GroupedUserSubscriptions,
@@ -508,18 +509,11 @@ export const DashboardPage: React.FC = () => {
               {/* Admin Management Tab */}
               {userRole === 'Admin' && (
                 <TabPanel value={tabValue} index={2}>
-                  <Box textAlign="center" py={8}>
-                    <Typography
-                      variant="h5"
-                      gutterBottom
-                      sx={{ color: '#7E57C2', fontWeight: 600 }}
-                    >
-                      Admin Subscription Management
-                    </Typography>
-                    <Typography variant="body1" color="text.secondary">
-                      Full admin panel coming soon...
-                    </Typography>
-                  </Box>
+                  <AdminSubscriptionPanel
+                    onSubscriptionCreated={loadData}
+                    onSubscriptionUpdated={loadData}
+                    onSubscriptionDeleted={loadData}
+                  />
                 </TabPanel>
               )}
             </Paper>

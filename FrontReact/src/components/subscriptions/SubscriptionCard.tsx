@@ -55,7 +55,9 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
     }
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return 'Unknown date';
+
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
@@ -64,12 +66,47 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
     });
   };
 
-  const getButtonText = () => {
-    if (isCancelled && unsubscribeInfo) {
-      return `Cancels on ${formatDate(unsubscribeInfo.validUntil)}`;
+  const getSubscriptionStatus = () => {
+    if (isCancelled) {
+      return 'Cancelled';
     }
-    if (isCancelled && validUntil) {
-      return `Cancels on ${formatDate(validUntil)}`;
+    if (isSubscribed) {
+      return 'Active';
+    }
+    return 'Available';
+  };
+
+  const getStatusColor = () => {
+    const status = getSubscriptionStatus();
+    switch (status) {
+      case 'Active':
+        return 'success';
+      case 'Cancelled':
+        return 'warning';
+      default:
+        return 'default';
+    }
+  };
+
+  const getStatusText = () => {
+    const status = getSubscriptionStatus();
+    if (status === 'Cancelled') {
+      const untilDate = unsubscribeInfo?.validUntil || validUntil;
+      if (untilDate) {
+        return `Cancelled (until ${formatDate(untilDate)})`;
+      }
+      return 'Cancelled';
+    }
+    return status;
+  };
+
+  const getButtonText = () => {
+    if (isCancelled) {
+      const untilDate = unsubscribeInfo?.validUntil || validUntil;
+      if (untilDate) {
+        return `Cancels on ${formatDate(untilDate)}`;
+      }
+      return 'Cancelled';
     }
     if (isSubscribed) {
       return 'Unsubscribe';
@@ -79,11 +116,14 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
 
   const getButtonState = () => {
     if (isCancelled) {
+      const untilDate = unsubscribeInfo?.validUntil || validUntil;
       return {
         disabled: true,
         variant: 'outlined' as const,
         color: 'inherit' as const,
-        tooltip: `Your subscription will be active until ${formatDate(unsubscribeInfo?.validUntil || validUntil || '')}`,
+        tooltip: untilDate
+          ? `Your subscription will be active until ${formatDate(untilDate)}`
+          : 'Your subscription has been cancelled',
       };
     }
     if (isSubscribed) {
@@ -111,6 +151,10 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
       onSubscribe(subscription.id);
     }
   };
+
+  const status = getSubscriptionStatus();
+  const statusText = getStatusText();
+  const statusColor = getStatusColor();
 
   return (
     <Card
@@ -181,14 +225,12 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                 color={getPeriodColor(subscription.period)}
                 variant="filled"
               />
-              {isCancelled && (
-                <Chip
-                  label="Cancelled"
-                  size="small"
-                  color="warning"
-                  variant="outlined"
-                />
-              )}
+              <Chip
+                label={statusText}
+                size="small"
+                color={statusColor}
+                variant={status === 'Active' ? 'filled' : 'outlined'}
+              />
             </Box>
           </Box>
         </Box>
@@ -221,23 +263,28 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
           </Typography>
         </Box>
 
-        {isCancelled && (unsubscribeInfo?.validUntil || validUntil) && (
-          <Box
-            sx={{
-              mt: 2,
-              p: 1.5,
-              bgcolor: 'warning.light',
-              borderRadius: 1,
-              border: '1px solid',
-              borderColor: 'warning.main',
-            }}
-          >
-            <Typography variant="body2" color="warning.dark" align="center">
-              <strong>Active until:</strong>{' '}
-              {formatDate(unsubscribeInfo?.validUntil || validUntil || '')}
-            </Typography>
-          </Box>
-        )}
+        {status === 'Cancelled' &&
+          (unsubscribeInfo?.validUntil || validUntil) && (
+            <Box
+              sx={{
+                mt: 2,
+                p: 1.5,
+                bgcolor: 'warning.light',
+                borderRadius: 1,
+                border: '1px solid',
+                borderColor: 'warning.main',
+              }}
+            >
+              <Typography variant="body2" color="warning.dark" align="center">
+                <strong>Active until:</strong>{' '}
+                {formatDate(unsubscribeInfo?.validUntil || validUntil || '')}
+                <br />
+                <Typography variant="caption">
+                  You will lose access after this date
+                </Typography>
+              </Typography>
+            </Box>
+          )}
       </CardContent>
 
       <CardActions sx={{ p: 3, pt: 0 }}>

@@ -13,6 +13,7 @@ interface AuthState {
   logout: () => void;
   setTokens: (tokens: { accessToken: string; refreshToken: string }) => void;
   setUser: (userData: any) => void;
+  updateTokens: (tokens: { accessToken: string; refreshToken: string }) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -48,6 +49,14 @@ export const useAuthStore = create<AuthState>()(
         set({
           user: userData,
         });
+      },
+      updateTokens: (tokens: { accessToken: string; refreshToken: string }) => {
+        set({
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+        });
+        localStorage.setItem('accessToken', tokens.accessToken);
+        localStorage.setItem('refreshToken', tokens.refreshToken);
       },
     }),
     {

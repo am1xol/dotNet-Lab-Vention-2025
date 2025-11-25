@@ -25,6 +25,14 @@ export interface LoginResponse {
   error?: string;
 }
 
+export interface RefreshTokenResponse {
+  success: boolean;
+  accessToken?: string;
+  refreshToken?: string;
+  accessTokenExpiresAt?: string;
+  error?: string;
+}
+
 export interface User {
   id: string;
   email: string;

@@ -101,7 +101,7 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                     CancelledAt = us.CancelledAt,
                     ValidUntil = us.ValidUntil,
                     IsActive = us.IsActive,
-                    IsValid = us.IsValid,
+                    Status = us.CancelledAt.HasValue ? "Cancelled" : "Active",
                     Subscription = new SubscriptionDto
                     {
                         Id = us.Subscription.Id,

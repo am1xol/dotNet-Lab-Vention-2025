@@ -10,6 +10,7 @@ import {
   ForgotPasswordRequest,
   ForgotPasswordResponse,
   ResetPasswordRequest,
+  RefreshTokenResponse,
 } from '../types/auth';
 import { UserProfile } from '../types/user';
 
@@ -74,5 +75,12 @@ export const authService = {
       data
     );
     return response.data as ForgotPasswordResponse;
+  },
+
+  async refreshToken(refreshToken: string): Promise<RefreshTokenResponse> {
+    const response = await api.post(`${API_BASE_URL}/Auth/refresh`, {
+      refreshToken,
+    });
+    return response.data as RefreshTokenResponse;
   },
 };

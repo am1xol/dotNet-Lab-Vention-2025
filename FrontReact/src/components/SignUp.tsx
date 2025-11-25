@@ -5,36 +5,47 @@ import {
   Divider,
   FormLabel,
   FormControl,
-  Link,
   TextField,
   Typography,
   Stack,
   Card,
   Alert,
   CircularProgress,
+  Zoom,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
+import {
+  Email,
+  Lock,
+  Person,
+  Visibility,
+  VisibilityOff,
+  ArrowBack,
+  VerifiedUser,
+} from '@mui/icons-material';
 import { authService } from '../services/auth-service';
 import { RegisterRequest, VerifyEmailRequest } from '../types/auth';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useSnackbar } from 'notistack';
 
-const AnimatedCardContent = styled(motion.div)({
-  width: '100%',
-});
-
-const StyledCard = styled(Card)(({ theme }) => ({
+const GlassCard = styled(Card)(({ theme }) => ({
   display: 'flex',
   flexDirection: 'column',
   alignSelf: 'center',
   width: '100%',
-  padding: theme.spacing(6),
-  gap: theme.spacing(3),
+  padding: theme.spacing(5),
+  gap: theme.spacing(4),
   margin: 'auto',
   maxWidth: '480px',
-  background: 'linear-gradient(135deg, #FFFFFF 0%, #F8F5FF 100%)',
+  background: 'rgba(255, 255, 255, 0.95)',
   backdropFilter: 'blur(20px)',
-  border: '1px solid rgba(255, 255, 255, 0.8)',
+  border: '1px solid rgba(255, 255, 255, 0.3)',
+  borderRadius: '24px',
+  boxShadow: `
+    0 8px 32px rgba(126, 87, 194, 0.1),
+    0 2px 8px rgba(126, 87, 194, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6)
+  `,
   position: 'relative',
   overflow: 'hidden',
   '&::before': {
@@ -43,39 +54,33 @@ const StyledCard = styled(Card)(({ theme }) => ({
     top: 0,
     left: 0,
     right: 0,
-    height: '4px',
+    height: '6px',
     background: 'linear-gradient(90deg, #7E57C2 0%, #B39DDB 50%, #CE93D8 100%)',
   },
 }));
 
-const SignUpContainer = styled(Stack)(({ theme }) => ({
+const AuthContainer = styled(Stack)(({ theme }) => ({
   minHeight: '100vh',
-  padding: theme.spacing(3),
+  padding: theme.spacing(2),
   justifyContent: 'center',
   alignItems: 'center',
-  background: 'linear-gradient(135deg, #F5F3FF 0%, #EDE7F6 50%, #E8EAF6 100%)',
+  background: `
+    radial-gradient(ellipse at top right, rgba(179, 157, 219, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom left, rgba(206, 147, 216, 0.15) 0%, transparent 50%),
+    linear-gradient(135deg, #F8F5FF 0%, #F3E5F5 50%, #E8EAF6 100%)
+  `,
   position: 'relative',
-  '&::before': {
-    content: '""',
-    position: 'absolute',
-    top: '10%',
-    right: '10%',
-    width: '300px',
-    height: '300px',
-    borderRadius: '50%',
-    background: 'linear-gradient(45deg, #B39DDB, transparent)',
-    opacity: 0.1,
-  },
-  '&::after': {
-    content: '""',
-    position: 'absolute',
-    bottom: '10%',
-    left: '10%',
-    width: '200px',
-    height: '200px',
-    borderRadius: '50%',
-    background: 'linear-gradient(45deg, #CE93D8, transparent)',
-    opacity: 0.1,
+}));
+
+const FloatingShape = styled(Box)(({}) => ({
+  position: 'absolute',
+  borderRadius: '50%',
+  background:
+    'linear-gradient(45deg, rgba(126, 87, 194, 0.1), rgba(179, 157, 219, 0.05))',
+  animation: 'float 6s ease-in-out infinite',
+  '@keyframes float': {
+    '0%, 100%': { transform: 'translateY(0px) rotate(0deg)' },
+    '50%': { transform: 'translateY(-20px) rotate(180deg)' },
   },
 }));
 
@@ -83,22 +88,60 @@ const Logo = styled(Box)(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  gap: theme.spacing(1),
+  gap: theme.spacing(2),
   marginBottom: theme.spacing(1),
 }));
 
 const LogoIcon = styled(Box)(({}) => ({
-  width: 32,
-  height: 32,
-  borderRadius: 8,
+  width: 48,
+  height: 48,
+  borderRadius: 12,
   background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
   color: 'white',
   fontWeight: 'bold',
-  fontSize: '14px',
+  fontSize: '18px',
+  boxShadow: '0 4px 12px rgba(126, 87, 194, 0.3)',
 }));
+
+const StyledTextField = styled(TextField)(({}) => ({
+  '& .MuiOutlinedInput-root': {
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    transition: 'all 0.3s ease',
+    '&:hover': {
+      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    },
+    '&.Mui-focused': {
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      boxShadow: '0 0 0 2px rgba(126, 87, 194, 0.2)',
+    },
+  },
+}));
+
+const GradientButton = styled(Button)(({}) => ({
+  background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+  borderRadius: 12,
+  padding: '12px 24px',
+  fontSize: '1rem',
+  fontWeight: 600,
+  textTransform: 'none',
+  boxShadow: '0 4px 12px rgba(126, 87, 194, 0.3)',
+  transition: 'all 0.3s ease',
+  '&:hover': {
+    transform: 'translateY(-2px)',
+    boxShadow: '0 6px 20px rgba(126, 87, 194, 0.4)',
+  },
+  '&:active': {
+    transform: 'translateY(0)',
+  },
+}));
+
+const AnimatedCardContent = styled(motion.div)({
+  width: '100%',
+});
 
 interface SignUpProps {
   onToggleMode: () => void;
@@ -117,6 +160,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onToggleMode }) => {
     role: 'User',
   });
   const [verificationCode, setVerificationCode] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState(false);
@@ -155,6 +199,8 @@ export const SignUp: React.FC<SignUpProps> = ({ onToggleMode }) => {
     setError('');
   };
 
+  const handleClickShowPassword = () => setShowPassword((show) => !show);
+
   const validateRegistrationInputs = (): boolean => {
     let isValid = true;
 
@@ -166,9 +212,7 @@ export const SignUp: React.FC<SignUpProps> = ({ onToggleMode }) => {
 
     if (!formData.password || formData.password.length < 6) {
       setPasswordError(true);
-      setPasswordErrorMessage(
-        'The password must contain numbers, uppercase and lowercase letters.'
-      );
+      setPasswordErrorMessage('Password must be at least 6 characters long.');
       isValid = false;
     }
 
@@ -266,89 +310,171 @@ export const SignUp: React.FC<SignUpProps> = ({ onToggleMode }) => {
 
   if (success) {
     return (
-      <SignUpContainer direction="column">
-        <StyledCard>
-          <AnimatePresence mode="wait">
+      <AuthContainer direction="column">
+        <FloatingShape
+          sx={{ top: '10%', right: '10%', width: '200px', height: '200px' }}
+        />
+        <FloatingShape
+          sx={{
+            bottom: '15%',
+            left: '8%',
+            width: '150px',
+            height: '150px',
+            animationDelay: '2s',
+          }}
+        />
+
+        <Zoom in={true} timeout={800}>
+          <GlassCard>
             <AnimatedCardContent
               key="success"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.1 }}
               transition={{ duration: 0.4 }}
             >
               <Logo>
                 <LogoIcon>SM</LogoIcon>
                 <Typography
-                  variant="h6"
-                  sx={{ color: '#7E57C2', fontWeight: 700 }}
+                  variant="h5"
+                  sx={{
+                    fontWeight: 700,
+                    background:
+                      'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                    backgroundClip: 'text',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
                 >
                   SubscriptionManager
                 </Typography>
               </Logo>
 
-              <Typography
-                component="h1"
-                variant="h4"
-                sx={{
-                  width: '100%',
-                  fontSize: 'clamp(2rem, 10vw, 2.15rem)',
-                  textAlign: 'center',
-                  mb: 2,
-                }}
-              >
-                Email Verified!
-              </Typography>
-              <Alert severity="success" sx={{ mb: 2 }}>
-                Your email has been successfully verified! You can now sign in
-                to your account.
-              </Alert>
-              <Button fullWidth variant="contained" onClick={onToggleMode}>
+              <Box sx={{ textAlign: 'center', mb: 3 }}>
+                <VerifiedUser sx={{ fontSize: 64, color: '#4CAF50', mb: 2 }} />
+                <Typography
+                  component="h1"
+                  variant="h4"
+                  sx={{
+                    fontWeight: 700,
+                    background:
+                      'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                    backgroundClip: 'text',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    mb: 2,
+                  }}
+                >
+                  Email Verified!
+                </Typography>
+                <Alert
+                  severity="success"
+                  sx={{
+                    mb: 3,
+                    borderRadius: 3,
+                    background: 'rgba(76, 175, 80, 0.05)',
+                  }}
+                >
+                  Your email has been successfully verified! You can now sign in
+                  to your account.
+                </Alert>
+              </Box>
+
+              <GradientButton fullWidth onClick={onToggleMode} size="large">
                 Sign In
-              </Button>
+              </GradientButton>
             </AnimatedCardContent>
-          </AnimatePresence>
-        </StyledCard>
-      </SignUpContainer>
+          </GlassCard>
+        </Zoom>
+      </AuthContainer>
     );
   }
 
   if (step === 'verification') {
     return (
-      <SignUpContainer direction="column">
-        <StyledCard>
-          <AnimatePresence mode="wait">
+      <AuthContainer direction="column">
+        <FloatingShape
+          sx={{ top: '10%', right: '10%', width: '200px', height: '200px' }}
+        />
+        <FloatingShape
+          sx={{
+            bottom: '15%',
+            left: '8%',
+            width: '150px',
+            height: '150px',
+            animationDelay: '2s',
+          }}
+        />
+
+        <Zoom in={true} timeout={800}>
+          <GlassCard>
             <AnimatedCardContent
               key="verification"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <Logo>
-                <LogoIcon>SM</LogoIcon>
-                <Typography
-                  variant="h6"
-                  sx={{ color: '#7E57C2', fontWeight: 700 }}
-                >
-                  SubscriptionManager
-                </Typography>
-              </Logo>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Button
+                  startIcon={<ArrowBack />}
+                  onClick={() => setStep('registration')}
+                  sx={{ color: '#7E57C2', minWidth: 'auto', mr: 2 }}
+                />
+                <Logo sx={{ flex: 1, justifyContent: 'flex-start' }}>
+                  <LogoIcon>SM</LogoIcon>
+                  <Typography
+                    variant="h5"
+                    sx={{
+                      fontWeight: 700,
+                      background:
+                        'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                      backgroundClip: 'text',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                    }}
+                  >
+                    SubscriptionManager
+                  </Typography>
+                </Logo>
+              </Box>
 
               <Typography
                 component="h1"
                 variant="h4"
                 sx={{
-                  width: '100%',
-                  fontSize: 'clamp(2rem, 10vw, 2.15rem)',
                   textAlign: 'center',
-                  mb: 2,
+                  mb: 1,
+                  fontWeight: 700,
+                  background:
+                    'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                  backgroundClip: 'text',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
                 }}
               >
                 Verify Email
               </Typography>
 
+              <Typography
+                variant="body1"
+                sx={{
+                  textAlign: 'center',
+                  color: 'text.secondary',
+                  mb: 4,
+                  fontSize: '1.1rem',
+                }}
+              >
+                Enter the verification code sent to {formData.email}
+              </Typography>
+
               {error && (
-                <Alert severity="error" sx={{ mb: 2 }}>
+                <Alert
+                  severity="error"
+                  sx={{
+                    mb: 3,
+                    borderRadius: 3,
+                    background: 'rgba(244, 67, 54, 0.05)',
+                  }}
+                >
                   {error}
                 </Alert>
               )}
@@ -361,81 +487,127 @@ export const SignUp: React.FC<SignUpProps> = ({ onToggleMode }) => {
                   display: 'flex',
                   flexDirection: 'column',
                   width: '100%',
-                  gap: 2,
+                  gap: 3,
                 }}
               >
                 <FormControl>
-                  <FormLabel htmlFor="verificationCode">
+                  <FormLabel
+                    sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}
+                  >
                     Verification Code
                   </FormLabel>
-                  <TextField
+                  <StyledTextField
                     error={verificationCodeError}
                     helperText={
                       verificationCodeError
                         ? 'Verification code is required'
                         : ''
                     }
-                    id="verificationCode"
-                    name="verificationCode"
-                    placeholder="Enter the code from your email"
+                    placeholder="Enter the 6-digit code"
                     value={verificationCode}
                     onChange={handleVerificationCodeChange}
                     required
                     fullWidth
-                    variant="outlined"
+                    InputProps={{
+                      startAdornment: (
+                        <VerifiedUser sx={{ color: '#7E57C2', mr: 1 }} />
+                      ),
+                    }}
                   />
                 </FormControl>
 
-                <Button
+                <GradientButton
                   type="submit"
                   fullWidth
-                  variant="contained"
                   disabled={loading}
                   size="large"
                 >
                   {loading ? <CircularProgress size={24} /> : 'Verify Email'}
-                </Button>
+                </GradientButton>
               </Box>
 
-              <Divider />
-
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Typography sx={{ textAlign: 'center' }}>
-                  Already have an account?{' '}
-                  <Link
-                    component="button"
-                    type="button"
-                    onClick={onToggleMode}
-                    variant="body2"
-                    sx={{ alignSelf: 'center' }}
-                  >
-                    Sign in
-                  </Link>
+              <Divider sx={{ my: 3 }}>
+                <Typography
+                  variant="body2"
+                  sx={{ color: 'text.secondary', px: 2 }}
+                >
+                  Already have an account?
                 </Typography>
-              </Box>
+              </Divider>
+
+              <Button
+                fullWidth
+                variant="outlined"
+                onClick={onToggleMode}
+                size="large"
+                sx={{
+                  borderRadius: 3,
+                  py: 1.5,
+                  borderColor: '#7E57C2',
+                  color: '#7E57C2',
+                  fontWeight: 600,
+                  '&:hover': {
+                    borderColor: '#5E35B1',
+                    backgroundColor: 'rgba(126, 87, 194, 0.04)',
+                    transform: 'translateY(-1px)',
+                    boxShadow: '0 4px 12px rgba(126, 87, 194, 0.2)',
+                  },
+                  transition: 'all 0.3s ease',
+                }}
+              >
+                Sign In
+              </Button>
             </AnimatedCardContent>
-          </AnimatePresence>
-        </StyledCard>
-      </SignUpContainer>
+          </GlassCard>
+        </Zoom>
+      </AuthContainer>
     );
   }
 
   return (
-    <SignUpContainer direction="column">
-      <StyledCard>
-        <AnimatePresence mode="wait">
+    <AuthContainer direction="column">
+      <FloatingShape
+        sx={{ top: '10%', right: '10%', width: '200px', height: '200px' }}
+      />
+      <FloatingShape
+        sx={{
+          bottom: '15%',
+          left: '8%',
+          width: '150px',
+          height: '150px',
+          animationDelay: '2s',
+        }}
+      />
+      <FloatingShape
+        sx={{
+          top: '30%',
+          left: '15%',
+          width: '100px',
+          height: '100px',
+          animationDelay: '4s',
+        }}
+      />
+
+      <Zoom in={true} timeout={800}>
+        <GlassCard>
           <AnimatedCardContent
             key="registration"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
             transition={{ duration: 0.3 }}
           >
             <Logo>
               <LogoIcon>SM</LogoIcon>
               <Typography
-                variant="h6"
-                sx={{ color: '#7E57C2', fontWeight: 700 }}
+                variant="h5"
+                sx={{
+                  fontWeight: 700,
+                  background:
+                    'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                  backgroundClip: 'text',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
               >
                 SubscriptionManager
               </Typography>
@@ -445,17 +617,39 @@ export const SignUp: React.FC<SignUpProps> = ({ onToggleMode }) => {
               component="h1"
               variant="h4"
               sx={{
-                width: '100%',
-                fontSize: 'clamp(2rem, 10vw, 2.15rem)',
                 textAlign: 'center',
-                mb: 2,
+                mb: 1,
+                fontWeight: 700,
+                background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
               }}
             >
-              Sign up
+              Create Account
+            </Typography>
+
+            <Typography
+              variant="body1"
+              sx={{
+                textAlign: 'center',
+                color: 'text.secondary',
+                mb: 4,
+                fontSize: '1.1rem',
+              }}
+            >
+              Join us to manage your subscriptions
             </Typography>
 
             {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
+              <Alert
+                severity="error"
+                sx={{
+                  mb: 3,
+                  borderRadius: 3,
+                  background: 'rgba(244, 67, 54, 0.05)',
+                }}
+              >
                 {error}
               </Alert>
             )}
@@ -468,48 +662,60 @@ export const SignUp: React.FC<SignUpProps> = ({ onToggleMode }) => {
                 display: 'flex',
                 flexDirection: 'column',
                 width: '100%',
-                gap: 2,
+                gap: 3,
               }}
             >
               <Box sx={{ display: 'flex', gap: 2 }}>
                 <FormControl sx={{ flex: 1 }}>
-                  <FormLabel htmlFor="firstName">First Name</FormLabel>
-                  <TextField
+                  <FormLabel
+                    sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}
+                  >
+                    First Name
+                  </FormLabel>
+                  <StyledTextField
                     error={firstNameError}
                     helperText={firstNameError ? 'First name is required' : ''}
-                    id="firstName"
                     name="firstName"
                     placeholder="John"
                     autoComplete="given-name"
                     value={formData.firstName}
                     onChange={handleChange}
                     required
-                    variant="outlined"
+                    InputProps={{
+                      startAdornment: (
+                        <Person sx={{ color: '#7E57C2', mr: 1 }} />
+                      ),
+                    }}
                   />
                 </FormControl>
                 <FormControl sx={{ flex: 1 }}>
-                  <FormLabel htmlFor="lastName">Last Name</FormLabel>
-                  <TextField
+                  <FormLabel
+                    sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}
+                  >
+                    Last Name
+                  </FormLabel>
+                  <StyledTextField
                     error={lastNameError}
                     helperText={lastNameError ? 'Last name is required' : ''}
-                    id="lastName"
                     name="lastName"
                     placeholder="Doe"
                     autoComplete="family-name"
                     value={formData.lastName}
                     onChange={handleChange}
                     required
-                    variant="outlined"
                   />
                 </FormControl>
               </Box>
 
               <FormControl>
-                <FormLabel htmlFor="email">Email</FormLabel>
-                <TextField
+                <FormLabel
+                  sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}
+                >
+                  Email Address
+                </FormLabel>
+                <StyledTextField
                   error={emailError}
                   helperText={emailErrorMessage}
-                  id="email"
                   type="email"
                   name="email"
                   placeholder="your@email.com"
@@ -518,58 +724,88 @@ export const SignUp: React.FC<SignUpProps> = ({ onToggleMode }) => {
                   onChange={handleChange}
                   required
                   fullWidth
-                  variant="outlined"
+                  InputProps={{
+                    startAdornment: <Email sx={{ color: '#7E57C2', mr: 1 }} />,
+                  }}
                 />
               </FormControl>
 
               <FormControl>
-                <FormLabel htmlFor="password">Password</FormLabel>
-                <TextField
+                <FormLabel
+                  sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}
+                >
+                  Password
+                </FormLabel>
+                <StyledTextField
                   error={passwordError}
                   helperText={passwordErrorMessage}
                   name="password"
                   placeholder="••••••"
-                  type="password"
-                  id="password"
+                  type={showPassword ? 'text' : 'password'}
                   autoComplete="new-password"
                   value={formData.password}
                   onChange={handleChange}
                   required
                   fullWidth
-                  variant="outlined"
+                  InputProps={{
+                    startAdornment: <Lock sx={{ color: '#7E57C2', mr: 1 }} />,
+                    endAdornment: (
+                      <Button
+                        size="small"
+                        onClick={handleClickShowPassword}
+                        sx={{ minWidth: 'auto', color: '#7E57C2' }}
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </Button>
+                    ),
+                  }}
                 />
               </FormControl>
 
-              <Button
+              <GradientButton
                 type="submit"
                 fullWidth
-                variant="contained"
                 disabled={loading}
                 size="large"
               >
-                {loading ? <CircularProgress size={24} /> : 'Sign up'}
-              </Button>
+                {loading ? <CircularProgress size={24} /> : 'Create Account'}
+              </GradientButton>
             </Box>
 
-            <Divider>or</Divider>
-
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Typography sx={{ textAlign: 'center' }}>
-                Already have an account?{' '}
-                <Link
-                  component="button"
-                  type="button"
-                  onClick={onToggleMode}
-                  variant="body2"
-                  sx={{ alignSelf: 'center' }}
-                >
-                  Sign in
-                </Link>
+            <Divider sx={{ my: 3 }}>
+              <Typography
+                variant="body2"
+                sx={{ color: 'text.secondary', px: 2 }}
+              >
+                Already have an account?
               </Typography>
-            </Box>
+            </Divider>
+
+            <Button
+              fullWidth
+              variant="outlined"
+              onClick={onToggleMode}
+              size="large"
+              sx={{
+                borderRadius: 3,
+                py: 1.5,
+                borderColor: '#7E57C2',
+                color: '#7E57C2',
+                fontWeight: 600,
+                '&:hover': {
+                  borderColor: '#5E35B1',
+                  backgroundColor: 'rgba(126, 87, 194, 0.04)',
+                  transform: 'translateY(-1px)',
+                  boxShadow: '0 4px 12px rgba(126, 87, 194, 0.2)',
+                },
+                transition: 'all 0.3s ease',
+              }}
+            >
+              Sign In
+            </Button>
           </AnimatedCardContent>
-        </AnimatePresence>
-      </StyledCard>
-    </SignUpContainer>
+        </GlassCard>
+      </Zoom>
+    </AuthContainer>
   );
 };

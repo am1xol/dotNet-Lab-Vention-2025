@@ -1,15 +1,15 @@
+// ProfileForm.tsx - обновленная версия
 import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
   TextField,
-  Typography,
-  Card,
   Alert,
   CircularProgress,
   Stack,
 } from '@mui/material';
 import { useSnackbar } from 'notistack';
+import { Save } from '@mui/icons-material';
 import { UserProfile, UpdateProfileRequest } from '../types/user';
 import { userService } from '../services/user-service';
 
@@ -69,72 +69,68 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
     formData.email !== user.email;
 
   return (
-    <Card sx={{ p: 4, mb: 4 }}>
-      <Typography
-        variant="h5"
-        sx={{ mb: 3, color: '#7E57C2', fontWeight: 600 }}
-      >
-        Personal Information
-      </Typography>
+    <Box component="form" onSubmit={handleSubmit}>
+      <Stack spacing={3}>
+        {error && <Alert severity="error">{error}</Alert>}
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
-      )}
-
-      <Box component="form" onSubmit={handleSubmit}>
-        <Stack spacing={3}>
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <TextField
-              fullWidth
-              label="First Name"
-              name="firstName"
-              value={formData.firstName}
-              onChange={handleChange}
-              required
-              size="medium"
-            />
-            <TextField
-              fullWidth
-              label="Last Name"
-              name="lastName"
-              value={formData.lastName}
-              onChange={handleChange}
-              required
-              size="medium"
-            />
-          </Box>
-
+        <Box sx={{ display: 'flex', gap: 2 }}>
           <TextField
             fullWidth
-            label="Email Address"
-            name="email"
-            type="email"
-            value={formData.email}
+            label="First Name"
+            name="firstName"
+            value={formData.firstName}
             onChange={handleChange}
             required
             size="medium"
-            helperText={
-              user.isEmailVerified ? 'Email verified' : 'Email not verified'
-            }
+            variant="outlined"
           />
+          <TextField
+            fullWidth
+            label="Last Name"
+            name="lastName"
+            value={formData.lastName}
+            onChange={handleChange}
+            required
+            size="medium"
+            variant="outlined"
+          />
+        </Box>
 
-          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={!hasChanges || loading}
-              sx={{
-                background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
-                minWidth: 120,
-              }}
-            >
-              {loading ? <CircularProgress size={24} /> : 'Save Changes'}
-            </Button>
-          </Box>
-        </Stack>
-      </Box>
-    </Card>
+        <TextField
+          fullWidth
+          label="Email Address"
+          name="email"
+          type="email"
+          value={formData.email}
+          onChange={handleChange}
+          required
+          size="medium"
+          variant="outlined"
+          helperText={
+            user.isEmailVerified
+              ? 'Your email address is verified'
+              : 'Please verify your email address'
+          }
+        />
+
+        <Box
+          sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', pt: 2 }}
+        >
+          <Button
+            type="submit"
+            variant="contained"
+            startIcon={loading ? <CircularProgress size={16} /> : <Save />}
+            disabled={!hasChanges || loading}
+            sx={{
+              background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+              minWidth: 140,
+              borderRadius: 2,
+            }}
+          >
+            {loading ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </Box>
+      </Stack>
+    </Box>
   );
 };

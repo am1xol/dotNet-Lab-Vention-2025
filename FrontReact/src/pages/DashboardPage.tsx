@@ -168,14 +168,14 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <Box
-      sx={{
-        minHeight: '100vh',
-        background:
-          'linear-gradient(135deg, #F5F3FF 0%, #EDE7F6 50%, #E8EAF6 100%)',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
+  className="hide-scrollbar"
+  sx={{
+    minHeight: '100vh',
+    background: 'linear-gradient(135deg, #F5F3FF 0%, #EDE7F6 50%, #E8EAF6 100%)',
+    position: 'relative',
+    overflow: 'hidden',
+  }}
+>
       <FloatingIcons />
 
       {/* Кнопка возврата слева от Header */}

@@ -8,10 +8,21 @@ import {
   CircularProgress,
   Button,
   Stack,
+  Grid,
+  Avatar,
+  Chip,
+  Divider,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useSnackbar } from 'notistack';
+import {
+  Security,
+  Person,
+  ArrowBack,
+  VerifiedUser,
+  CalendarToday,
+} from '@mui/icons-material';
 import { UserProfile as UserProfileType } from '../types/user';
 import { userService } from '../services/user-service';
 import Header from './Header';
@@ -23,6 +34,9 @@ export const UserProfile: React.FC = () => {
   const [user, setUser] = useState<UserProfileType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
+  const [activeSection, setActiveSection] = useState<'profile' | 'security'>(
+    'profile'
+  );
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
 
@@ -55,6 +69,10 @@ export const UserProfile: React.FC = () => {
     });
   };
 
+  const getUserInitials = (user: UserProfileType) => {
+    return `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
+  };
+
   if (loading) {
     return (
       <Box
@@ -84,7 +102,14 @@ export const UserProfile: React.FC = () => {
           justifyContent: 'center',
         }}
       >
-        <Alert severity="error" sx={{ maxWidth: 400 }}>
+        <Alert
+          severity="error"
+          sx={{
+            maxWidth: 400,
+            background: 'rgba(255, 255, 255, 0.9)',
+            backdropFilter: 'blur(10px)',
+          }}
+        >
           {error || 'Failed to load profile'}
         </Alert>
       </Box>
@@ -102,7 +127,6 @@ export const UserProfile: React.FC = () => {
       }}
     >
       <FloatingIcons />
-
       <Header />
 
       <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1, py: 4 }}>
@@ -112,93 +136,193 @@ export const UserProfile: React.FC = () => {
           transition={{ duration: 0.6 }}
         >
           {/* Header */}
-          <Card
-            sx={{
-              p: 4,
-              mb: 4,
-              background: 'rgba(255, 255, 255, 0.7)',
-              backdropFilter: 'blur(20px)',
-            }}
-          >
-            <Box
+          <Box sx={{ mb: 4 }}>
+            <Button
+              startIcon={<ArrowBack />}
+              onClick={() => navigate('/')}
               sx={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                mb: 3,
+                color: '#7E57C2',
+                fontWeight: 600,
+                mb: 2,
+                '&:hover': {
+                  backgroundColor: 'rgba(126, 87, 194, 0.08)',
+                },
               }}
             >
-              <Box>
-                <Typography
-                  variant="h3"
-                  sx={{ color: '#7E57C2', fontWeight: 700, mb: 1 }}
-                >
-                  Profile Settings
-                </Typography>
-                <Typography variant="h6" sx={{ color: 'text.secondary' }}>
-                  Manage your account information and security
-                </Typography>
-              </Box>
-              <Button
-                variant="outlined"
-                onClick={() => navigate('/')}
-                sx={{
-                  color: '#7E57C2',
-                  borderColor: '#7E57C2',
-                  fontWeight: 600,
-                }}
-              >
-                Back to Home
-              </Button>
-            </Box>
+              Back to Dashboard
+            </Button>
 
-            {/* User Info */}
-            <Stack spacing={2} sx={{ mt: 3 }}>
-              <Box
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                  Account Created:
-                </Typography>
-                <Typography variant="body1" sx={{ color: 'text.secondary' }}>
-                  {formatDate(user.createdAt)}
-                </Typography>
-              </Box>
+            <Typography
+              variant="h3"
+              sx={{
+                color: '#7E57C2',
+                fontWeight: 700,
+                mb: 1,
+                background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              Account Settings
+            </Typography>
+            <Typography variant="h6" sx={{ color: 'text.secondary', mb: 4 }}>
+              Manage your personal information and security preferences
+            </Typography>
+          </Box>
 
-              <Box
+          <Grid container spacing={4}>
+            {/* Sidebar Navigation */}
+            <Grid size={{ xs: 12, md: 4 }}>
+              <Card
                 sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
+                  p: 3,
+                  background: 'rgba(255, 255, 255, 0.8)',
+                  backdropFilter: 'blur(20px)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: 3,
                 }}
               >
-                <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                  Email Status:
-                </Typography>
-                <Typography
-                  variant="body1"
+                {/* User Summary */}
+                <Box sx={{ textAlign: 'center', mb: 3 }}>
+                  <Avatar
+                    sx={{
+                      width: 80,
+                      height: 80,
+                      mx: 'auto',
+                      mb: 2,
+                      bgcolor: 'primary.main',
+                      fontSize: '1.5rem',
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    {getUserInitials(user)}
+                  </Avatar>
+                  <Typography variant="h6" fontWeight="600">
+                    {user.firstName} {user.lastName}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 2 }}
+                  >
+                    {user.email}
+                  </Typography>
+                  <Chip
+                    icon={<VerifiedUser />}
+                    label={
+                      user.isEmailVerified
+                        ? 'Email Verified'
+                        : 'Email Not Verified'
+                    }
+                    color={user.isEmailVerified ? 'success' : 'warning'}
+                    size="small"
+                    variant="outlined"
+                  />
+                </Box>
+
+                <Divider sx={{ my: 2 }} />
+
+                {/* Navigation */}
+                <Stack spacing={1}>
+                  <Button
+                    fullWidth
+                    startIcon={<Person />}
+                    onClick={() => setActiveSection('profile')}
+                    variant={activeSection === 'profile' ? 'contained' : 'text'}
+                    sx={{
+                      justifyContent: 'flex-start',
+                      borderRadius: 2,
+                      py: 1.5,
+                      ...(activeSection === 'profile' && {
+                        background:
+                          'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                      }),
+                    }}
+                  >
+                    Personal Information
+                  </Button>
+
+                  <Button
+                    fullWidth
+                    startIcon={<Security />}
+                    onClick={() => setActiveSection('security')}
+                    variant={
+                      activeSection === 'security' ? 'contained' : 'text'
+                    }
+                    sx={{
+                      justifyContent: 'flex-start',
+                      borderRadius: 2,
+                      py: 1.5,
+                      ...(activeSection === 'security' && {
+                        background:
+                          'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                      }),
+                    }}
+                  >
+                    Security & Password
+                  </Button>
+                </Stack>
+
+                <Divider sx={{ my: 2 }} />
+
+                {/* Account Info */}
+                <Box sx={{ mt: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <CalendarToday
+                      sx={{ fontSize: 16, color: 'text.secondary', mr: 1 }}
+                    />
+                    <Typography variant="body2" color="text.secondary">
+                      Member since {formatDate(user.createdAt)}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Card>
+            </Grid>
+
+            {/* Main Content */}
+            <Grid size={{ xs: 12, md: 8 }}>
+              <motion.div
+                key={activeSection}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Card
                   sx={{
-                    color: user.isEmailVerified
-                      ? 'success.main'
-                      : 'warning.main',
-                    fontWeight: 600,
+                    p: 4,
+                    background: 'rgba(255, 255, 255, 0.8)',
+                    backdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    borderRadius: 3,
+                    minHeight: 400,
                   }}
                 >
-                  {user.isEmailVerified ? 'Verified' : 'Not Verified'}
-                </Typography>
-              </Box>
-            </Stack>
-          </Card>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
+                    {activeSection === 'profile' ? (
+                      <Person sx={{ color: '#7E57C2', mr: 2 }} />
+                    ) : (
+                      <Security sx={{ color: '#7E57C2', mr: 2 }} />
+                    )}
+                    <Typography variant="h5" fontWeight="600" color="#7E57C2">
+                      {activeSection === 'profile'
+                        ? 'Personal Information'
+                        : 'Security Settings'}
+                    </Typography>
+                  </Box>
 
-          {/* Forms */}
-          <Box sx={{ maxWidth: 800, margin: '0 auto' }}>
-            <ProfileForm user={user} onProfileUpdated={handleProfileUpdated} />
-            <ChangePasswordForm />
-          </Box>
+                  {activeSection === 'profile' ? (
+                    <ProfileForm
+                      user={user}
+                      onProfileUpdated={handleProfileUpdated}
+                    />
+                  ) : (
+                    <ChangePasswordForm />
+                  )}
+                </Card>
+              </motion.div>
+            </Grid>
+          </Grid>
         </motion.div>
       </Container>
     </Box>

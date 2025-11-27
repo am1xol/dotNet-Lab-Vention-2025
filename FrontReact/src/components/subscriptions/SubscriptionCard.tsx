@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -12,6 +12,8 @@ import {
   Tooltip,
 } from '@mui/material';
 import { Subscription } from '../../types/subscription';
+import { PaymentForm } from '../payment/PaymentForm';
+import { PaymentInfo } from '../../types/payment';
 
 interface SubscriptionCardProps {
   subscription: Subscription;
@@ -20,6 +22,10 @@ interface SubscriptionCardProps {
   validUntil?: string;
   unsubscribeInfo?: { validUntil: string };
   onSubscribe: (subscriptionId: string) => void;
+  onSubscribeWithPayment: (
+    subscriptionId: string,
+    paymentInfo: PaymentInfo
+  ) => Promise<void>;
   onUnsubscribe: (subscriptionId: string) => void;
   userRole?: string;
   loading?: boolean;
@@ -31,11 +37,14 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   isCancelled = false,
   validUntil,
   unsubscribeInfo,
-  onSubscribe,
+  onSubscribeWithPayment,
   onUnsubscribe,
   userRole,
   loading = false,
 }) => {
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+
   const formatPrice = (price: number) => {
     return `$${price}`;
   };
@@ -142,202 +151,224 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
     };
   };
 
-  const buttonState = getButtonState();
+  const handlePaymentSubmit = async (paymentInfo: PaymentInfo) => {
+    setPaymentLoading(true);
+    try {
+      await onSubscribeWithPayment(subscription.id, paymentInfo);
+      setPaymentDialogOpen(false);
+    } catch (error) {
+      console.error('Payment failed:', error);
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
 
   const handleButtonClick = () => {
     if (isSubscribed && !isCancelled) {
       onUnsubscribe(subscription.id);
     } else if (!isSubscribed) {
-      onSubscribe(subscription.id);
+      setPaymentDialogOpen(true);
     }
   };
 
+  const buttonState = getButtonState();
   const status = getSubscriptionStatus();
   const statusText = getStatusText();
   const statusColor = getStatusColor();
 
   return (
-    <Card
-      sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        transition: 'all 0.3s ease',
-        background: 'rgba(255, 255, 255, 0.8)',
-        backdropFilter: 'blur(10px)',
-        border: isCancelled
-          ? '2px solid #ffd54f'
-          : '1px solid rgba(255, 255, 255, 0.3)',
-        borderRadius: 3,
-        boxShadow: '0 4px 20px rgba(126, 87, 194, 0.1)',
-        '&:hover': {
-          transform: 'translateY(-8px)',
-          boxShadow: '0 16px 40px rgba(126, 87, 194, 0.15)',
+    <>
+      <Card
+        sx={{
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          transition: 'all 0.3s ease',
+          background: 'rgba(255, 255, 255, 0.8)',
+          backdropFilter: 'blur(10px)',
           border: isCancelled
             ? '2px solid #ffd54f'
-            : '1px solid rgba(126, 87, 194, 0.2)',
-        },
-      }}
-    >
-      {loading && <LinearProgress />}
+            : '1px solid rgba(255, 255, 255, 0.3)',
+          borderRadius: 3,
+          boxShadow: '0 4px 20px rgba(126, 87, 194, 0.1)',
+          '&:hover': {
+            transform: 'translateY(-8px)',
+            boxShadow: '0 16px 40px rgba(126, 87, 194, 0.15)',
+            border: isCancelled
+              ? '2px solid #ffd54f'
+              : '1px solid rgba(126, 87, 194, 0.2)',
+          },
+        }}
+      >
+        {loading && <LinearProgress />}
 
-      <CardContent sx={{ flexGrow: 1, p: 3 }}>
-        <Box display="flex" alignItems="flex-start" mb={3}>
-          {subscription.iconUrl ? (
-            <Avatar
-              src={subscription.iconUrl}
-              sx={{ width: 60, height: 60, mr: 2 }}
-              variant="rounded"
-            />
-          ) : (
-            <Avatar
-              sx={{
-                width: 60,
-                height: 60,
-                mr: 2,
-                bgcolor: 'primary.main',
-                fontSize: '1.5rem',
-              }}
-              variant="rounded"
-            >
-              {subscription.name.charAt(0)}
-            </Avatar>
-          )}
-          <Box sx={{ flexGrow: 1 }}>
-            <Typography
-              variant="h5"
-              component="h3"
-              fontWeight="600"
-              gutterBottom
-            >
-              {subscription.name}
-            </Typography>
-            <Box display="flex" gap={1} flexWrap="wrap">
-              <Chip
-                label={subscription.category}
-                size="small"
-                color="primary"
-                variant="outlined"
+        <CardContent sx={{ flexGrow: 1, p: 3 }}>
+          <Box display="flex" alignItems="flex-start" mb={3}>
+            {subscription.iconUrl ? (
+              <Avatar
+                src={subscription.iconUrl}
+                sx={{ width: 60, height: 60, mr: 2 }}
+                variant="rounded"
               />
-              <Chip
-                label={subscription.period}
-                size="small"
-                color={getPeriodColor(subscription.period)}
-                variant="filled"
-              />
-              <Chip
-                label={statusText}
-                size="small"
-                color={statusColor}
-                variant={status === 'Active' ? 'filled' : 'outlined'}
-              />
-            </Box>
-          </Box>
-        </Box>
-
-        <Typography
-          color="text.secondary"
-          sx={{
-            mb: 3,
-            lineHeight: 1.6,
-            display: '-webkit-box',
-            WebkitLineClamp: 3,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-          }}
-        >
-          {subscription.description}
-        </Typography>
-
-        <Box
-          display="flex"
-          justifyContent="space-between"
-          alignItems="center"
-          mt="auto"
-        >
-          <Typography variant="h4" color="primary.main" fontWeight="bold">
-            {formatPrice(subscription.price)}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" fontWeight="500">
-            per {subscription.period.toLowerCase()}
-          </Typography>
-        </Box>
-
-        {status === 'Cancelled' &&
-          (unsubscribeInfo?.validUntil || validUntil) && (
-            <Box
-              sx={{
-                mt: 2,
-                p: 1.5,
-                bgcolor: 'warning.light',
-                borderRadius: 1,
-                border: '1px solid',
-                borderColor: 'warning.main',
-              }}
-            >
-              <Typography variant="body2" color="warning.dark" align="center">
-                <strong>Active until:</strong>{' '}
-                {formatDate(unsubscribeInfo?.validUntil || validUntil || '')}
-                <br />
-                <Typography variant="caption">
-                  You will lose access after this date
-                </Typography>
+            ) : (
+              <Avatar
+                sx={{
+                  width: 60,
+                  height: 60,
+                  mr: 2,
+                  bgcolor: 'primary.main',
+                  fontSize: '1.5rem',
+                }}
+                variant="rounded"
+              >
+                {subscription.name.charAt(0)}
+              </Avatar>
+            )}
+            <Box sx={{ flexGrow: 1 }}>
+              <Typography
+                variant="h5"
+                component="h3"
+                fontWeight="600"
+                gutterBottom
+              >
+                {subscription.name}
               </Typography>
+              <Box display="flex" gap={1} flexWrap="wrap">
+                <Chip
+                  label={subscription.category}
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                />
+                <Chip
+                  label={subscription.period}
+                  size="small"
+                  color={getPeriodColor(subscription.period)}
+                  variant="filled"
+                />
+                <Chip
+                  label={statusText}
+                  size="small"
+                  color={statusColor}
+                  variant={status === 'Active' ? 'filled' : 'outlined'}
+                />
+              </Box>
             </Box>
-          )}
-      </CardContent>
-
-      <CardActions sx={{ p: 3, pt: 0 }}>
-        {userRole === 'Admin' ? (
-          <Box display="flex" gap={1} width="100%">
-            <Button
-              size="large"
-              color="primary"
-              variant="outlined"
-              fullWidth
-              disabled={loading}
-            >
-              Edit
-            </Button>
-            <Button
-              size="large"
-              color="error"
-              variant="outlined"
-              fullWidth
-              disabled={loading}
-            >
-              Delete
-            </Button>
           </Box>
-        ) : (
-          <Tooltip title={buttonState.tooltip} arrow>
-            <span style={{ width: '100%' }}>
+
+          <Typography
+            color="text.secondary"
+            sx={{
+              mb: 3,
+              lineHeight: 1.6,
+              display: '-webkit-box',
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
+            {subscription.description}
+          </Typography>
+
+          <Box
+            display="flex"
+            justifyContent="space-between"
+            alignItems="center"
+            mt="auto"
+          >
+            <Typography variant="h4" color="primary.main" fontWeight="bold">
+              {formatPrice(subscription.price)}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" fontWeight="500">
+              per {subscription.period.toLowerCase()}
+            </Typography>
+          </Box>
+
+          {status === 'Cancelled' &&
+            (unsubscribeInfo?.validUntil || validUntil) && (
+              <Box
+                sx={{
+                  mt: 2,
+                  p: 1.5,
+                  bgcolor: 'warning.light',
+                  borderRadius: 1,
+                  border: '1px solid',
+                  borderColor: 'warning.main',
+                }}
+              >
+                <Typography variant="body2" color="warning.dark" align="center">
+                  <strong>Active until:</strong>{' '}
+                  {formatDate(unsubscribeInfo?.validUntil || validUntil || '')}
+                  <br />
+                  <Typography variant="caption">
+                    You will lose access after this date
+                  </Typography>
+                </Typography>
+              </Box>
+            )}
+        </CardContent>
+
+        <CardActions sx={{ p: 3, pt: 0 }}>
+          {userRole === 'Admin' ? (
+            <Box display="flex" gap={1} width="100%">
               <Button
                 size="large"
-                variant={buttonState.variant}
-                color={buttonState.color}
+                color="primary"
+                variant="outlined"
                 fullWidth
-                onClick={handleButtonClick}
-                disabled={buttonState.disabled || loading}
-                sx={
-                  !isSubscribed
-                    ? {
-                        background:
-                          'linear-gradient(135deg, #7E57C2 0%, #5C6BC0 100%)',
-                        '&:hover': {
-                          background:
-                            'linear-gradient(135deg, #6A45B8 0%, #4A5ABD 100%)',
-                        },
-                      }
-                    : {}
-                }
+                disabled={loading}
               >
-                {loading ? 'Processing...' : getButtonText()}
+                Edit
               </Button>
-            </span>
-          </Tooltip>
-        )}
-      </CardActions>
-    </Card>
+              <Button
+                size="large"
+                color="error"
+                variant="outlined"
+                fullWidth
+                disabled={loading}
+              >
+                Delete
+              </Button>
+            </Box>
+          ) : (
+            <Tooltip title={buttonState.tooltip} arrow>
+              <span style={{ width: '100%' }}>
+                <Button
+                  size="large"
+                  variant={buttonState.variant}
+                  color={buttonState.color}
+                  fullWidth
+                  onClick={handleButtonClick}
+                  disabled={buttonState.disabled || loading}
+                  sx={
+                    !isSubscribed
+                      ? {
+                          background:
+                            'linear-gradient(135deg, #7E57C2 0%, #5C6BC0 100%)',
+                          '&:hover': {
+                            background:
+                              'linear-gradient(135deg, #6A45B8 0%, #4A5ABD 100%)',
+                          },
+                        }
+                      : {}
+                  }
+                >
+                  {loading ? 'Processing...' : getButtonText()}
+                </Button>
+              </span>
+            </Tooltip>
+          )}
+        </CardActions>
+      </Card>
+
+      <PaymentForm
+        open={paymentDialogOpen}
+        onClose={() => setPaymentDialogOpen(false)}
+        onPaymentSubmit={handlePaymentSubmit}
+        subscriptionName={subscription.name}
+        price={subscription.price}
+        loading={paymentLoading}
+      />
+    </>
   );
 };

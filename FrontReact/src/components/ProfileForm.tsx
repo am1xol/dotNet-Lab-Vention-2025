@@ -1,4 +1,3 @@
-// ProfileForm.tsx - обновленная версия
 import React, { useState, useEffect } from 'react';
 import {
   Box,

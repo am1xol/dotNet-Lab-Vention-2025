@@ -22,6 +22,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Subscription> Subscriptions { get; set; }
     public DbSet<UserSubscription> UserSubscriptions { get; set; }
     public DbSet<StoredFile> StoredFiles { get; set; }
+    public DbSet<Payment> Payments { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -43,6 +44,8 @@ public class ApplicationDbContext : DbContext
             .Property(u => u.LastName)
             .IsRequired();
 
+
+
         modelBuilder.Entity<RefreshToken>()
             .HasIndex(rt => rt.Token)
             .IsUnique();
@@ -52,6 +55,8 @@ public class ApplicationDbContext : DbContext
             .WithMany()
             .HasForeignKey(rt => rt.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+
+
 
         modelBuilder.Entity<StoredFile>()
             .HasIndex(f => f.ObjectName)
@@ -63,6 +68,8 @@ public class ApplicationDbContext : DbContext
             .HasForeignKey(f => f.UserId)
             .OnDelete(DeleteBehavior.SetNull);
 
+
+
         modelBuilder.Entity<Subscription>()
             .HasOne(s => s.IconFile)
             .WithMany(f => f.Subscriptions)
@@ -73,6 +80,8 @@ public class ApplicationDbContext : DbContext
             .Property(s => s.Price)
             .HasPrecision(18, 2);
 
+
+
         modelBuilder.Entity<UserSubscription>()
             .HasOne(us => us.Subscription)
             .WithMany()
@@ -81,5 +90,35 @@ public class ApplicationDbContext : DbContext
 
         modelBuilder.Entity<UserSubscription>()
             .HasIndex(us => us.UserId);
+
+
+
+        modelBuilder.Entity<Payment>()
+            .HasOne(p => p.UserSubscription)
+            .WithMany(us => us.Payments)
+            .HasForeignKey(p => p.UserSubscriptionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Payment>()
+            .HasOne(p => p.User)
+            .WithMany()
+            .HasForeignKey(p => p.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Payment>()
+            .Property(p => p.Amount)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<Payment>()
+            .Property(p => p.Currency)
+            .HasMaxLength(3);
+
+        modelBuilder.Entity<Payment>()
+            .Property(p => p.CardLastFour)
+            .HasMaxLength(4);
+
+        modelBuilder.Entity<Payment>()
+            .Property(p => p.CardBrand)
+            .HasMaxLength(20);
     }
 }

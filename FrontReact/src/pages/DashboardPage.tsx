@@ -17,7 +17,12 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth-store';
 import { subscriptionService } from '../services/subscription-service';
+import { UserStatistics } from '../components/statistics/UserStatistics';
 import { userSubscriptionService } from '../services/user-subscription-service';
+import {
+  UserStatistics as UserStatisticsType,
+  PaymentInfo,
+} from '../types/payment';
 import { SubscriptionCard } from '../components/subscriptions/SubscriptionCard';
 import { AdminSubscriptionPanel } from '../components/subscriptions/AdminSubscriptionPanel';
 import {
@@ -27,6 +32,7 @@ import {
 } from '../types/subscription';
 import Header from '../components/Header';
 import FloatingIcons from '../components/FloatingServiceIcons';
+import { PaymentHistoryTab } from '../components/payment/PaymentHistoryTab';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -54,6 +60,7 @@ const TabPanel: React.FC<TabPanelProps> = ({
 };
 
 export const DashboardPage: React.FC = () => {
+  const [statistics, setStatistics] = useState<UserStatisticsType | null>(null);
   const [tabValue, setTabValue] = useState(0);
   const [availableSubscriptions, setAvailableSubscriptions] =
     useState<GroupedSubscriptions>({});
@@ -79,6 +86,7 @@ export const DashboardPage: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
+
       const [subscriptionsData, mySubscriptionsData] = await Promise.all([
         subscriptionService.getSubscriptions(),
         userSubscriptionService.getMySubscriptions(),
@@ -86,11 +94,52 @@ export const DashboardPage: React.FC = () => {
 
       setAvailableSubscriptions(subscriptionsData);
       setMySubscriptions(mySubscriptionsData);
+
+      if (isAuthenticated) {
+        await loadStatistics();
+      }
     } catch (err) {
-      setError('Failed to load subscriptions');
       console.error('Error loading data:', err);
+      setError('Failed to load subscriptions');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadStatistics = async () => {
+    try {
+      const stats = await userSubscriptionService.getStatistics();
+      setStatistics(stats);
+    } catch (err) {
+      console.error('Error loading statistics:', err);
+    } finally {
+    }
+  };
+
+  const handleSubscribeWithPayment = async (
+    subscriptionId: string,
+    paymentInfo: PaymentInfo
+  ) => {
+    try {
+      setActionLoading(subscriptionId);
+
+      await userSubscriptionService.subscribeWithPayment({
+        subscriptionId,
+        paymentInfo,
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      await loadData();
+
+      setError(null);
+    } catch (err: any) {
+      const errorMessage =
+        err.response?.data?.message || 'Failed to process payment';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -101,7 +150,6 @@ export const DashboardPage: React.FC = () => {
       await loadData();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to subscribe');
-      console.error('Error subscribing:', err);
     } finally {
       setActionLoading(null);
     }
@@ -123,7 +171,6 @@ export const DashboardPage: React.FC = () => {
       await loadData();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to unsubscribe');
-      console.error('Error unsubscribing:', err);
     } finally {
       setActionLoading(null);
     }
@@ -144,9 +191,10 @@ export const DashboardPage: React.FC = () => {
   const getUserSubscription = (
     subscriptionId: string
   ): UserSubscription | undefined => {
-    return Object.values(mySubscriptions)
-      .flat()
-      .find((us) => us.subscription.id === subscriptionId);
+    const allUserSubscriptions = Object.values(mySubscriptions).flat();
+    return allUserSubscriptions.find(
+      (us) => us.subscription.id === subscriptionId && us.isActive
+    );
   };
 
   if (loading) {
@@ -168,17 +216,17 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <Box
-  className="hide-scrollbar"
-  sx={{
-    minHeight: '100vh',
-    background: 'linear-gradient(135deg, #F5F3FF 0%, #EDE7F6 50%, #E8EAF6 100%)',
-    position: 'relative',
-    overflow: 'hidden',
-  }}
->
+      className="hide-scrollbar"
+      sx={{
+        minHeight: '100vh',
+        background:
+          'linear-gradient(135deg, #F5F3FF 0%, #EDE7F6 50%, #E8EAF6 100%)',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
       <FloatingIcons />
 
-      {/* Кнопка возврата слева от Header */}
       <Box sx={{ position: 'absolute', top: 20, left: 20, zIndex: 1000 }}>
         <motion.div
           initial={{ opacity: 0, x: -20 }}
@@ -217,7 +265,6 @@ export const DashboardPage: React.FC = () => {
 
       <Container maxWidth="xl" sx={{ position: 'relative', zIndex: 1, py: 4 }}>
         <Stack spacing={4}>
-          {/* Заголовок */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -273,7 +320,16 @@ export const DashboardPage: React.FC = () => {
             </motion.div>
           )}
 
-          {/* Основной контент */}
+          {statistics && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+            >
+              <UserStatistics statistics={statistics} />
+            </motion.div>
+          )}
+
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -290,7 +346,7 @@ export const DashboardPage: React.FC = () => {
                 boxShadow: '0 8px 32px rgba(126, 87, 194, 0.15)',
               }}
             >
-              {/* Табы - ТОЛЬКО 2 вкладки */}
+              {/* Табы */}
               <Box
                 sx={{
                   borderBottom: 1,
@@ -319,6 +375,7 @@ export const DashboardPage: React.FC = () => {
                 >
                   <Tab label="Available Subscriptions" />
                   <Tab label="My Subscriptions" />
+                  <Tab label="Payment History" />
                   {userRole === 'Admin' && <Tab label="Manage Subscriptions" />}
                 </Tabs>
               </Box>
@@ -346,18 +403,7 @@ export const DashboardPage: React.FC = () => {
                         }}
                       >
                         <Box sx={{ mb: 6 }}>
-                          <Typography
-                            variant="h4"
-                            gutterBottom
-                            sx={{
-                              mt: 2,
-                              mb: 4,
-                              color: '#7E57C2',
-                              fontWeight: 700,
-                              textTransform: 'capitalize',
-                              fontSize: '2rem',
-                            }}
-                          >
+                          <Typography variant="h4" gutterBottom>
                             {category}
                           </Typography>
                           <Grid container spacing={3}>
@@ -366,7 +412,7 @@ export const DashboardPage: React.FC = () => {
                                 subscription.id
                               );
                               const isSubscribed =
-                                userSubscription?.isValid || false;
+                                userSubscription?.isActive || false;
                               const unsubscribeInfo = getUnsubscribeInfo(
                                 subscription.id
                               );
@@ -393,6 +439,9 @@ export const DashboardPage: React.FC = () => {
                                       validUntil={userSubscription?.validUntil}
                                       unsubscribeInfo={unsubscribeInfo}
                                       onSubscribe={handleSubscribe}
+                                      onSubscribeWithPayment={
+                                        handleSubscribeWithPayment
+                                      }
                                       onUnsubscribe={handleUnsubscribe}
                                       loading={
                                         actionLoading === subscription.id
@@ -456,9 +505,7 @@ export const DashboardPage: React.FC = () => {
                           </Typography>
                           <Grid container spacing={3}>
                             {userSubscriptions
-                              .filter(
-                                (us) => us.isValid || us.cancelledAt != null
-                              )
+                              .filter((us) => us.isActive)
                               .map((userSubscription, index) => {
                                 const unsubscribeInfo = getUnsubscribeInfo(
                                   userSubscription.subscription.id
@@ -481,13 +528,16 @@ export const DashboardPage: React.FC = () => {
                                         subscription={
                                           userSubscription.subscription
                                         }
-                                        isSubscribed={userSubscription.isValid}
+                                        isSubscribed={userSubscription.isActive}
                                         isCancelled={
                                           userSubscription.cancelledAt != null
                                         }
                                         validUntil={userSubscription.validUntil}
                                         unsubscribeInfo={unsubscribeInfo}
                                         onSubscribe={handleSubscribe}
+                                        onSubscribeWithPayment={
+                                          handleSubscribeWithPayment
+                                        }
                                         onUnsubscribe={handleUnsubscribe}
                                         loading={
                                           actionLoading ===
@@ -506,9 +556,14 @@ export const DashboardPage: React.FC = () => {
                 )}
               </TabPanel>
 
+              {/* Payment History Tab */}
+              <TabPanel value={tabValue} index={2}>
+                <PaymentHistoryTab />
+              </TabPanel>
+
               {/* Admin Management Tab */}
               {userRole === 'Admin' && (
-                <TabPanel value={tabValue} index={2}>
+                <TabPanel value={tabValue} index={3}>
                   <AdminSubscriptionPanel
                     onSubscriptionCreated={loadData}
                     onSubscriptionUpdated={loadData}

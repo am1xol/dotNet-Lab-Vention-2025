@@ -21,6 +21,7 @@ namespace SubscriptionManager.Core
         public bool IsActive { get; set; } = true;
 
         public virtual Subscription Subscription { get; set; } = null!;
+        public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
         public bool IsValid => IsActive && (!CancelledAt.HasValue || DateTime.UtcNow <= ValidUntil);
     }
 }

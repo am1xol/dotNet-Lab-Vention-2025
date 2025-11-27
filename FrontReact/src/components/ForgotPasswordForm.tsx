@@ -14,11 +14,7 @@ import {
   Zoom,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import { 
-  Email,
-  ArrowBack,
-  MarkEmailRead
-} from '@mui/icons-material';
+import { Email, ArrowBack, MarkEmailRead } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { authService } from '../services/auth-service';
 
@@ -66,10 +62,11 @@ const AuthContainer = styled(Stack)(({ theme }) => ({
   position: 'relative',
 }));
 
-const FloatingShape = styled(Box)(({  }) => ({
+const FloatingShape = styled(Box)(({}) => ({
   position: 'absolute',
   borderRadius: '50%',
-  background: 'linear-gradient(45deg, rgba(126, 87, 194, 0.1), rgba(179, 157, 219, 0.05))',
+  background:
+    'linear-gradient(45deg, rgba(126, 87, 194, 0.1), rgba(179, 157, 219, 0.05))',
   animation: 'float 6s ease-in-out infinite',
   '@keyframes float': {
     '0%, 100%': { transform: 'translateY(0px) rotate(0deg)' },
@@ -99,7 +96,7 @@ const LogoIcon = styled(Box)(({}) => ({
   boxShadow: '0 4px 12px rgba(126, 87, 194, 0.3)',
 }));
 
-const StyledTextField = styled(TextField)(({  }) => ({
+const StyledTextField = styled(TextField)(({}) => ({
   '& .MuiOutlinedInput-root': {
     borderRadius: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.8)',
@@ -117,7 +114,7 @@ const StyledTextField = styled(TextField)(({  }) => ({
   },
 }));
 
-const GradientButton = styled(Button)(({  }) => ({
+const GradientButton = styled(Button)(({}) => ({
   background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
   borderRadius: 12,
   padding: '12px 24px',
@@ -200,9 +197,19 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
   if (success) {
     return (
       <AuthContainer direction="column">
-        <FloatingShape sx={{ top: '10%', right: '10%', width: '200px', height: '200px' }} />
-        <FloatingShape sx={{ bottom: '15%', left: '8%', width: '150px', height: '150px', animationDelay: '2s' }} />
-        
+        <FloatingShape
+          sx={{ top: '10%', right: '10%', width: '200px', height: '200px' }}
+        />
+        <FloatingShape
+          sx={{
+            bottom: '15%',
+            left: '8%',
+            width: '150px',
+            height: '150px',
+            animationDelay: '2s',
+          }}
+        />
+
         <Zoom in={true} timeout={800}>
           <GlassCard>
             <AnimatedCardContent
@@ -213,11 +220,12 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
             >
               <Logo>
                 <LogoIcon>SM</LogoIcon>
-                <Typography 
-                  variant="h5" 
-                  sx={{ 
+                <Typography
+                  variant="h5"
+                  sx={{
                     fontWeight: 700,
-                    background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                    background:
+                      'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
                     backgroundClip: 'text',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
@@ -234,7 +242,8 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
                   variant="h4"
                   sx={{
                     fontWeight: 700,
-                    background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                    background:
+                      'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
                     backgroundClip: 'text',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
@@ -243,26 +252,26 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
                 >
                   Check Your Email
                 </Typography>
-                <Alert 
-                  severity="success" 
-                  sx={{ 
+                <Alert
+                  severity="success"
+                  sx={{
                     mb: 3,
                     borderRadius: 3,
                     background: 'rgba(76, 175, 80, 0.05)',
                     border: '1px solid rgba(76, 175, 80, 0.2)',
                   }}
                 >
-                  We sent a password reset code to <strong>{email}</strong>. Please
-                  check your email and enter the code on the next screen.
+                  We sent a password reset code to <strong>{email}</strong>.
+                  Please check your email and enter the code on the next screen.
                 </Alert>
 
                 <Typography
                   variant="body2"
-                  sx={{ 
-                    textAlign: 'center', 
-                    color: 'text.secondary', 
+                  sx={{
+                    textAlign: 'center',
+                    color: 'text.secondary',
                     mb: 3,
-                    fontSize: '0.9rem'
+                    fontSize: '0.9rem',
                   }}
                 >
                   Redirecting to reset form...
@@ -277,9 +286,27 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
 
   return (
     <AuthContainer direction="column">
-      <FloatingShape sx={{ top: '10%', right: '10%', width: '200px', height: '200px' }} />
-      <FloatingShape sx={{ bottom: '15%', left: '8%', width: '150px', height: '150px', animationDelay: '2s' }} />
-      <FloatingShape sx={{ top: '30%', left: '15%', width: '100px', height: '100px', animationDelay: '4s' }} />
+      <FloatingShape
+        sx={{ top: '10%', right: '10%', width: '200px', height: '200px' }}
+      />
+      <FloatingShape
+        sx={{
+          bottom: '15%',
+          left: '8%',
+          width: '150px',
+          height: '150px',
+          animationDelay: '2s',
+        }}
+      />
+      <FloatingShape
+        sx={{
+          top: '30%',
+          left: '15%',
+          width: '100px',
+          height: '100px',
+          animationDelay: '4s',
+        }}
+      />
 
       <Zoom in={true} timeout={800}>
         <GlassCard>
@@ -290,44 +317,45 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
             transition={{ duration: 0.3 }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-  <Button
-    startIcon={<ArrowBack />}
-    onClick={onBackToSignIn}
-    sx={{ 
-      color: '#7E57C2', 
-      minWidth: 'auto', 
-      mr: 2,
-      padding: '6px 8px', 
-      fontSize: '0.8rem', 
-      '& .MuiButton-startIcon': {
-        marginRight: '-3px', 
-        '& > *:first-of-type': {
-          fontSize: '18px',
-        }
-      },
-      '&:hover': {
-        backgroundColor: 'rgba(126, 87, 194, 0.08)',
-        transform: 'translateX(-2px)',
-      },
-      transition: 'all 0.2s ease',
-    }}
-  />
-  <Logo sx={{ flex: 1, justifyContent: 'flex-start' }}>
-    <LogoIcon>SM</LogoIcon>
-    <Typography 
-      variant="h5" 
-      sx={{ 
-        fontWeight: 700,
-        background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
-        backgroundClip: 'text',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
-      }}
-    >
-      SubscriptionManager
-    </Typography>
-  </Logo>
-</Box>
+              <Button
+                startIcon={<ArrowBack />}
+                onClick={onBackToSignIn}
+                sx={{
+                  color: '#7E57C2',
+                  minWidth: 'auto',
+                  mr: 2,
+                  padding: '6px 8px',
+                  fontSize: '0.8rem',
+                  '& .MuiButton-startIcon': {
+                    marginRight: '-3px',
+                    '& > *:first-of-type': {
+                      fontSize: '18px',
+                    },
+                  },
+                  '&:hover': {
+                    backgroundColor: 'rgba(126, 87, 194, 0.08)',
+                    transform: 'translateX(-2px)',
+                  },
+                  transition: 'all 0.2s ease',
+                }}
+              />
+              <Logo sx={{ flex: 1, justifyContent: 'flex-start' }}>
+                <LogoIcon>SM</LogoIcon>
+                <Typography
+                  variant="h5"
+                  sx={{
+                    fontWeight: 700,
+                    background:
+                      'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                    backgroundClip: 'text',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
+                  SubscriptionManager
+                </Typography>
+              </Logo>
+            </Box>
 
             <Typography
               component="h1"
@@ -347,15 +375,16 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
 
             <Typography
               variant="body1"
-              sx={{ 
-                textAlign: 'center', 
-                color: 'text.secondary', 
+              sx={{
+                textAlign: 'center',
+                color: 'text.secondary',
                 mb: 4,
                 fontSize: '1.1rem',
-                lineHeight: 1.6
+                lineHeight: 1.6,
               }}
             >
-              Enter your email address and we'll send you a code to reset your password.
+              Enter your email address and we'll send you a code to reset your
+              password.
             </Typography>
 
             {error && (
@@ -384,7 +413,9 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
               }}
             >
               <FormControl>
-                <FormLabel sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}>
+                <FormLabel
+                  sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}
+                >
                   Email Address
                 </FormLabel>
                 <StyledTextField

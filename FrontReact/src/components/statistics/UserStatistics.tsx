@@ -33,7 +33,7 @@ export const UserStatistics: React.FC<UserStatisticsProps> = ({
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'BYN',
     }).format(amount);
   };
 

@@ -12,9 +12,9 @@ namespace SubscriptionManager.Infrastructure.Repositories;
 
 public class RefreshTokenRepository : IRefreshTokenRepository
 {
-    private readonly ApplicationDbContext _context;
+    private readonly AuthDbContext _context;
 
-    public RefreshTokenRepository(ApplicationDbContext context)
+    public RefreshTokenRepository(AuthDbContext context)
     {
         _context = context;
     }

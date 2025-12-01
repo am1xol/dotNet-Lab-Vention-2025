@@ -1,21 +1,16 @@
 import React from 'react';
-import { 
-  Box, 
-  Container, 
-  Typography, 
-  Stack, 
-  Card, 
-  Button, 
+import {
+  Box,
+  Container,
+  Typography,
+  Stack,
+  Card,
+  Button,
   Grid,
   Avatar,
 } from '@mui/material';
 import { motion } from 'framer-motion';
-import { 
-  Dashboard, 
-  Analytics, 
-  Payment,
-  Category,
-} from '@mui/icons-material';
+import { Dashboard, Analytics, Payment, Category } from '@mui/icons-material';
 import { useAuthStore } from '../store/auth-store';
 import Header from './Header';
 import FloatingIcons from './FloatingServiceIcons';
@@ -29,58 +24,63 @@ const LandingPage: React.FC = () => {
     {
       icon: Dashboard,
       title: 'Centralized Dashboard',
-      description: 'Manage all your subscriptions from one beautiful, intuitive interface',
-      color: '#7E57C2'
+      description:
+        'Manage all your subscriptions from one beautiful, intuitive interface',
+      color: '#7E57C2',
     },
     {
       icon: Analytics,
       title: 'Smart Analytics',
-      description: 'Track spending patterns and get insights to optimize your subscription budget',
-      color: '#4CAF50'
+      description:
+        'Track spending patterns and get insights to optimize your subscription budget',
+      color: '#4CAF50',
     },
     {
       icon: Payment,
       title: 'Payment Tracking',
-      description: 'Monitor all transactions and payment history in one secure location',
-      color: '#2196F3'
+      description:
+        'Monitor all transactions and payment history in one secure location',
+      color: '#2196F3',
     },
     {
       icon: Category,
       title: 'Organized Categories',
-      description: 'Categorize subscriptions for better organization and insights',
-      color: '#9C27B0'
-    }
+      description:
+        'Categorize subscriptions for better organization and insights',
+      color: '#9C27B0',
+    },
   ];
 
   const stats = [
     { value: '50+', label: 'Subscription Types' },
     { value: '1K+', label: 'Active Users' },
-    { value: '99%', label: 'Satisfaction Rate' }
+    { value: '99%', label: 'Satisfaction Rate' },
   ];
 
   const steps = [
     {
       step: 1,
       title: 'Sign Up',
-      description: 'Create your account in seconds'
+      description: 'Create your account in seconds',
     },
     {
       step: 2,
       title: 'Add Subscriptions',
-      description: 'Import or manually add your subscriptions'
+      description: 'Import or manually add your subscriptions',
     },
     {
       step: 3,
       title: 'Track & Manage',
-      description: 'Monitor spending and get insights'
-    }
+      description: 'Monitor spending and get insights',
+    },
   ];
 
   return (
     <Box
       sx={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #F5F3FF 0%, #EDE7F6 50%, #E8EAF6 100%)',
+        background:
+          'linear-gradient(135deg, #F5F3FF 0%, #EDE7F6 50%, #E8EAF6 100%)',
         position: 'relative',
         overflow: 'hidden',
       }}
@@ -109,7 +109,8 @@ const LandingPage: React.FC = () => {
                 sx={{
                   fontWeight: 800,
                   fontSize: { xs: '3rem', md: '4.5rem' },
-                  background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                  background:
+                    'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
                   backgroundClip: 'text',
                   WebkitBackgroundClip: 'text',
                   color: 'transparent',
@@ -150,7 +151,8 @@ const LandingPage: React.FC = () => {
                   py: 2.5,
                   px: 6,
                   fontSize: '1.2rem',
-                  background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                  background:
+                    'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
                   borderRadius: 3,
                   color: 'white',
                   fontWeight: 600,
@@ -173,13 +175,13 @@ const LandingPage: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8 }}
               >
-                
                 <Typography
                   variant="h1"
                   sx={{
                     fontWeight: 800,
                     fontSize: { xs: '3rem', md: '5rem', lg: '6rem' },
-                    background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                    background:
+                      'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
                     backgroundClip: 'text',
                     WebkitBackgroundClip: 'text',
                     color: 'transparent',
@@ -218,8 +220,9 @@ const LandingPage: React.FC = () => {
                     lineHeight: 1.6,
                   }}
                 >
-                  Stop subscription chaos. Track, manage, and optimize all your recurring payments 
-                  from one beautiful, secure dashboard. Save money and never miss a payment again.
+                  Stop subscription chaos. Track, manage, and optimize all your
+                  recurring payments from one beautiful, secure dashboard. Save
+                  money and never miss a payment again.
                 </Typography>
               </motion.div>
 
@@ -237,7 +240,8 @@ const LandingPage: React.FC = () => {
                       py: 2.5,
                       px: 6,
                       fontSize: '1.1rem',
-                      background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                      background:
+                        'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
                       color: 'white',
                       borderRadius: 3,
                       fontWeight: 600,
@@ -283,7 +287,11 @@ const LandingPage: React.FC = () => {
                 transition={{ duration: 0.8, delay: 0.6 }}
                 style={{ width: '100%' }}
               >
-                <Grid container spacing={4} sx={{ mt: 8, maxWidth: '800px', margin: '0 auto' }}>
+                <Grid
+                  container
+                  spacing={4}
+                  sx={{ mt: 8, maxWidth: '800px', margin: '0 auto' }}
+                >
                   {stats.map((stat, index) => (
                     <Grid size={{ xs: 6, md: 4 }} key={stat.label}>
                       <motion.div
@@ -352,7 +360,8 @@ const LandingPage: React.FC = () => {
                     margin: '0 auto',
                   }}
                 >
-                  Everything you need to take control of your subscription spending
+                  Everything you need to take control of your subscription
+                  spending
                 </Typography>
               </motion.div>
 
@@ -451,7 +460,11 @@ const LandingPage: React.FC = () => {
                 </Typography>
               </motion.div>
 
-              <Grid container spacing={4} sx={{ maxWidth: '900px', margin: '0 auto' }}>
+              <Grid
+                container
+                spacing={4}
+                sx={{ maxWidth: '900px', margin: '0 auto' }}
+              >
                 {steps.map((step, index) => (
                   <Grid size={{ xs: 12, md: 4 }} key={step.step}>
                     <motion.div
@@ -526,7 +539,8 @@ const LandingPage: React.FC = () => {
                     py: 3,
                     px: 8,
                     fontSize: '1.2rem',
-                    background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                    background:
+                      'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
                     color: 'white',
                     borderRadius: 3,
                     fontWeight: 700,

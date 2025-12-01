@@ -599,7 +599,7 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
                         }
                         fontWeight="bold"
                       >
-                        ${subscription.price}
+                        {subscription.price} BYN
                       </Typography>
                       <Chip
                         label={subscription.isActive ? 'Active' : 'Inactive'}

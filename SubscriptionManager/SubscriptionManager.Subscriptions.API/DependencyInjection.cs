@@ -55,7 +55,7 @@ namespace SubscriptionManager.Subscriptions.API
         }
         private static IServiceCollection AddSubscriptionsDatabase(this IServiceCollection services, IConfiguration configuration)
         {
-            services.AddDbContext<ApplicationDbContext>(options =>
+            services.AddDbContext<SubscriptionsDbContext>(options =>
                 options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
 
             return services;

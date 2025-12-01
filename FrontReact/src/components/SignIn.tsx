@@ -218,7 +218,7 @@ export const SignIn: React.FC<SignInProps> = ({
       const result = await authService.login(formData);
 
       if (result.success) {
-        enqueueSnackbar('🎉 Successfully signed in!', {
+        enqueueSnackbar('Successfully signed in!', {
           variant: 'success',
           anchorOrigin: {
             vertical: 'top',

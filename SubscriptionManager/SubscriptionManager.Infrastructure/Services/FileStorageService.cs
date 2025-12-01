@@ -40,7 +40,7 @@ namespace SubscriptionManager.Infrastructure.Services
     {
         private readonly MinIOOptions _minioOptions;
         private readonly IMinioClient _minioClient;
-        private readonly ApplicationDbContext _context;
+        private readonly SubscriptionsDbContext _context;
         private readonly IMinioClient _externalMinioClient;
 
         private const long MaxFileSize = 5 * 1024 * 1024;
@@ -49,7 +49,7 @@ namespace SubscriptionManager.Infrastructure.Services
 
         public FileStorageService(
             IOptions<MinIOOptions> minioOptions,
-            ApplicationDbContext context)
+            SubscriptionsDbContext context)
         {
             _minioOptions = minioOptions.Value;
             _context = context;

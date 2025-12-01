@@ -68,7 +68,7 @@ namespace SubscriptionManager.Auth.API
         }
         private static IServiceCollection AddAuthDatabase(this IServiceCollection services, IConfiguration configuration)
         {
-            services.AddDbContext<ApplicationDbContext>(options =>
+            services.AddDbContext<AuthDbContext>(options =>
                 options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
 
             return services;
@@ -81,7 +81,6 @@ namespace SubscriptionManager.Auth.API
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
-            services.AddScoped<IFileStorageService, FileStorageService>();
             services.AddScoped<IAuthService, AuthService>();
 
             return services;

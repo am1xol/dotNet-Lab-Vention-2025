@@ -46,7 +46,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   const [paymentLoading, setPaymentLoading] = useState(false);
 
   const formatPrice = (price: number) => {
-    return `$${price}`;
+    return `${price} BYN`;
   };
 
   const getPeriodColor = (period: string) => {

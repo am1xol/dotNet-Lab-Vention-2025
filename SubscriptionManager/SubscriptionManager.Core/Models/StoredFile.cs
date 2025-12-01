@@ -36,8 +36,6 @@ namespace SubscriptionManager.Core.Models
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
         [JsonIgnore]
-        public virtual User? User { get; set; }
-        [JsonIgnore]
         public virtual ICollection<Subscription> Subscriptions { get; set; } = new List<Subscription>();
     }
 }

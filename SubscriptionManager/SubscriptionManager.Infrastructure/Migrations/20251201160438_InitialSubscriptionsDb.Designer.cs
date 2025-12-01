@@ -11,9 +11,9 @@ using SubscriptionManager.Infrastructure.Data;
 
 namespace SubscriptionManager.Infrastructure.Migrations
 {
-    [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251114093818_AddStoredFilesAndIconFileId")]
-    partial class AddStoredFilesAndIconFileId
+    [DbContext(typeof(SubscriptionsDbContext))]
+    [Migration("20251201160438_InitialSubscriptionsDb")]
+    partial class InitialSubscriptionsDb
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,41 +24,6 @@ namespace SubscriptionManager.Infrastructure.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("SubscriptionManager.Core.Models.RefreshToken", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("DeviceName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsRevoked")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Token")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Token")
-                        .IsUnique();
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("RefreshTokens");
-                });
 
             modelBuilder.Entity("SubscriptionManager.Core.Models.StoredFile", b =>
                 {
@@ -103,66 +68,57 @@ namespace SubscriptionManager.Infrastructure.Migrations
                     b.HasIndex("ObjectName")
                         .IsUnique();
 
-                    b.HasIndex("UserId");
-
                     b.ToTable("StoredFiles");
                 });
 
-            modelBuilder.Entity("SubscriptionManager.Core.Models.User", b =>
+            modelBuilder.Entity("SubscriptionManager.Core.Payment", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("CardBrand")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("CardLastFour")
+                        .IsRequired()
+                        .HasMaxLength(4)
+                        .HasColumnType("nvarchar(4)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<DateTime>("PaymentDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("EmailVerificationCode")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("EmailVerificationCodeExpiresAt")
+                    b.Property<DateTime>("PeriodEnd")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("FirstName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsEmailVerified")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("LastName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PasswordHash")
-                        .IsRequired()
-                        .HasMaxLength(88)
-                        .HasColumnType("nvarchar(88)");
-
-                    b.Property<string>("RefreshToken")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("RefreshTokenExpiresAt")
+                    b.Property<DateTime>("PeriodStart")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .HasMaxLength(5)
-                        .HasColumnType("nvarchar(5)");
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
 
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("UserSubscriptionId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Email")
-                        .IsUnique();
+                    b.HasIndex("UserSubscriptionId");
 
-                    b.ToTable("Users");
+                    b.ToTable("Payments");
                 });
 
             modelBuilder.Entity("SubscriptionManager.Core.Subscription", b =>
@@ -251,25 +207,15 @@ namespace SubscriptionManager.Infrastructure.Migrations
                     b.ToTable("UserSubscriptions");
                 });
 
-            modelBuilder.Entity("SubscriptionManager.Core.Models.RefreshToken", b =>
+            modelBuilder.Entity("SubscriptionManager.Core.Payment", b =>
                 {
-                    b.HasOne("SubscriptionManager.Core.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
+                    b.HasOne("SubscriptionManager.Core.UserSubscription", "UserSubscription")
+                        .WithMany("Payments")
+                        .HasForeignKey("UserSubscriptionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("SubscriptionManager.Core.Models.StoredFile", b =>
-                {
-                    b.HasOne("SubscriptionManager.Core.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("User");
+                    b.Navigation("UserSubscription");
                 });
 
             modelBuilder.Entity("SubscriptionManager.Core.Subscription", b =>
@@ -296,6 +242,11 @@ namespace SubscriptionManager.Infrastructure.Migrations
             modelBuilder.Entity("SubscriptionManager.Core.Models.StoredFile", b =>
                 {
                     b.Navigation("Subscriptions");
+                });
+
+            modelBuilder.Entity("SubscriptionManager.Core.UserSubscription", b =>
+                {
+                    b.Navigation("Payments");
                 });
 #pragma warning restore 612, 618
         }

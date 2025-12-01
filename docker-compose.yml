@@ -9,15 +9,17 @@ services:
       - "8080:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Server=sql-server,1433;Database=SubscriptionManagerDb;User=sa;Password=YourPassword123!;TrustServerCertificate=true;
+      - ConnectionStrings__DefaultConnection=Server=sql-server,1433;Database=AuthDb;User=sa;Password=YourPassword123!;TrustServerCertificate=true;
+      - ConnectionStrings__AuthConnection=Server=sql-server,1433;Database=AuthDb;User=sa;Password=YourPassword123!;TrustServerCertificate=true;
       - MinIO__Endpoint=minio:9000
       - MinIO__AccessKey=minioadmin
       - MinIO__SecretKey=minioadmin
       - MinIO__BucketName=subscriptions
     depends_on:
-      - sql-server-init
+      - sql-server
     networks:
       - app-network
+    entrypoint: [ "sh", "-c", "sleep 30 && dotnet SubscriptionManager.Auth.API.dll" ]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health/live"]
       interval: 30s
@@ -33,13 +35,15 @@ services:
       - "8081:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Server=sql-server,1433;Database=SubscriptionManagerDb;User=sa;Password=YourPassword123!;TrustServerCertificate=true;
+      - ConnectionStrings__DefaultConnection=Server=sql-server,1433;Database=SubscriptionsDb;User=sa;Password=YourPassword123!;TrustServerCertificate=true;
+      - ConnectionStrings__SubscriptionsConnection=Server=sql-server,1433;Database=SubscriptionsDb;User=sa;Password=YourPassword123!;TrustServerCertificate=true;
       - MinIO__Endpoint=minio:9000
       - MinIO__AccessKey=minioadmin
       - MinIO__SecretKey=minioadmin
       - MinIO__BucketName=subscriptions
     depends_on:
-      - sql-server-init
+      - sql-server
+    entrypoint: [ "sh", "-c", "sleep 30 && dotnet SubscriptionManager.Subscriptions.API.dll" ]
     networks:
       - app-network
     healthcheck:
@@ -48,20 +52,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
-  sql-server-init:
-    image: mcr.microsoft.com/mssql-tools
-    depends_on:
-      - sql-server
-    networks:
-      - app-network
-    command: |
-      /bin/bash -c "
-      echo 'Waiting for SQL Server to start...'
-      sleep 30s
-      echo 'Creating database...'
-      /opt/mssql-tools/bin/sqlcmd -S sql-server -U sa -P 'YourPassword123!' -d master -Q \"IF NOT EXISTS(SELECT name FROM sys.databases WHERE name = 'SubscriptionManagerDb') CREATE DATABASE SubscriptionManagerDb;\"
-      echo 'Database creation completed'"
 
   sql-server:
     image: mcr.microsoft.com/mssql/server:2022-latest

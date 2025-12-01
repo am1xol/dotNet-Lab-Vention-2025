@@ -14,9 +14,9 @@ namespace SubscriptionManager.Infrastructure.Services
     }
     public class SubscriptionService : ISubscriptionService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly SubscriptionsDbContext _context;
 
-        public SubscriptionService(ApplicationDbContext context)
+        public SubscriptionService(SubscriptionsDbContext context)
         {
             _context = context;
         }

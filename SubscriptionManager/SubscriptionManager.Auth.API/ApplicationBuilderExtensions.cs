@@ -72,7 +72,7 @@ namespace SubscriptionManager.Auth.API
         public static async Task ApplyMigrationsAsync(this WebApplication app)
         {
             using var scope = app.Services.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var dbContext = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
             try
             {
                 await dbContext.Database.MigrateAsync();

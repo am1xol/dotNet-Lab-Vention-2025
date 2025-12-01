@@ -16,10 +16,10 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
     [Authorize]
     public class SubscriptionsController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
+        private readonly SubscriptionsDbContext _context;
         private readonly IFileStorageService _fileStorageService;
 
-        public SubscriptionsController(ApplicationDbContext context, IFileStorageService fileStorageService)
+        public SubscriptionsController(SubscriptionsDbContext context, IFileStorageService fileStorageService)
         {
             _context = context;
             _fileStorageService = fileStorageService;

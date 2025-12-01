@@ -16,10 +16,10 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
     [Authorize]
     public class UserSubscriptionsController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
+        private readonly SubscriptionsDbContext _context;
         private readonly IFileStorageService _fileStorageService;
 
-        public UserSubscriptionsController(ApplicationDbContext context, IFileStorageService fileStorageService)
+        public UserSubscriptionsController(SubscriptionsDbContext context, IFileStorageService fileStorageService)
         {
             _context = context;
             _fileStorageService = fileStorageService;
@@ -94,7 +94,7 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                     UserSubscriptionId = userSubscription.Id,
                     UserId = userId,
                     Amount = subscription.Price,
-                    Currency = "USD",
+                    Currency = "BYN",
                     PaymentDate = DateTime.UtcNow,
                     PeriodStart = userSubscription.StartDate,
                     PeriodEnd = userSubscription.NextBillingDate,

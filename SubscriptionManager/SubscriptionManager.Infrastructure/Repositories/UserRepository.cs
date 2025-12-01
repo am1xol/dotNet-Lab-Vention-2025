@@ -12,9 +12,9 @@ namespace SubscriptionManager.Infrastructure.Repositories;
 
 public class UserRepository : IUserRepository
 {
-    private readonly ApplicationDbContext _context;
+    private readonly AuthDbContext _context;
 
-    public UserRepository(ApplicationDbContext context)
+    public UserRepository(AuthDbContext context)
     {
         _context = context;
     }

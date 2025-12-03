@@ -53,6 +53,19 @@ services:
       retries: 3
       start_period: 40s
 
+  frontend:
+    build:
+      context: ./FrontReact
+      dockerfile: Dockerfile 
+    container_name: frontend
+    ports:
+      - "3000:80" 
+    depends_on:
+      - auth-api
+      - subscriptions-api
+    networks:
+      - app-network
+
   sql-server:
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:

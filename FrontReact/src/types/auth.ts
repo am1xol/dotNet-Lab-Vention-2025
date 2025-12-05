@@ -63,3 +63,7 @@ export interface ForgotPasswordResponse {
   message?: string;
   error?: string;
 }
+
+export interface ResendVerificationCodeRequest {
+  email: string;
+}

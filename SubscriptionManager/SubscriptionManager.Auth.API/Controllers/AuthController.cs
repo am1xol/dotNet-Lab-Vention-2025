@@ -173,4 +173,24 @@ public class AuthController : ControllerBase
 
         return Ok(result);
     }
+
+    [HttpPost("resend-verification-code")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(AuthResult))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ResendVerificationCode([FromBody] ResendVerificationCodeRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(new AuthResult { Success = false, Error = "Invalid request data. Check email format." });
+        }
+
+        var result = await _authService.ResendVerificationCodeAsync(request);
+
+        if (!result.Success && !string.IsNullOrEmpty(result.Error))
+        {
+            return BadRequest(result);
+        }
+
+        return Ok(result);
+    }
 }

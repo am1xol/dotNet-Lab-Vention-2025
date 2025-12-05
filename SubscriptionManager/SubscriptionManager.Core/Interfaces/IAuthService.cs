@@ -16,5 +16,6 @@ namespace SubscriptionManager.Core.Interfaces
         Task<RefreshTokenResponse> RefreshTokenAsync(RefreshTokenRequest request);
         Task<ForgotPasswordResponse> ForgotPasswordAsync(ForgotPasswordRequest request);
         Task<ForgotPasswordResponse> ResetPasswordAsync(ResetPasswordRequest request);
+        Task<AuthResult> ResendVerificationCodeAsync(ResendVerificationCodeRequest request);
     }
 }

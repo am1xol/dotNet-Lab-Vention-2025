@@ -83,4 +83,13 @@ export const authService = {
     });
     return response.data as RefreshTokenResponse;
   },
+
+  async resendVerificationCode(email: string): Promise<AuthResult> {
+    const data = { email };
+    const response = await api.post(
+      `${API_BASE_URL}/Auth/resend-verification-code`,
+      data
+    );
+    return response.data as AuthResult;
+  },
 };

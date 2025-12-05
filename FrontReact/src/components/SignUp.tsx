@@ -20,7 +20,6 @@ import {
   Person,
   Visibility,
   VisibilityOff,
-  ArrowBack,
   VerifiedUser,
 } from '@mui/icons-material';
 import { authService } from '../services/auth-service';
@@ -173,6 +172,56 @@ export const SignUp: React.FC<SignUpProps> = ({ onToggleMode }) => {
   const [lastNameError, setLastNameError] = useState(false);
   const [verificationCodeError, setVerificationCodeError] = useState(false);
 
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
+  const RESEND_INTERVAL = 60;
+
+  React.useEffect(() => {
+    let timerId: number;
+    if (resendTimer > 0) {
+      timerId = window.setInterval(() => {
+        setResendTimer((t) => t - 1);
+      }, 1000);
+    }
+    return () => window.clearInterval(timerId);
+  }, [resendTimer]);
+
+  const handleResendCode = async () => {
+  console.log('handleResendCode вызвана, resendTimer:', resendTimer);
+  
+  if (resendTimer > 0) {
+    console.log('Таймер активен, кнопка должна быть disabled');
+    return;
+  }
+
+  setResendLoading(true);
+  setError('');
+
+  try {
+    const result = await authService.resendVerificationCode(formData.email);
+
+    if (result.success) {
+      console.log('Код отправлен, снова устанавливаем таймер');
+      setResendTimer(RESEND_INTERVAL);
+      enqueueSnackbar(
+        'A new verification code has been sent to your email.',
+        { variant: 'info' }
+      );
+    } else {
+      enqueueSnackbar(result.error || 'Failed to resend code.', {
+        variant: 'error',
+      });
+    }
+  } catch (err: any) {
+    setError(
+      err.response?.data?.title ||
+        'Failed to resend code. Please try again later.'
+    );
+  } finally {
+    setResendLoading(false);
+  }
+};
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
@@ -241,31 +290,34 @@ export const SignUp: React.FC<SignUpProps> = ({ onToggleMode }) => {
   };
 
   const handleRegistrationSubmit = async (
-    event: React.FormEvent<HTMLFormElement>
-  ) => {
-    event.preventDefault();
+  event: React.FormEvent<HTMLFormElement>
+) => {
+  event.preventDefault();
 
-    if (!validateRegistrationInputs()) {
-      return;
+  if (!validateRegistrationInputs()) {
+    return;
+  }
+
+  setLoading(true);
+  setError('');
+
+  try {
+    const result = await authService.register(formData);
+
+    if (result.success) {
+      console.log('Регистрация успешна, устанавливаем таймер 60 секунд');
+      setResendTimer(RESEND_INTERVAL);
+      console.log('resendTimer установлен:', RESEND_INTERVAL);
+      setStep('verification');
+    } else {
+      setError(result.error || 'Registration failed');
     }
-
-    setLoading(true);
-    setError('');
-
-    try {
-      const result = await authService.register(formData);
-
-      if (result.success) {
-        setStep('verification');
-      } else {
-        setError(result.error || 'Registration failed');
-      }
-    } catch (err: any) {
-      setError(err.response?.data?.title || 'Registration failed');
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (err: any) {
+    setError(err.response?.data?.title || 'Registration failed');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleVerificationSubmit = async (
     event: React.FormEvent<HTMLFormElement>
@@ -413,29 +465,22 @@ export const SignUp: React.FC<SignUpProps> = ({ onToggleMode }) => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.3 }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <Button
-                  startIcon={<ArrowBack />}
-                  onClick={() => setStep('registration')}
-                  sx={{ color: '#7E57C2', minWidth: 'auto', mr: 2 }}
-                />
-                <Logo sx={{ flex: 1, justifyContent: 'flex-start' }}>
-                  <LogoIcon>SM</LogoIcon>
-                  <Typography
-                    variant="h5"
-                    sx={{
-                      fontWeight: 700,
-                      background:
-                        'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
-                      backgroundClip: 'text',
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
-                    }}
-                  >
-                    SubscriptionManager
-                  </Typography>
-                </Logo>
-              </Box>
+              <Logo sx={{ justifyContent: 'center', mb: 3 }}>
+                <LogoIcon>SM</LogoIcon>
+                <Typography
+                  variant="h5"
+                  sx={{
+                    fontWeight: 700,
+                    background:
+                      'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                    backgroundClip: 'text',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
+                  SubscriptionManager
+                </Typography>
+              </Logo>
 
               <Typography
                 component="h1"
@@ -516,11 +561,69 @@ export const SignUp: React.FC<SignUpProps> = ({ onToggleMode }) => {
                   />
                 </FormControl>
 
+                <Stack
+  direction="row"
+  justifyContent="space-between"
+  alignItems="center"
+  sx={{ 
+    mt: 1, 
+    mb: 1,
+    p: 1.5,
+    backgroundColor: 'rgba(126, 87, 194, 0.03)',
+    borderRadius: 2,
+    border: '1px solid rgba(126, 87, 194, 0.1)'
+  }}
+>
+  <Typography 
+    variant="body1" 
+    sx={{ 
+      color: 'text.secondary',
+      fontSize: '0.95rem',
+      fontWeight: 500
+    }}
+  >
+    Didn't receive the code?
+  </Typography>
+  <Button
+    onClick={handleResendCode}
+    disabled={resendLoading || resendTimer > 0}
+    variant="outlined"
+    size="small"
+    sx={{
+      textTransform: 'none',
+      color: '#7E57C2',
+      borderColor: '#7E57C2',
+      fontSize: '0.875rem',
+      fontWeight: 600,
+      py: 0.75,
+      px: 2,
+      borderRadius: 1.5,
+      minWidth: '110px',
+      '&:hover': {
+        backgroundColor: 'rgba(126, 87, 194, 0.08)',
+        borderColor: '#5E35B1',
+      },
+      '&:disabled': {
+        color: 'text.disabled',
+        borderColor: 'rgba(0, 0, 0, 0.12)',
+        backgroundColor: 'rgba(0, 0, 0, 0.02)',
+      },
+    }}
+  >
+    {resendTimer > 0
+      ? `Resend in ${resendTimer}s`
+      : resendLoading
+        ? 'Sending...'
+        : 'Resend Code'}
+  </Button>
+</Stack>
+
                 <GradientButton
                   type="submit"
                   fullWidth
                   disabled={loading}
                   size="large"
+                  sx={{ mt: 2 }}
                 >
                   {loading ? <CircularProgress size={24} /> : 'Verify Email'}
                 </GradientButton>

@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 using SubscriptionManager.Core.Constants;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Models;
@@ -269,5 +270,55 @@ public class AuthService : IAuthService
         await _userRepository.SaveChangesAsync();
 
         return new ForgotPasswordResponse { Success = true, Message = "Password has been reset successfully" };
+    }
+
+    private const int RESEND_COOLDOWN_SECONDS = 60;
+
+    public async Task<AuthResult> ResendVerificationCodeAsync(ResendVerificationCodeRequest request)
+    {
+        if (string.IsNullOrEmpty(request.Email))
+        {
+            return new AuthResult { Success = false, Error = "Email is required." };
+        }
+
+        var user = await _userRepository.GetByEmailAsync(request.Email!);
+
+        if (user == null)
+        {
+            _logger.LogWarning("Attempt to resend code for non-existent email: {Email}", request.Email);
+            return new AuthResult { Success = true, UserId = null };
+        }
+
+        if (user.IsEmailVerified)
+        {
+            return new AuthResult { Success = false, Error = "Email is already verified." };
+        }
+
+        if (user.UpdatedAt.AddSeconds(RESEND_COOLDOWN_SECONDS) > DateTime.UtcNow)
+        {
+            var waitTime = user.UpdatedAt.AddSeconds(RESEND_COOLDOWN_SECONDS).Subtract(DateTime.UtcNow);
+            return new AuthResult { Success = false, Error = $"You must wait {Math.Ceiling(waitTime.TotalSeconds)} seconds before trying again." };
+        }
+
+        var newVerificationCode = _verificationCodeService.GenerateCode();
+        var newCodeExpiresAt = _verificationCodeService.GetExpirationTime();
+        var now = DateTime.UtcNow;
+
+        user.EmailVerificationCode = newVerificationCode;
+        user.EmailVerificationCodeExpiresAt = newCodeExpiresAt;
+        user.UpdatedAt = now;
+
+        await _userRepository.SaveChangesAsync();
+
+        try
+        {
+            await _emailService.SendVerificationEmailAsync(user.Email, newVerificationCode, user.FirstName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send verification email during resend for user {UserId}", user.Id);
+        }
+
+        return new AuthResult { Success = true, UserId = user.Id.ToString() };
     }
 }

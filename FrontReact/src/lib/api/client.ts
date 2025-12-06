@@ -9,16 +9,3 @@ export const apiClient = axios.create({
     'Content-Type': 'application/json',
   },
 });
-
-export const setTokens = (tokens: any) => {
-  console.log('setTokens will be implemented later', tokens);
-};
-
-export const clearTokens = () => {
-  console.log('clearTokens will be implemented later');
-};
-
-export const getAccessToken = () => {
-  console.log('getAccessToken will be implemented later');
-  return null;
-};

@@ -1,7 +1,10 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/auth-store';
 
-const API_BASE_URL = 'http://localhost:8080';
+const AUTH_API_URL = import.meta.env.VITE_AUTH_API_URL;
+if (!AUTH_API_URL) {
+  throw new Error('VITE_AUTH_API_URL is not defined in the environment variables.');
+}
 
 interface RefreshTokenResponse {
   success: boolean;
@@ -11,9 +14,7 @@ interface RefreshTokenResponse {
   error?: string;
 }
 
-const api = axios.create({
-  baseURL: API_BASE_URL,
-});
+const api = axios.create({});
 
 let isRefreshing = false;
 let failedQueue: any[] = [];
@@ -74,7 +75,7 @@ api.interceptors.response.use(
         }
 
         const response = await axios.post<RefreshTokenResponse>(
-          `${API_BASE_URL}/api/Auth/refresh`,
+          `${AUTH_API_URL}/Auth/refresh`,
           {
             refreshToken: refreshToken,
           }

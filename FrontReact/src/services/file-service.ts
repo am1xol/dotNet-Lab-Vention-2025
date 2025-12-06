@@ -1,6 +1,9 @@
 import api from './api';
 
-const API_BASE_URL = 'http://localhost:8081/api';
+const SUBSCRIPTION_API_URL = import.meta.env.VITE_SUBSCRIPTION_API_URL;
+if (!SUBSCRIPTION_API_URL) {
+  throw new Error('VITE_SUBSCRIPTION_API_URL is not defined');
+}
 
 export interface FileUploadResponse {
   fileId: string;
@@ -13,7 +16,7 @@ export const fileService = {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await api.post(`${API_BASE_URL}/Files/Upload`, formData, {
+    const response = await api.post(`${SUBSCRIPTION_API_URL}/Files/Upload`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -22,11 +25,11 @@ export const fileService = {
   },
 
   async deleteFile(fileId: string): Promise<void> {
-    await api.delete(`${API_BASE_URL}/Files/${fileId}`);
+    await api.delete(`${SUBSCRIPTION_API_URL}/Files/${fileId}`);
   },
 
   async getFileUrl(fileId: string): Promise<string> {
-    const response = await api.get(`${API_BASE_URL}/Files/${fileId}/url`);
+    const response = await api.get(`${SUBSCRIPTION_API_URL}/Files/${fileId}/url`);
     return (response.data as { url: string }).url;
   },
 };

@@ -6,23 +6,26 @@ import {
   GroupedSubscriptions,
 } from '../types/subscription';
 
-const API_BASE_URL = 'http://localhost:8081/api';
+const SUBSCRIPTION_API_URL = import.meta.env.VITE_SUBSCRIPTION_API_URL;
+if (!SUBSCRIPTION_API_URL) {
+  throw new Error('VITE_SUBSCRIPTION_API_URL is not defined');
+}
 
 export const subscriptionService = {
   async getSubscriptions(): Promise<GroupedSubscriptions> {
-    const response = await api.get(`${API_BASE_URL}/Subscriptions`);
+    const response = await api.get(`${SUBSCRIPTION_API_URL}/Subscriptions`);
     return response.data as GroupedSubscriptions;
   },
 
   async getSubscription(id: string): Promise<Subscription> {
-    const response = await api.get(`${API_BASE_URL}/Subscriptions/${id}`);
+    const response = await api.get(`${SUBSCRIPTION_API_URL}/Subscriptions/${id}`);
     return response.data as Subscription;
   },
 
   async createSubscription(
     data: CreateSubscriptionRequest
   ): Promise<Subscription> {
-    const response = await api.post(`${API_BASE_URL}/Subscriptions`, data);
+    const response = await api.post(`${SUBSCRIPTION_API_URL}/Subscriptions`, data);
     return response.data as Subscription;
   },
 
@@ -30,12 +33,12 @@ export const subscriptionService = {
     id: string,
     data: UpdateSubscriptionRequest
   ): Promise<void> {
-    await api.put(`${API_BASE_URL}/Subscriptions/${id}`, data);
+    await api.put(`${SUBSCRIPTION_API_URL}/Subscriptions/${id}`, data);
   },
 
   async deleteSubscription(id: string): Promise<void> {
     try {
-      await api.delete(`${API_BASE_URL}/Subscriptions/${id}`);
+      await api.delete(`${SUBSCRIPTION_API_URL}/Subscriptions/${id}`);
     } catch (error: any) {
       if (error.response?.status === 400) {
         const errorMessage =
@@ -48,11 +51,11 @@ export const subscriptionService = {
   },
 
   async toggleSubscriptionActive(id: string, isActive: boolean): Promise<void> {
-    await api.patch(`${API_BASE_URL}/Subscriptions/${id}/active`, { isActive });
+    await api.patch(`${SUBSCRIPTION_API_URL}/Subscriptions/${id}/active`, { isActive });
   },
 
   async getSubscriptionsForAdmin(): Promise<GroupedSubscriptions> {
-    const response = await api.get(`${API_BASE_URL}/Subscriptions/admin/all`);
+    const response = await api.get(`${SUBSCRIPTION_API_URL}/Subscriptions/admin/all`);
     return response.data as GroupedSubscriptions;
   },
 };

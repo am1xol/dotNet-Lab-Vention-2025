@@ -14,11 +14,14 @@ import {
 } from '../types/auth';
 import { UserProfile } from '../types/user';
 
-const API_BASE_URL = 'http://localhost:8080/api';
+const AUTH_API_URL = import.meta.env.VITE_AUTH_API_URL;
+if (!AUTH_API_URL) {
+  throw new Error('VITE_AUTH_API_URL is not defined');
+}
 
 export const authService = {
   async login(data: LoginRequest): Promise<LoginResponse> {
-    const response = await api.post(`${API_BASE_URL}/Auth/login`, data);
+    const response = await api.post(`${AUTH_API_URL}/Auth/login`, data);
     const result = response.data as LoginResponse;
 
     if (result.success && result.accessToken && result.refreshToken) {
@@ -39,7 +42,7 @@ export const authService = {
   },
 
   async register(data: RegisterRequest): Promise<AuthResult> {
-    const response = await api.post(`${API_BASE_URL}/Auth/register`, data);
+    const response = await api.post(`${AUTH_API_URL}/Auth/register`, data);
     return response.data as AuthResult;
   },
 
@@ -52,7 +55,7 @@ export const authService = {
       verificationCode,
     };
     const response = await api.post(
-      `${API_BASE_URL}/Auth/verify-email`,
+      `${AUTH_API_URL}/Auth/verify-email`,
       verifyData
     );
     return response.data as AuthResult;
@@ -61,7 +64,7 @@ export const authService = {
   async forgotPassword(email: string): Promise<ForgotPasswordResponse> {
     const data: ForgotPasswordRequest = { email };
     const response = await api.post(
-      `${API_BASE_URL}/Auth/forgot-password`,
+      `${AUTH_API_URL}/Auth/forgot-password`,
       data
     );
     return response.data as ForgotPasswordResponse;
@@ -71,14 +74,14 @@ export const authService = {
     data: ResetPasswordRequest
   ): Promise<ForgotPasswordResponse> {
     const response = await api.post(
-      `${API_BASE_URL}/Auth/reset-password`,
+      `${AUTH_API_URL}/Auth/reset-password`,
       data
     );
     return response.data as ForgotPasswordResponse;
   },
 
   async refreshToken(refreshToken: string): Promise<RefreshTokenResponse> {
-    const response = await api.post(`${API_BASE_URL}/Auth/refresh`, {
+    const response = await api.post(`${AUTH_API_URL}/Auth/refresh`, {
       refreshToken,
     });
     return response.data as RefreshTokenResponse;
@@ -87,7 +90,7 @@ export const authService = {
   async resendVerificationCode(email: string): Promise<AuthResult> {
     const data = { email };
     const response = await api.post(
-      `${API_BASE_URL}/Auth/resend-verification-code`,
+      `${AUTH_API_URL}/Auth/resend-verification-code`,
       data
     );
     return response.data as AuthResult;

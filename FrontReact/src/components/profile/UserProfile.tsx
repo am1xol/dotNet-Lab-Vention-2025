@@ -23,10 +23,10 @@ import {
   VerifiedUser,
   CalendarToday,
 } from '@mui/icons-material';
-import { UserProfile as UserProfileType } from '../types/user';
-import { userService } from '../services/user-service';
-import Header from './Header';
-import FloatingIcons from './FloatingServiceIcons';
+import { UserProfile as UserProfileType } from '../../types/user';
+import { userService } from '../../services/user-service';
+import Header from '../layout/Header';
+import FloatingIcons from '../shared/FloatingServiceIcons';
 import { ProfileForm } from './ProfileForm';
 import { ChangePasswordForm } from './ChangePasswordForm';
 

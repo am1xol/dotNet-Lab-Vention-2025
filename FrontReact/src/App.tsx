@@ -5,12 +5,12 @@ import {
   Navigate,
 } from 'react-router-dom';
 import { GlobalStyles } from '@mui/material';
-import LandingPage from './components/LandingPage';
-import { SignIn } from './components/SignIn';
-import { SignUp } from './components/SignUp';
-import { ForgotPasswordForm } from './components/ForgotPasswordForm';
-import { ResetPasswordForm } from './components/ResetPasswordForm';
-import { UserProfile } from './components/UserProfile';
+import LandingPage from './pages/LandingPage';
+import { SignIn } from './components/auth/SignIn';
+import { SignUp } from './components/auth/SignUp';
+import { ForgotPasswordForm } from './components/auth/ForgotPasswordForm';
+import { ResetPasswordForm } from './components/auth/ResetPasswordForm';
+import { UserProfile } from './components/profile/UserProfile';
 import { DashboardPage } from './pages/DashboardPage';
 
 function App() {

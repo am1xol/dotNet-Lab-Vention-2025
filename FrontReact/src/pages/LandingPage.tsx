@@ -12,8 +12,8 @@ import {
 import { motion } from 'framer-motion';
 import { Dashboard, Analytics, Payment, Category } from '@mui/icons-material';
 import { useAuthStore } from '../store/auth-store';
-import Header from './Header';
-import FloatingIcons from './FloatingServiceIcons';
+import Header from '../components/layout/Header';
+import FloatingIcons from '../components/shared/FloatingServiceIcons';
 import { useNavigate } from 'react-router-dom';
 
 const LandingPage: React.FC = () => {

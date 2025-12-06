@@ -25,8 +25,8 @@ import {
   Lock,
   AccountCircle,
 } from '@mui/icons-material';
-import { authService } from '../services/auth-service';
-import { LoginRequest } from '../types/auth';
+import { authService } from '../../services/auth-service';
+import { LoginRequest } from '../../types/auth';
 import { useSnackbar } from 'notistack';
 import { Link, useNavigate } from 'react-router-dom';
 

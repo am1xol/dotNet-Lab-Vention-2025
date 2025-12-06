@@ -22,8 +22,8 @@ import {
   VisibilityOff,
   VerifiedUser,
 } from '@mui/icons-material';
-import { authService } from '../services/auth-service';
-import { RegisterRequest } from '../types/auth';
+import { authService } from '../../services/auth-service';
+import { RegisterRequest } from '../../types/auth';
 import { motion } from 'framer-motion';
 import { useSnackbar } from 'notistack';
 import { Link, useNavigate, useLocation } from 'react-router-dom';

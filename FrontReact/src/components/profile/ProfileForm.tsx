@@ -9,8 +9,8 @@ import {
 } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { Save } from '@mui/icons-material';
-import { UserProfile, UpdateProfileRequest } from '../types/user';
-import { userService } from '../services/user-service';
+import { UserProfile, UpdateProfileRequest } from '../../types/user';
+import { userService } from '../../services/user-service';
 
 interface ProfileFormProps {
   user: UserProfile;

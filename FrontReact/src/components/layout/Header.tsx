@@ -1,7 +1,7 @@
 import React from 'react';
 import { AppBar, Toolbar, Typography, Button, Box } from '@mui/material';
 import { useSnackbar } from 'notistack';
-import { useAuthStore } from '../store/auth-store';
+import { useAuthStore } from '../../store/auth-store';
 import { useNavigate } from 'react-router-dom';
 
 const Header: React.FC = () => {

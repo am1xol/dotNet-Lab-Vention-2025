@@ -15,7 +15,7 @@ import {
 import { styled } from '@mui/material/styles';
 import { Email, ArrowBack, MarkEmailRead } from '@mui/icons-material';
 import { motion } from 'framer-motion';
-import { authService } from '../services/auth-service';
+import { authService } from '../../services/auth-service';
 import { Link, useNavigate } from 'react-router-dom';
 
 const GlassCard = styled(Card)(({ theme }) => ({

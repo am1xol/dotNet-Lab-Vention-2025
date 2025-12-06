@@ -15,7 +15,7 @@ import {
 import { styled } from '@mui/material/styles';
 import { ArrowBack, Lock, VpnKey, VerifiedUser } from '@mui/icons-material';
 import { motion } from 'framer-motion';
-import { authService } from '../services/auth-service';
+import { authService } from '../../services/auth-service';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 
 const GlassCard = styled(Card)(({ theme }) => ({

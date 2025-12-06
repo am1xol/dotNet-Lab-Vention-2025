@@ -10,7 +10,7 @@ import {
   Stack,
 } from '@mui/material';
 import { useSnackbar } from 'notistack';
-import { userService } from '../services/user-service';
+import { userService } from '../../services/user-service';
 
 export const ChangePasswordForm: React.FC = () => {
   const [formData, setFormData] = useState({

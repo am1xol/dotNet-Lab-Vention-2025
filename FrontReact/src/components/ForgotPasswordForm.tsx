@@ -4,7 +4,6 @@ import {
   Button,
   FormLabel,
   FormControl,
-  Link,
   TextField,
   Typography,
   Stack,
@@ -17,6 +16,7 @@ import { styled } from '@mui/material/styles';
 import { Email, ArrowBack, MarkEmailRead } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { authService } from '../services/auth-service';
+import { Link, useNavigate } from 'react-router-dom';
 
 const GlassCard = styled(Card)(({ theme }) => ({
   display: 'flex',
@@ -136,21 +136,15 @@ const AnimatedCardContent = styled(motion.div)({
   width: '100%',
 });
 
-interface ForgotPasswordFormProps {
-  onBackToSignIn: () => void;
-  onShowResetForm: (email: string) => void;
-}
-
-export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
-  onBackToSignIn,
-  onShowResetForm,
-}) => {
+export const ForgotPasswordForm: React.FC = () => {
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState(false);
   const [emailErrorMessage, setEmailErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState(false);
+
+  const navigate = useNavigate();
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
@@ -183,7 +177,9 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
 
       if (result.success) {
         setSuccess(true);
-        setTimeout(() => onShowResetForm(email), 2000);
+        setTimeout(() => {
+          navigate('/auth/reset-password', { state: { email } });
+        }, 2000);
       } else {
         setError(result.error || 'Failed to send reset code');
       }
@@ -318,8 +314,9 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
           >
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <Button
+                component={Link}
+                to="/auth/signin"
                 startIcon={<ArrowBack />}
-                onClick={onBackToSignIn}
                 sx={{
                   color: '#7E57C2',
                   minWidth: 'auto',
@@ -447,18 +444,11 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
 
             <Box sx={{ textAlign: 'center', mt: 3 }}>
               <Link
-                component="button"
-                type="button"
-                onClick={onBackToSignIn}
-                variant="body2"
-                sx={{
+                to="/auth/signin"
+                style={{
                   color: '#7E57C2',
-                  fontWeight: 600,
                   textDecoration: 'none',
-                  fontSize: '0.9rem',
-                  '&:hover': {
-                    textDecoration: 'underline',
-                  },
+                  fontWeight: 600,
                 }}
               >
                 Back to Sign In

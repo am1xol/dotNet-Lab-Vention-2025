@@ -23,9 +23,10 @@ import {
   VerifiedUser,
 } from '@mui/icons-material';
 import { authService } from '../services/auth-service';
-import { RegisterRequest, VerifyEmailRequest } from '../types/auth';
+import { RegisterRequest } from '../types/auth';
 import { motion } from 'framer-motion';
 import { useSnackbar } from 'notistack';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 
 const GlassCard = styled(Card)(({ theme }) => ({
   display: 'flex',
@@ -142,17 +143,23 @@ const AnimatedCardContent = styled(motion.div)({
   width: '100%',
 });
 
-interface SignUpProps {
-  onToggleMode: () => void;
-}
-
 type SignUpStep = 'registration' | 'verification';
 
-export const SignUp: React.FC<SignUpProps> = ({ onToggleMode }) => {
+export const SignUp: React.FC = () => {
   const { enqueueSnackbar } = useSnackbar();
-  const [step, setStep] = useState<SignUpStep>('registration');
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const locationState = location.state as {
+    initialStep?: SignUpStep;
+    initialEmail?: string;
+  } | null;
+
+  const [step, setStep] = useState<SignUpStep>(
+    locationState?.initialStep || 'registration'
+  );
   const [formData, setFormData] = useState<RegisterRequest>({
-    email: '',
+    email: locationState?.initialEmail || '',
     password: '',
     firstName: '',
     lastName: '',
@@ -323,32 +330,22 @@ export const SignUp: React.FC<SignUpProps> = ({ onToggleMode }) => {
     event: React.FormEvent<HTMLFormElement>
   ) => {
     event.preventDefault();
-
     if (!validateVerificationInputs()) {
+      setVerificationCodeError(true);
       return;
     }
-
     setLoading(true);
     setError('');
-
     try {
-      const verifyData: VerifyEmailRequest = {
-        email: formData.email,
-        verificationCode: verificationCode,
-      };
-
       const result = await authService.verifyEmail(
-        verifyData.email,
-        verifyData.verificationCode
+        formData.email,
+        verificationCode
       );
-
       if (result.success) {
         setSuccess(true);
-        enqueueSnackbar('Email verified successfully! You can now sign in.', {
-          variant: 'success',
-        });
+        enqueueSnackbar('Email verified successfully!', { variant: 'success' });
         setTimeout(() => {
-          onToggleMode();
+          navigate('/auth/signin');
         }, 2000);
       } else {
         setError(result.error || 'Verification failed');
@@ -431,9 +428,26 @@ export const SignUp: React.FC<SignUpProps> = ({ onToggleMode }) => {
                 </Alert>
               </Box>
 
-              <GradientButton fullWidth onClick={onToggleMode} size="large">
+              <Button
+                component={Link}
+                to="/auth/signin"
+                fullWidth
+                variant="contained"
+                size="large"
+                sx={{
+                  background:
+                    'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                  borderRadius: 3,
+                  py: 1.5,
+                  fontWeight: 600,
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: '#5E35B1',
+                  },
+                }}
+              >
                 Sign In
-              </GradientButton>
+              </Button>
             </AnimatedCardContent>
           </GlassCard>
         </Zoom>
@@ -639,9 +653,10 @@ export const SignUp: React.FC<SignUpProps> = ({ onToggleMode }) => {
               </Divider>
 
               <Button
+                component={Link}
+                to="/auth/signin"
                 fullWidth
                 variant="outlined"
-                onClick={onToggleMode}
                 size="large"
                 sx={{
                   borderRadius: 3,
@@ -885,9 +900,10 @@ export const SignUp: React.FC<SignUpProps> = ({ onToggleMode }) => {
             </Divider>
 
             <Button
+              component={Link}
+              to="/auth/signin"
               fullWidth
               variant="outlined"
-              onClick={onToggleMode}
               size="large"
               sx={{
                 borderRadius: 3,

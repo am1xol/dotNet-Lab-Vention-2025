@@ -7,7 +7,7 @@ import {
   Divider,
   FormLabel,
   FormControl,
-  Link,
+  Link as MuiLink,
   TextField,
   Typography,
   Stack,
@@ -28,7 +28,7 @@ import {
 import { authService } from '../services/auth-service';
 import { LoginRequest } from '../types/auth';
 import { useSnackbar } from 'notistack';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const GlassCard = styled(Card)(({ theme }) => ({
   display: 'flex',
@@ -144,15 +144,7 @@ const GradientButton = styled(Button)(({}) => ({
   },
 }));
 
-interface SignInProps {
-  onToggleMode: () => void;
-  onShowForgotPassword: () => void;
-}
-
-export const SignIn: React.FC<SignInProps> = ({
-  onToggleMode,
-  onShowForgotPassword,
-}) => {
+export const SignIn: React.FC = () => {
   const [formData, setFormData] = useState<LoginRequest>({
     email: '',
     password: '',
@@ -218,20 +210,29 @@ export const SignIn: React.FC<SignInProps> = ({
       const result = await authService.login(formData);
 
       if (result.success) {
-        enqueueSnackbar('Successfully signed in!', {
-          variant: 'success',
-          anchorOrigin: {
-            vertical: 'top',
-            horizontal: 'right',
-          },
-        });
-
+        enqueueSnackbar('Successfully signed in!', { variant: 'success' });
         setTimeout(() => {
           navigate('/dashboard');
         }, 1000);
-      } else {
-        setError(result.error || 'Login failed');
+        return;
       }
+
+      if (result.error === 'Please verify your email before logging in') {
+        enqueueSnackbar(
+          'Your email is not verified. Redirecting to verification.',
+          { variant: 'warning' }
+        );
+
+        navigate('/auth/signup', {
+          state: {
+            initialStep: 'verification',
+            initialEmail: formData.email,
+          },
+        });
+        return;
+      }
+
+      setError(result.error || 'Login failed');
     } catch (err: any) {
       setError(err.response?.data?.title || 'Login failed');
     } finally {
@@ -418,22 +419,19 @@ export const SignIn: React.FC<SignInProps> = ({
                     }
                     label="Remember me"
                   />
-                  <Link
-                    component="button"
-                    type="button"
-                    onClick={onShowForgotPassword}
+                  <MuiLink
+                    component={Link}
+                    to="/auth/forgot-password"
                     variant="body2"
                     sx={{
                       color: '#7E57C2',
                       fontWeight: 600,
                       textDecoration: 'none',
-                      '&:hover': {
-                        textDecoration: 'underline',
-                      },
+                      '&:hover': { textDecoration: 'underline' },
                     }}
                   >
                     Forgot password?
-                  </Link>
+                  </MuiLink>
                 </Box>
 
                 <GradientButton
@@ -456,9 +454,10 @@ export const SignIn: React.FC<SignInProps> = ({
               </Divider>
 
               <Button
+                component={Link}
+                to="/auth/signup"
                 fullWidth
                 variant="outlined"
-                onClick={onToggleMode}
                 size="large"
                 startIcon={<AccountCircle />}
                 sx={{
@@ -470,10 +469,7 @@ export const SignIn: React.FC<SignInProps> = ({
                   '&:hover': {
                     borderColor: '#5E35B1',
                     backgroundColor: 'rgba(126, 87, 194, 0.04)',
-                    transform: 'translateY(-1px)',
-                    boxShadow: '0 4px 12px rgba(126, 87, 194, 0.2)',
                   },
-                  transition: 'all 0.3s ease',
                 }}
               >
                 Create Account

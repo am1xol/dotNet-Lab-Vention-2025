@@ -4,7 +4,6 @@ import {
   Button,
   FormLabel,
   FormControl,
-  Link,
   TextField,
   Typography,
   Stack,
@@ -17,6 +16,7 @@ import { styled } from '@mui/material/styles';
 import { ArrowBack, Lock, VpnKey, VerifiedUser } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { authService } from '../services/auth-service';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 
 const GlassCard = styled(Card)(({ theme }) => ({
   display: 'flex',
@@ -136,17 +136,11 @@ const AnimatedCardContent = styled(motion.div)({
   width: '100%',
 });
 
-interface ResetPasswordFormProps {
-  email: string;
-  onBackToSignIn: () => void;
-  onBackToForgotPassword: () => void;
-}
+export const ResetPasswordForm: React.FC = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const email = (location.state as { email: string })?.email || '';
 
-export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
-  email,
-  onBackToSignIn,
-  onBackToForgotPassword,
-}) => {
   const [resetToken, setResetToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -161,6 +155,12 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState(false);
+
+  React.useEffect(() => {
+    if (!email && !success) {
+      navigate('/auth/forgot-password');
+    }
+  }, [email, success, navigate]);
 
   const handleResetTokenChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setResetToken(e.target.value.replace(/\D/g, '').slice(0, 6));
@@ -311,9 +311,26 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
                 </Alert>
               </Box>
 
-              <GradientButton fullWidth onClick={onBackToSignIn} size="large">
+              <Button
+                component={Link}
+                to="/auth/signin"
+                fullWidth
+                variant="contained"
+                size="large"
+                sx={{
+                  background:
+                    'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                  borderRadius: 3,
+                  py: 1.5,
+                  fontWeight: 600,
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: '#5E35B1',
+                  },
+                }}
+              >
                 Sign In
-              </GradientButton>
+              </Button>
             </AnimatedCardContent>
           </GlassCard>
         </Zoom>
@@ -355,7 +372,8 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
           >
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <Button
-                onClick={onBackToForgotPassword}
+                component={Link}
+                to="/auth/forgot-password"
                 sx={{
                   color: '#7E57C2',
                   mr: 2,
@@ -531,35 +549,21 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
               sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}
             >
               <Link
-                component="button"
-                type="button"
-                onClick={onBackToForgotPassword}
-                variant="body2"
-                sx={{
+                to="/auth/forgot-password"
+                style={{
                   color: '#7E57C2',
-                  fontWeight: 600,
                   textDecoration: 'none',
-                  fontSize: '0.9rem',
-                  '&:hover': {
-                    textDecoration: 'underline',
-                  },
+                  fontWeight: 600,
                 }}
               >
                 Back
               </Link>
               <Link
-                component="button"
-                type="button"
-                onClick={onBackToSignIn}
-                variant="body2"
-                sx={{
+                to="/auth/signin"
+                style={{
                   color: '#7E57C2',
-                  fontWeight: 600,
                   textDecoration: 'none',
-                  fontSize: '0.9rem',
-                  '&:hover': {
-                    textDecoration: 'underline',
-                  },
+                  fontWeight: 600,
                 }}
               >
                 Sign In

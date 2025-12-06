@@ -73,18 +73,8 @@ function App() {
     <>
       <GlobalStyles
         styles={{
-          '*': {
-            boxSizing: 'border-box',
-          },
           'html, body': {
-            margin: 0,
-            padding: 0,
-            backgroundColor: '#F5F3FF',
             overflowX: 'hidden',
-          },
-          '#root': {
-            minHeight: '100vh',
-            backgroundColor: '#F5F3FF',
           },
         }}
       />

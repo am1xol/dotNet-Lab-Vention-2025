@@ -7,8 +7,8 @@ import {
   UserSubscription,
 } from '../../types/subscription';
 import { PaymentInfo } from '../../types/payment';
-import { AvailableSubscriptionsTab } from './AvailableSubscriptionsTab';
-import { MySubscriptionsTab } from './MySubscriptionsTab';
+import { AvailableSubscriptionsTab } from '../subscriptions/AvailableSubscriptionsTab';
+import { MySubscriptionsTab } from '../subscriptions/MySubscriptionsTab';
 import { PaymentHistoryTab } from '../payment/PaymentHistoryTab';
 import { AdminSubscriptionPanel } from '../subscriptions/AdminSubscriptionPanel';
 

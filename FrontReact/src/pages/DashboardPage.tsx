@@ -16,8 +16,8 @@ import {
 } from '../types/subscription';
 
 import DashboardShell from '../components/layout/DashboardShell';
-import { DashboardHeader } from '../components/subscriptions/DashboardHeader';
-import { DashboardTabs } from '../components/subscriptions/DashboardTabs';
+import { DashboardHeader } from '../components/dashboard/DashboardHeader';
+import { DashboardTabs } from '../components/dashboard/DashboardTabs';
 
 export const DashboardPage: React.FC = () => {
   const [statistics, setStatistics] = useState<UserStatisticsType | null>(null);

@@ -9,7 +9,7 @@ import {
   Payment,
 } from '../types/payment';
 
-const API_BASE_URL = 'http://localhost:8081/api';
+const API_BASE_URL = import.meta.env.VITE_SUBSCRIPTIONS_API_URL + '/api';
 
 export const userSubscriptionService = {
   async subscribe(subscriptionId: string): Promise<SubscribeResponse> {

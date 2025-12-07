@@ -6,7 +6,7 @@ import {
   GroupedSubscriptions,
 } from '../types/subscription';
 
-const API_BASE_URL = 'http://localhost:8081/api';
+const API_BASE_URL = import.meta.env.VITE_SUBSCRIPTIONS_API_URL + '/api';
 
 export const subscriptionService = {
   async getSubscriptions(): Promise<GroupedSubscriptions> {

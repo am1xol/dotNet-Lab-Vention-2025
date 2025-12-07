@@ -14,7 +14,7 @@ import {
 } from '../types/auth';
 import { UserProfile } from '../types/user';
 
-const API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = import.meta.env.VITE_AUTH_API_URL + '/api';
 
 export const authService = {
   async login(data: LoginRequest): Promise<LoginResponse> {

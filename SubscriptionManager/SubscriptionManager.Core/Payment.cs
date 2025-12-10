@@ -35,6 +35,9 @@ namespace SubscriptionManager.Core
         public string CardBrand { get; set; } = string.Empty;
 
         public virtual UserSubscription UserSubscription { get; set; } = null!;
+
+        [StringLength(100)]
+        public string? ExternalTransactionId { get; set; }
     }
 
     public enum PaymentStatus

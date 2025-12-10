@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SubscriptionManager.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using SubscriptionManager.Infrastructure.Data;
 namespace SubscriptionManager.Infrastructure.Migrations
 {
     [DbContext(typeof(SubscriptionsDbContext))]
-    partial class SubscriptionsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251210110322_AddExternalTransactionIdToPayment")]
+    partial class AddExternalTransactionIdToPayment
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

@@ -64,6 +64,7 @@ namespace SubscriptionManager.Subscriptions.API
         private static IServiceCollection AddSubscriptionsApplicationServices(this IServiceCollection services)
         {
             services.AddScoped<IFileStorageService, FileStorageService>();
+            services.AddHttpClient<Core.Interfaces.IPaymentGatewayService, Infrastructure.Services.BePaidService>();
             return services;
         }
 

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SubscriptionManager.Core;
 using SubscriptionManager.Core.DTOs;
+using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Models;
 using SubscriptionManager.Infrastructure.Data;
 using SubscriptionManager.Infrastructure.Services;
@@ -18,116 +19,86 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
     {
         private readonly SubscriptionsDbContext _context;
         private readonly IFileStorageService _fileStorageService;
+        private readonly IPaymentGatewayService _paymentGateway;
 
-        public UserSubscriptionsController(SubscriptionsDbContext context, IFileStorageService fileStorageService)
+        public UserSubscriptionsController(SubscriptionsDbContext context, IFileStorageService fileStorageService, IPaymentGatewayService paymentGateway)
         {
             _context = context;
             _fileStorageService = fileStorageService;
+            _paymentGateway = paymentGateway;
         }
 
         [HttpPost("subscribe-with-payment")]
         [ProducesResponseType(typeof(SubscribeResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<SubscribeResponse>> SubscribeWithPayment(SubscribeWithPaymentRequest request)
+        public async Task<ActionResult<object>> InitiateSubscriptionPayment(Guid subscriptionId)
         {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+                return Unauthorized();
+
+            var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
+            if (subscription == null || !subscription.IsActive)
+                return NotFound("Subscription not found");
+
+            var existingSubscription = await _context.UserSubscriptions
+                .FirstOrDefaultAsync(us => us.UserId == userId && us.SubscriptionId == subscriptionId && us.IsActive);
+
+            if (existingSubscription != null)
+                return BadRequest("User already subscribed");
+
+            var userSubscription = new UserSubscription
+            {
+                UserId = userId,
+                SubscriptionId = subscriptionId,
+                StartDate = DateTime.UtcNow,
+                NextBillingDate = CalculateNextBillingDate(subscription.Period),
+                IsActive = false
+            };
+
+            _context.UserSubscriptions.Add(userSubscription);
+            await _context.SaveChangesAsync();
+
+            var payment = new Payment
+            {
+                UserSubscriptionId = userSubscription.Id,
+                UserId = userId,
+                Amount = subscription.Price,
+                Currency = "BYN",
+                PaymentDate = DateTime.UtcNow,
+                Status = PaymentStatus.Pending,
+                PeriodStart = userSubscription.StartDate,
+                PeriodEnd = userSubscription.NextBillingDate
+            };
+
+            _context.Payments.Add(payment);
+            await _context.SaveChangesAsync();
+
             try
             {
-                Console.WriteLine($"=== SubscribeWithPayment Started ===");
+                var userEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? "customer@example.com";
 
-                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
-                if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+                var paymentResult = await _paymentGateway.InitiatePaymentAsync(
+                    subscription.Price,
+                    "BYN",
+                    $"Subscription: {subscription.Name}",
+                    payment.Id.ToString(), 
+                    userEmail
+                );
+
+                return Ok(new
                 {
-                    Console.WriteLine("FAIL: Invalid user ID");
-                    return Unauthorized("Invalid user ID in token");
-                }
-
-                Console.WriteLine($"User ID: {userId}");
-                Console.WriteLine($"Subscription ID: {request.SubscriptionId}");
-
-                var subscription = await _context.Subscriptions.FindAsync(request.SubscriptionId);
-                if (subscription == null || !subscription.IsActive)
-                {
-                    Console.WriteLine("FAIL: Subscription not found or inactive");
-                    return NotFound("Subscription not found");
-                }
-
-                Console.WriteLine($"Subscription found: {subscription.Name}");
-
-                var existingSubscription = await _context.UserSubscriptions
-                    .FirstOrDefaultAsync(us => us.UserId == userId &&
-                                             us.SubscriptionId == request.SubscriptionId &&
-                                             us.IsActive);
-
-                if (existingSubscription != null)
-                {
-                    Console.WriteLine("FAIL: User already subscribed");
-                    return BadRequest("User already subscribed to this service");
-                }
-
-                request.PaymentInfo.CardNumber = request.PaymentInfo.CardNumber?.Replace(" ", "") ?? "";
-
-                if (!ValidatePaymentInfo(request.PaymentInfo))
-                {
-                    Console.WriteLine("FAIL: Invalid payment info");
-                    return BadRequest("Invalid payment information");
-                }
-
-                Console.WriteLine("Payment info validated successfully");
-
-                var userSubscription = new UserSubscription
-                {
-                    UserId = userId,
-                    SubscriptionId = request.SubscriptionId,
-                    StartDate = DateTime.UtcNow,
-                    NextBillingDate = CalculateNextBillingDate(subscription.Period),
-                    IsActive = true
-                };
-
-                Console.WriteLine("Creating user subscription...");
-                _context.UserSubscriptions.Add(userSubscription);
-                await _context.SaveChangesAsync();
-                Console.WriteLine($"User subscription created with ID: {userSubscription.Id}");
-
-                var payment = new Payment
-                {
-                    UserSubscriptionId = userSubscription.Id,
-                    UserId = userId,
-                    Amount = subscription.Price,
-                    Currency = "BYN",
-                    PaymentDate = DateTime.UtcNow,
-                    PeriodStart = userSubscription.StartDate,
-                    PeriodEnd = userSubscription.NextBillingDate,
-                    Status = PaymentStatus.Completed,
-                    CardLastFour = request.PaymentInfo.CardNumber.Length >= 4
-                        ? request.PaymentInfo.CardNumber.Substring(request.PaymentInfo.CardNumber.Length - 4)
-                        : request.PaymentInfo.CardNumber,
-                    CardBrand = DetectCardBrand(request.PaymentInfo.CardNumber)
-                };
-
-                Console.WriteLine("Creating payment record...");
-                _context.Payments.Add(payment);
-                await _context.SaveChangesAsync();
-                Console.WriteLine($"Payment created with ID: {payment.Id}");
-
-                Console.WriteLine("=== SubscribeWithPayment Completed Successfully ===");
-
-                return Ok(new SubscribeResponse
-                {
-                    Id = userSubscription.Id,
-                    UserId = userSubscription.UserId,
-                    SubscriptionId = userSubscription.SubscriptionId,
-                    StartDate = userSubscription.StartDate,
-                    NextBillingDate = userSubscription.NextBillingDate,
-                    IsActive = userSubscription.IsActive,
-                    Message = "Subscription created and payment processed successfully"
+                    PaymentId = payment.Id,
+                    RedirectUrl = paymentResult.RedirectUrl
                 });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"ERROR in SubscribeWithPayment: {ex.Message}");
-                Console.WriteLine($"Stack trace: {ex.StackTrace}");
-                throw;
+                _context.Payments.Remove(payment);
+                _context.UserSubscriptions.Remove(userSubscription);
+                await _context.SaveChangesAsync();
+                return BadRequest($"Payment initiation failed: {ex.Message}");
             }
         }
 

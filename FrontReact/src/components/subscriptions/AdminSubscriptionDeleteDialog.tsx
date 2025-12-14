@@ -32,7 +32,8 @@ export const AdminSubscriptionDeleteDialog: React.FC<
         </Typography>
         {subscription?.isActive && (
           <Typography variant="body2" color="error" sx={{ mt: 1 }}>
-            Note: This subscription is currently active and may have active users.
+            Note: This subscription is currently active and may have active
+            users.
           </Typography>
         )}
       </DialogContent>

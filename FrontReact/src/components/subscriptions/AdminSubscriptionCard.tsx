@@ -102,7 +102,9 @@ export const AdminSubscriptionCard: React.FC<AdminSubscriptionCardProps> = ({
                     height: 50,
                     mr: 2,
                     borderRadius: 2,
-                    bgcolor: subscription.isActive ? 'primary.main' : 'grey.500',
+                    bgcolor: subscription.isActive
+                      ? 'primary.main'
+                      : 'grey.500',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -183,9 +185,7 @@ export const AdminSubscriptionCard: React.FC<AdminSubscriptionCardProps> = ({
               label={subscription.isActive ? 'Active' : 'Inactive'}
               color={subscription.isActive ? 'success' : 'default'}
               size="small"
-              icon={
-                subscription.isActive ? <Visibility /> : <VisibilityOff />
-              }
+              icon={subscription.isActive ? <Visibility /> : <VisibilityOff />}
             />
           </Box>
         </CardContent>

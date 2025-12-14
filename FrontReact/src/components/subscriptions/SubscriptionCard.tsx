@@ -12,8 +12,6 @@ import {
   Tooltip,
 } from '@mui/material';
 import { Subscription } from '../../types/subscription';
-import { PaymentForm } from '../payment/PaymentForm';
-import { PaymentInfo } from '../../types/payment';
 
 interface SubscriptionCardProps {
   subscription: Subscription;
@@ -22,10 +20,7 @@ interface SubscriptionCardProps {
   validUntil?: string;
   unsubscribeInfo?: { validUntil: string };
   onSubscribe: (subscriptionId: string) => void;
-  onSubscribeWithPayment: (
-    subscriptionId: string,
-    paymentInfo: PaymentInfo
-  ) => Promise<void>;
+  onInitiatePayment: (subscriptionId: string) => Promise<void>;
   onUnsubscribe: (subscriptionId: string) => void;
   userRole?: string;
   loading?: boolean;
@@ -37,12 +32,12 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   isCancelled = false,
   validUntil,
   unsubscribeInfo,
-  onSubscribeWithPayment,
+  onInitiatePayment,
   onUnsubscribe,
+  onSubscribe,
   userRole,
   loading = false,
 }) => {
-  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
 
   const formatPrice = (price: number) => {
@@ -151,25 +146,27 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
     };
   };
 
-  const handlePaymentSubmit = async (paymentInfo: PaymentInfo) => {
+  const handleInitiatePayment = async () => {
     setPaymentLoading(true);
     try {
-      await onSubscribeWithPayment(subscription.id, paymentInfo);
-      setPaymentDialogOpen(false);
-    } catch (error) {
-      console.error('Payment failed:', error);
+      await onInitiatePayment(subscription.id);
+    } catch (e) {
     } finally {
       setPaymentLoading(false);
     }
   };
 
   const handleButtonClick = () => {
-    if (isSubscribed && !isCancelled) {
+    if (isSubscribed) {
       onUnsubscribe(subscription.id);
-    } else if (!isSubscribed) {
-      setPaymentDialogOpen(true);
+    } else if (subscription.price > 0) {
+      handleInitiatePayment();
+    } else {
+      onSubscribe(subscription.id);
     }
   };
+
+  const finalLoadingState = loading || paymentLoading;
 
   const buttonState = getButtonState();
   const status = getSubscriptionStatus();
@@ -339,7 +336,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                   color={buttonState.color}
                   fullWidth
                   onClick={handleButtonClick}
-                  disabled={buttonState.disabled || loading}
+                  disabled={buttonState.disabled || finalLoadingState}
                   sx={
                     !isSubscribed
                       ? {
@@ -360,15 +357,6 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
           )}
         </CardActions>
       </Card>
-
-      <PaymentForm
-        open={paymentDialogOpen}
-        onClose={() => setPaymentDialogOpen(false)}
-        onPaymentSubmit={handlePaymentSubmit}
-        subscriptionName={subscription.name}
-        price={subscription.price}
-        loading={paymentLoading}
-      />
     </>
   );
 };

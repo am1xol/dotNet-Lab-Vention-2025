@@ -6,7 +6,6 @@ import {
   GroupedUserSubscriptions,
   UserSubscription,
 } from '../../types/subscription';
-import { PaymentInfo } from '../../types/payment';
 import { AvailableSubscriptionsTab } from '../subscriptions/AvailableSubscriptionsTab';
 import { MySubscriptionsTab } from '../subscriptions/MySubscriptionsTab';
 import { PaymentHistoryTab } from '../payment/PaymentHistoryTab';
@@ -51,10 +50,7 @@ interface DashboardTabsProps {
   unsubscribedData: { [key: string]: UnsubscribeInfo };
   getUserSubscription: (subscriptionId: string) => UserSubscription | undefined;
   handleSubscribe: (subscriptionId: string) => Promise<void>;
-  handleSubscribeWithPayment: (
-    subscriptionId: string,
-    paymentInfo: PaymentInfo
-  ) => Promise<void>;
+  handleInitiatePayment: (subscriptionId: string) => Promise<void>;
   handleUnsubscribe: (subscriptionId: string) => Promise<void>;
   loadData: () => Promise<void>;
 }
@@ -69,7 +65,7 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
   unsubscribedData,
   getUserSubscription,
   handleSubscribe,
-  handleSubscribeWithPayment,
+  handleInitiatePayment,
   handleUnsubscribe,
   loadData,
 }) => {
@@ -131,7 +127,7 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
             unsubscribeData={unsubscribedData}
             getUserSubscription={getUserSubscription}
             handleSubscribe={handleSubscribe}
-            handleSubscribeWithPayment={handleSubscribeWithPayment}
+            handleInitiatePayment={handleInitiatePayment}
             handleUnsubscribe={handleUnsubscribe}
           />
         </TabPanel>
@@ -143,7 +139,7 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
             actionLoading={actionLoading}
             unsubscribedData={unsubscribedData}
             handleSubscribe={handleSubscribe}
-            handleSubscribeWithPayment={handleSubscribeWithPayment}
+            handleInitiatePayment={handleInitiatePayment}
             handleUnsubscribe={handleUnsubscribe}
           />
         </TabPanel>

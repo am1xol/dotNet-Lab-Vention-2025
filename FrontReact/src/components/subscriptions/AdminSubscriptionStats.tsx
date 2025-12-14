@@ -24,7 +24,7 @@ export const AdminSubscriptionStats: React.FC<AdminSubscriptionStatsProps> = ({
     {
       title: 'Active',
       value: activeCount,
-      color: '#4CAF50', 
+      color: '#4CAF50',
       bgColor: 'rgba(76, 175, 80, 0.1)',
       borderColor: 'rgba(76, 175, 80, 0.2)',
     },
@@ -47,7 +47,7 @@ export const AdminSubscriptionStats: React.FC<AdminSubscriptionStatsProps> = ({
   return (
     <Grid container spacing={3} sx={{ mb: 4 }}>
       {stats.map((stat) => (
-        <Grid size = {{ xs:12, sm:6, md:3}} key={stat.title}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }} key={stat.title}>
           <Card
             sx={{
               background: stat.bgColor,

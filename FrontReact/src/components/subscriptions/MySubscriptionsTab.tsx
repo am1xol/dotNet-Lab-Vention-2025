@@ -6,7 +6,6 @@ import {
   GroupedUserSubscriptions,
   UserSubscription,
 } from '../../types/subscription';
-import { PaymentInfo } from '../../types/payment';
 
 interface UnsubscribeInfo {
   validUntil: string;
@@ -17,10 +16,7 @@ interface MySubscriptionsTabProps {
   actionLoading: string | null;
   unsubscribedData: { [key: string]: UnsubscribeInfo };
   handleSubscribe: (subscriptionId: string) => Promise<void>;
-  handleSubscribeWithPayment: (
-    subscriptionId: string,
-    paymentInfo: PaymentInfo
-  ) => Promise<void>;
+  handleInitiatePayment: (subscriptionId: string) => Promise<void>;
   handleUnsubscribe: (subscriptionId: string) => Promise<void>;
 }
 
@@ -29,7 +25,7 @@ export const MySubscriptionsTab: React.FC<MySubscriptionsTabProps> = ({
   actionLoading,
   unsubscribedData,
   handleSubscribe,
-  handleSubscribeWithPayment,
+  handleInitiatePayment,
   handleUnsubscribe,
 }) => {
   const getUnsubscribeInfo = (subscriptionId: string) => {
@@ -87,7 +83,10 @@ export const MySubscriptionsTab: React.FC<MySubscriptionsTabProps> = ({
                     const unsubscribeInfo = getUnsubscribeInfo(subscriptionId);
 
                     return (
-                      <Grid size = {{ xs:12, md:6, lg:4}} key={userSubscription.id}>
+                      <Grid
+                        size={{ xs: 12, md: 6, lg: 4 }}
+                        key={userSubscription.id}
+                      >
                         <motion.div
                           initial={{ opacity: 0, scale: 0.9 }}
                           animate={{ opacity: 1, scale: 1 }}
@@ -103,7 +102,7 @@ export const MySubscriptionsTab: React.FC<MySubscriptionsTabProps> = ({
                             validUntil={userSubscription.validUntil}
                             unsubscribeInfo={unsubscribeInfo}
                             onSubscribe={handleSubscribe}
-                            onSubscribeWithPayment={handleSubscribeWithPayment}
+                            onInitiatePayment={handleInitiatePayment}
                             onUnsubscribe={handleUnsubscribe}
                             loading={actionLoading === subscriptionId}
                           />

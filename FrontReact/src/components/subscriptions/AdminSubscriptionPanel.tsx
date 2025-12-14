@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Box, Typography, Button, Alert, Switch, FormControlLabel, Grid } from '@mui/material';
+import {
+  Box,
+  Typography,
+  Button,
+  Alert,
+  Switch,
+  FormControlLabel,
+  Grid,
+} from '@mui/material';
 import { Add } from '@mui/icons-material';
 import { subscriptionService } from '../../services/subscription-service';
 import {
@@ -52,7 +60,6 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
   useEffect(() => {
     loadSubscriptions();
   }, [loadSubscriptions]);
-
 
   const handleCreate = async (formData: CreateSubscriptionRequest) => {
     try {
@@ -138,7 +145,6 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
     }
   };
 
-
   const openEditDialog = (subscription: Subscription) => {
     setSelectedSubscription(subscription);
     setEditDialogOpen(true);
@@ -154,7 +160,6 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
       ? subscriptions.filter((sub) => sub.isActive)
       : subscriptions;
   };
-
 
   if (loading) {
     return (
@@ -260,7 +265,7 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
       ) : (
         <Grid container spacing={3}>
           {filteredSubscriptions.map((subscription, index) => (
-            <Grid size = {{ xs:12, md:6, lg:4}} key={subscription.id}>
+            <Grid size={{ xs: 12, md: 6, lg: 4 }} key={subscription.id}>
               <AdminSubscriptionCard
                 subscription={subscription}
                 index={index}

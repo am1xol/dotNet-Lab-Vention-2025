@@ -1,4 +1,6 @@
-﻿using SubscriptionManager.Core.DTOs;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using SubscriptionManager.Core.DTOs;
 using SubscriptionManager.Core.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -7,7 +9,6 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
 
 namespace SubscriptionManager.Infrastructure.Services
 {
@@ -15,11 +16,13 @@ namespace SubscriptionManager.Infrastructure.Services
     {
         private readonly HttpClient _httpClient;
         private readonly IConfiguration _configuration;
+        private readonly ILogger<BePaidService> _logger;
 
-        public BePaidService(HttpClient httpClient, IConfiguration configuration)
+        public BePaidService(HttpClient httpClient, IConfiguration configuration, ILogger<BePaidService> logger)
         {
             _httpClient = httpClient;
             _configuration = configuration;
+            _logger = logger;
 
             var shopId = _configuration["BePaid:ShopId"];
             var secretKey = _configuration["BePaid:SecretKey"];
@@ -35,7 +38,7 @@ namespace SubscriptionManager.Infrastructure.Services
                 {
                     Test = _configuration.GetValue<bool>("BePaid:TestMode"),
                     TransactionType = "payment",
-                    Version = 2.1,
+                    Version = "2.1",
                     Order = new OrderData
                     {
                         Amount = (long)(amount * 100),
@@ -56,12 +59,15 @@ namespace SubscriptionManager.Infrastructure.Services
                 }
             };
 
+            var jsonRequest = JsonSerializer.Serialize(request, new JsonSerializerOptions { WriteIndented = true });
+            _logger.LogInformation("Sending BePaid Checkout Request: {Request}", jsonRequest);
+
             var response = await _httpClient.PostAsJsonAsync("https://checkout.bepaid.by/ctp/api/checkouts", request);
 
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                throw new Exception($"BePaid Error: {errorContent}");
+                throw new ArgumentException($"BePaid service responded with error: {errorContent}");
             }
 
             var jsonResponse = await response.Content.ReadFromJsonAsync<JsonElement>();

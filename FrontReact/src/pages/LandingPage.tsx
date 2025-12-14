@@ -32,11 +32,7 @@ const LandingPage: React.FC = () => {
           justifyContent="center"
           sx={{ minHeight: '90vh', textAlign: 'center', py: 8 }}
         >
-          {isAuthenticated ? (
-            <AuthenticatedHero />
-          ) : (
-            <UnauthenticatedHero />
-          )}
+          {isAuthenticated ? <AuthenticatedHero /> : <UnauthenticatedHero />}
         </Stack>
       </Container>
 

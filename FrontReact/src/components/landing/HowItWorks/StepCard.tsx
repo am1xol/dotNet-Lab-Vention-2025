@@ -16,7 +16,7 @@ export const StepCard: React.FC<StepCardProps> = ({
   delay,
 }) => {
   return (
-    <Grid size = {{ xs:12, md:4}}>
+    <Grid size={{ xs: 12, md: 4 }}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}

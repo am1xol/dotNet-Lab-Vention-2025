@@ -17,7 +17,7 @@ export const StatsSection: React.FC = () => {
         sx={{ mt: 8, maxWidth: '800px', margin: '0 auto' }}
       >
         {stats.map((stat, index) => (
-          <Grid size = {{ xs:6, md:4}} key={stat.label}>
+          <Grid size={{ xs: 6, md: 4 }} key={stat.label}>
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}

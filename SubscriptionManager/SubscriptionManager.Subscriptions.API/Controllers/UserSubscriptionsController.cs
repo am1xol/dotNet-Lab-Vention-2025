@@ -28,11 +28,12 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             _paymentGateway = paymentGateway;
         }
 
-        [HttpPost("subscribe-with-payment")]
-        [ProducesResponseType(typeof(SubscribeResponse), StatusCodes.Status200OK)]
+        [HttpPost("initiate-payment/{subscriptionId}")] 
+        [ProducesResponseType(typeof(PaymentInitiationResult), StatusCodes.Status200OK)] 
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<object>> InitiateSubscriptionPayment(Guid subscriptionId)
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<ActionResult<PaymentInitiationResult>> InitiateSubscriptionPayment([FromRoute] Guid subscriptionId) 
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
@@ -83,22 +84,27 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                     subscription.Price,
                     "BYN",
                     $"Subscription: {subscription.Name}",
-                    payment.Id.ToString(), 
+                    payment.Id.ToString(),
                     userEmail
                 );
 
-                return Ok(new
-                {
-                    PaymentId = payment.Id,
-                    RedirectUrl = paymentResult.RedirectUrl
-                });
+                return Ok(paymentResult);
+            }
+            catch (ArgumentException ex)
+            {
+                _context.Payments.Remove(payment);
+                _context.UserSubscriptions.Remove(userSubscription);
+                await _context.SaveChangesAsync();
+
+                return BadRequest($"Payment initiation failed: {ex.Message}");
             }
             catch (Exception ex)
             {
                 _context.Payments.Remove(payment);
                 _context.UserSubscriptions.Remove(userSubscription);
                 await _context.SaveChangesAsync();
-                return BadRequest($"Payment initiation failed: {ex.Message}");
+
+                return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
 
@@ -220,50 +226,6 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 .ToListAsync();
 
             return Ok(payments);
-        }
-
-        private bool ValidatePaymentInfo(PaymentInfoDto paymentInfo)
-        {
-            var cleanCardNumber = paymentInfo.CardNumber?.Replace(" ", "") ?? "";
-
-            if (string.IsNullOrWhiteSpace(cleanCardNumber) ||
-                !cleanCardNumber.All(char.IsDigit) ||
-                cleanCardNumber.Length < 13)
-            {
-                return false;
-            }
-
-            if (!int.TryParse(paymentInfo.ExpiryMonth, out int month) ||
-                month < 1 || month > 12)
-            {
-                return false;
-            }
-
-            if (!int.TryParse(paymentInfo.ExpiryYear, out int year) ||
-                year < DateTime.Now.Year)
-            {
-                return false;
-            }
-
-            if (string.IsNullOrWhiteSpace(paymentInfo.Cvc) ||
-                !paymentInfo.Cvc.All(char.IsDigit) ||
-                paymentInfo.Cvc.Length < 3)
-            {
-                return false;
-            }
-
-            return true;
-        }
-
-        private string DetectCardBrand(string cardNumber)
-        {
-            if (string.IsNullOrWhiteSpace(cardNumber)) return "Unknown";
-
-            var cleanCardNumber = cardNumber.Replace(" ", "");
-
-            return cleanCardNumber.StartsWith("4") ? "Visa" :
-                   cleanCardNumber.StartsWith("5") ? "MasterCard" :
-                   cleanCardNumber.StartsWith("6") ? "Discover" : "Unknown";
         }
 
         [HttpPost("subscribe/{subscriptionId}")]

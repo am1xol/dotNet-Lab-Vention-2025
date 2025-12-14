@@ -41,11 +41,8 @@ export const FeaturesSection: React.FC = () => {
 
         <Grid container spacing={4} marginTop={5}>
           {features.map((feature, index) => (
-            <Grid size = {{ xs:12, md:6, lg:3}} key={feature.title}>
-              <FeatureCard
-                {...feature}
-                delay={index * 0.1}
-              />
+            <Grid size={{ xs: 12, md: 6, lg: 3 }} key={feature.title}>
+              <FeatureCard {...feature} delay={index * 0.1} />
             </Grid>
           ))}
         </Grid>

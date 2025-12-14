@@ -28,7 +28,7 @@ namespace SubscriptionManager.Core.DTOs
         public string TransactionType { get; set; } = "payment";
 
         [JsonPropertyName("version")]
-        public double Version { get; set; } = 2.1;
+        public string Version { get; set; } = "2.1";
 
         [JsonPropertyName("order")]
         public OrderData Order { get; set; } = new();
@@ -88,7 +88,7 @@ namespace SubscriptionManager.Core.DTOs
         public string Status { get; set; } = string.Empty;
 
         [JsonPropertyName("amount")]
-        public long Amount { get; set; }
+        public long? Amount { get; set; }
 
         [JsonPropertyName("tracking_id")]
         public string TrackingId { get; set; } = string.Empty; 

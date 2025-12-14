@@ -4,10 +4,10 @@ import { motion } from 'framer-motion';
 import { useAuthStore } from '../store/auth-store';
 import { subscriptionService } from '../services/subscription-service';
 import { userSubscriptionService } from '../services/user-subscription-service';
-import { UserStatistics } from '../components/statistics/UserStatistics'; 
+import { UserStatistics } from '../components/statistics/UserStatistics';
 import {
   UserStatistics as UserStatisticsType,
-  PaymentInfo,
+  PaymentInitiationResult,
 } from '../types/payment';
 import {
   GroupedSubscriptions,
@@ -18,6 +18,10 @@ import {
 import DashboardShell from '../components/layout/DashboardShell';
 import { DashboardHeader } from '../components/dashboard/DashboardHeader';
 import { DashboardTabs } from '../components/dashboard/DashboardTabs';
+
+declare const BeGateway: new (options: any) => {
+  createWidget: () => void;
+};
 
 export const DashboardPage: React.FC = () => {
   const [statistics, setStatistics] = useState<UserStatisticsType | null>(null);
@@ -41,7 +45,6 @@ export const DashboardPage: React.FC = () => {
       loadData();
     }
   }, [isAuthenticated]);
-
 
   const loadData = async () => {
     try {
@@ -74,22 +77,47 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
-  const handleSubscribeWithPayment = async (
-    subscriptionId: string,
-    paymentInfo: PaymentInfo
-  ) => {
+  const handleInitiatePayment = async (subscriptionId: string) => {
+    setActionLoading(subscriptionId);
+    setError(null);
     try {
-      setActionLoading(subscriptionId);
-      await userSubscriptionService.subscribeWithPayment({
-        subscriptionId,
-        paymentInfo,
-      });
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      await loadData();
-      setError(null);
+      const result: PaymentInitiationResult =
+        await userSubscriptionService.initiatePayment(subscriptionId);
+
+      if (typeof BeGateway !== 'undefined' && result.token) {
+        console.log('Attempting to open BeGateway Widget...');
+
+        const params = {
+          checkout_url: 'https://checkout.bepaid.by',
+          token: result.token,
+          checkout: {
+            iframe: true,
+            transaction_type: 'payment',
+          },
+          closeWidget: function (status: string) {
+            console.log(`BeGateway Widget closed. Status: ${status}`);
+
+            if (status === 'successful' || status === 'failed') {
+              loadData();
+            }
+          },
+        };
+
+        new BeGateway(params).createWidget();
+      } else {
+        console.error(
+          'Widget failed. BeGateway defined:',
+          typeof BeGateway !== 'undefined',
+          'Token available:',
+          !!result.token
+        );
+        window.open(result.redirectUrl, '_blank');
+      }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to process payment');
-      throw err;
+      setError(
+        err.response?.data?.message ||
+          'Не удалось инициировать платеж. Попробуйте еще раз.'
+      );
     } finally {
       setActionLoading(null);
     }
@@ -110,7 +138,8 @@ export const DashboardPage: React.FC = () => {
   const handleUnsubscribe = async (subscriptionId: string) => {
     try {
       setActionLoading(subscriptionId);
-      const response = await userSubscriptionService.unsubscribe(subscriptionId);
+      const response =
+        await userSubscriptionService.unsubscribe(subscriptionId);
       setUnsubscribedData((prev) => ({
         ...prev,
         [subscriptionId]: { validUntil: response.validUntil },
@@ -181,7 +210,7 @@ export const DashboardPage: React.FC = () => {
           unsubscribedData={unsubscribedData}
           getUserSubscription={getUserSubscription}
           handleSubscribe={handleSubscribe}
-          handleSubscribeWithPayment={handleSubscribeWithPayment}
+          handleInitiatePayment={handleInitiatePayment}
           handleUnsubscribe={handleUnsubscribe}
           loadData={loadData}
         />

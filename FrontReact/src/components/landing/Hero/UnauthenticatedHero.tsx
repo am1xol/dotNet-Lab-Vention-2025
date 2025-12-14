@@ -58,7 +58,9 @@ export const UnauthenticatedHero: React.FC = () => {
             lineHeight: 1.6,
           }}
         >
-          Stop subscription chaos. Track, manage, and optimize all your recurring payments from one beautiful, secure dashboard. Save money and never miss a payment again.
+          Stop subscription chaos. Track, manage, and optimize all your
+          recurring payments from one beautiful, secure dashboard. Save money
+          and never miss a payment again.
         </Typography>
       </motion.div>
 
@@ -76,8 +78,7 @@ export const UnauthenticatedHero: React.FC = () => {
               py: 2.5,
               px: 6,
               fontSize: '1.1rem',
-              background:
-                'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+              background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
               color: 'white',
               borderRadius: 3,
               fontWeight: 600,
@@ -115,7 +116,7 @@ export const UnauthenticatedHero: React.FC = () => {
           </Button>
         </Stack>
       </motion.div>
-      
+
       <StatsSection />
     </>
   );

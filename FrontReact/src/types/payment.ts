@@ -11,6 +11,11 @@ export interface SubscribeWithPaymentRequest {
   paymentInfo: PaymentInfo;
 }
 
+export interface PaymentInitiationResult {
+  redirectUrl: string;
+  token: string;
+}
+
 export interface Payment {
   id: string;
   userSubscriptionId: string;

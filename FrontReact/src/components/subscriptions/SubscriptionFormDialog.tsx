@@ -20,7 +20,9 @@ import {
   UpdateSubscriptionRequest,
 } from '../../types/subscription';
 
-type SubscriptionFormData = CreateSubscriptionRequest | UpdateSubscriptionRequest;
+type SubscriptionFormData =
+  | CreateSubscriptionRequest
+  | UpdateSubscriptionRequest;
 
 interface SubscriptionFormDialogProps {
   open: boolean;
@@ -148,7 +150,7 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
           </Typography>
         )}
         <Grid container spacing={2} sx={{ mt: 1 }}>
-          <Grid size = {{ xs:12 }}>
+          <Grid size={{ xs: 12 }}>
             <TextField
               fullWidth
               label="Name"
@@ -156,7 +158,7 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
               onChange={(e) => handleInputChange('name', e.target.value)}
             />
           </Grid>
-          <Grid size = {{ xs:12 }}>
+          <Grid size={{ xs: 12 }}>
             <TextField
               fullWidth
               label="Description"
@@ -166,7 +168,7 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
               onChange={(e) => handleInputChange('description', e.target.value)}
             />
           </Grid>
-          <Grid size = {{ xs:6 }}>
+          <Grid size={{ xs: 6 }}>
             <TextField
               fullWidth
               label="Price"
@@ -178,7 +180,7 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
               inputProps={{ min: 0 }}
             />
           </Grid>
-          <Grid size = {{ xs:6 }}>
+          <Grid size={{ xs: 6 }}>
             <TextField
               fullWidth
               select
@@ -193,7 +195,7 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
               ))}
             </TextField>
           </Grid>
-          <Grid size = {{ xs:6 }}>
+          <Grid size={{ xs: 6 }}>
             <TextField
               fullWidth
               select
@@ -208,7 +210,7 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
               ))}
             </TextField>
           </Grid>
-          <Grid size = {{ xs:6 }}>
+          <Grid size={{ xs: 6 }}>
             <Box>
               <input
                 type="file"

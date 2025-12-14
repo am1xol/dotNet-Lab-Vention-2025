@@ -4,9 +4,9 @@ import {
   GroupedUserSubscriptions,
 } from '../types/subscription';
 import {
-  SubscribeWithPaymentRequest,
   UserStatistics,
   Payment,
+  PaymentInitiationResult,
 } from '../types/payment';
 
 const API_BASE_URL = import.meta.env.VITE_SUBSCRIPTIONS_API_URL + '/api';
@@ -19,14 +19,13 @@ export const userSubscriptionService = {
     return response.data as SubscribeResponse;
   },
 
-  async subscribeWithPayment(
-    data: SubscribeWithPaymentRequest
-  ): Promise<SubscribeResponse> {
+  async initiatePayment(
+    subscriptionId: string
+  ): Promise<PaymentInitiationResult> {
     const response = await api.post(
-      `${API_BASE_URL}/UserSubscriptions/subscribe-with-payment`,
-      data
+      `${API_BASE_URL}/UserSubscriptions/initiate-payment/${subscriptionId}`
     );
-    return response.data as SubscribeResponse;
+    return response.data as PaymentInitiationResult;
   },
 
   async getMySubscriptions(): Promise<GroupedUserSubscriptions> {

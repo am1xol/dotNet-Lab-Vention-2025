@@ -189,8 +189,8 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         }
 
         [HttpGet("payment-history")]
-        [ProducesResponseType(typeof(List<PaymentDto>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<List<PaymentDto>>> GetPaymentHistory()
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        public async Task<ActionResult> GetPaymentHistory([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 5)
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
@@ -198,9 +198,14 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 return Unauthorized("Invalid user ID in token");
             }
 
+            var totalCount = await _context.Payments
+                .CountAsync(p => p.UserId == userId);
+
             var payments = await _context.Payments
                 .Where(p => p.UserId == userId)
                 .OrderByDescending(p => p.PaymentDate)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
                 .Include(p => p.UserSubscription)
                     .ThenInclude(us => us.Subscription)
                 .Select(p => new PaymentDto
@@ -225,7 +230,13 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 })
                 .ToListAsync();
 
-            return Ok(payments);
+            return Ok(new
+            {
+                items = payments,
+                totalCount = totalCount,
+                pageNumber = pageNumber,
+                pageSize = pageSize
+            });
         }
 
         [HttpPost("subscribe/{subscriptionId}")]

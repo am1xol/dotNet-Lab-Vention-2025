@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using SubscriptionManager.Infrastructure.Data;
 using SubscriptionManager.Infrastructure.Services;
 using SubscriptionManager.Subscriptions.API;
@@ -8,6 +9,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSubscriptionsApiServices(builder.Configuration);
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
+builder.Services.AddAutoMapper(cfg =>
+{
+    cfg.AddMaps(AppDomain.CurrentDomain.GetAssemblies());
+});
 
 builder.Services.AddCors(options =>
 {

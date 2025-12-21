@@ -5,7 +5,6 @@ import {
 } from '../types/subscription';
 import {
   UserStatistics,
-  Payment,
   PaymentInitiationResult,
 } from '../types/payment';
 
@@ -51,10 +50,17 @@ export const userSubscriptionService = {
     return response.data as UserStatistics;
   },
 
-  async getPaymentHistory(): Promise<Payment[]> {
+  async getAvailableSubscriptions(page: number, pageSize: number, orderBy: string = 'id') {
     const response = await api.get(
-      `${API_BASE_URL}/UserSubscriptions/payment-history`
+      `${API_BASE_URL}/Subscriptions?pageNumber=${page}&pageSize=${pageSize}&orderBy=${orderBy}`
     );
-    return response.data as Payment[];
+    return response.data;
+  },
+
+  async getPaymentHistory(page: number, pageSize: number) {
+    const response = await api.get(
+      `${API_BASE_URL}/UserSubscriptions/payment-history?pageNumber=${page}&pageSize=${pageSize}`
+    );
+    return response.data;
   },
 };

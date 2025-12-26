@@ -159,9 +159,12 @@ export const DashboardPage: React.FC = () => {
   const getUserSubscription = (
     subscriptionId: string
   ): UserSubscription | undefined => {
+    if (!mySubscriptions) return undefined;
+
     const allUserSubscriptions = Object.values(mySubscriptions).flat();
+
     return allUserSubscriptions.find(
-      (us) => us.subscription.id === subscriptionId && us.isActive
+      (us) => us?.subscriptionId === subscriptionId && us?.isActive
     );
   };
 

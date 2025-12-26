@@ -64,3 +64,21 @@ export interface GroupedSubscriptions {
 export interface GroupedUserSubscriptions {
   [category: string]: UserSubscription[];
 }
+
+export interface PagedResult<T> {
+  items: T[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface CategoryData {
+  items: Subscription[];
+  currentPage: number;
+  totalPages: number;
+  totalCount: number;
+  isLoadingMore: boolean;
+}
+
+export type SubscriptionsByCategory = Record<string, CategoryData>;

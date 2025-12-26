@@ -3,10 +3,7 @@ import {
   SubscribeResponse,
   GroupedUserSubscriptions,
 } from '../types/subscription';
-import {
-  UserStatistics,
-  PaymentInitiationResult,
-} from '../types/payment';
+import { UserStatistics, PaymentInitiationResult } from '../types/payment';
 
 const API_BASE_URL = import.meta.env.VITE_SUBSCRIPTIONS_API_URL + '/api';
 
@@ -50,7 +47,11 @@ export const userSubscriptionService = {
     return response.data as UserStatistics;
   },
 
-  async getAvailableSubscriptions(page: number, pageSize: number, orderBy: string = 'id') {
+  async getAvailableSubscriptions(
+    page: number,
+    pageSize: number,
+    orderBy: string = 'id'
+  ) {
     const response = await api.get(
       `${API_BASE_URL}/Subscriptions?pageNumber=${page}&pageSize=${pageSize}&orderBy=${orderBy}`
     );

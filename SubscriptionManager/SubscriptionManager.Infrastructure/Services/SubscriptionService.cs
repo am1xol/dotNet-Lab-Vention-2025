@@ -18,11 +18,13 @@ namespace SubscriptionManager.Infrastructure.Services
     {
         private readonly SubscriptionsDbContext _context;
         private readonly IMapper _mapper;
+        private readonly IFileStorageService _fileStorageService;
 
-        public SubscriptionService(SubscriptionsDbContext context, IMapper mapper)
+        public SubscriptionService(SubscriptionsDbContext context, IMapper mapper, IFileStorageService fileStorageService)
         {
             _context = context;
             _mapper = mapper;
+            _fileStorageService = fileStorageService;
         }
 
         public async Task ProcessExpiredSubscriptionsAsync()
@@ -63,15 +65,22 @@ namespace SubscriptionManager.Infrastructure.Services
             };
         }
 
-        public async Task<PagedResult<SubscriptionDto>> GetSubscriptionsAsync(PaginationParams pq)
+        public async Task<PagedResult<SubscriptionDto>> GetSubscriptionsAsync(PaginationParams pq, string? category = null)
         {
-            var query = _context.Subscriptions.AsQueryable();
+            var query = _context.Subscriptions
+                .Where(s => s.IsActive)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(category))
+            {
+                query = query.Where(s => s.Category == category);
+            }
 
             query = pq.OrderBy?.ToLower() switch
             {
                 "name" => query.OrderBy(s => s.Name),
                 "price" => query.OrderBy(s => s.Price),
-                _ => query.OrderBy(s => s.Id)
+                _ => query.OrderByDescending(s => s.CreatedAt)
             };
 
             var totalCount = await query.CountAsync();
@@ -80,9 +89,26 @@ namespace SubscriptionManager.Infrastructure.Services
                 .Take(pq.PageSize)
                 .ToListAsync();
 
+            var dtos = _mapper.Map<IEnumerable<SubscriptionDto>>(items);
+
+            foreach (var dto in dtos)
+            {
+                if (dto.IconFileId.HasValue)
+                {
+                    try
+                    {
+                        dto.IconUrl = await _fileStorageService.GetPresignedUrlAsync(dto.IconFileId.Value);
+                    }
+                    catch
+                    {
+                        dto.IconUrl = null;
+                    }
+                }
+            }
+
             return new PagedResult<SubscriptionDto>
             {
-                Items = _mapper.Map<IEnumerable<SubscriptionDto>>(items),
+                Items = dtos,
                 TotalCount = totalCount,
                 PageNumber = pq.PageNumber,
                 PageSize = pq.PageSize

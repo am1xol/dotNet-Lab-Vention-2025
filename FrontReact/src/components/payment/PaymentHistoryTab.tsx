@@ -11,7 +11,7 @@ import {
   Alert,
   Card,
   CardContent,
-  Button
+  Button,
 } from '@mui/material';
 import { Payment } from '../../types/payment';
 import { userSubscriptionService } from '../../services/user-subscription-service';
@@ -36,17 +36,23 @@ export const PaymentHistoryTab: React.FC = () => {
     loadPaymentHistory(1, true);
   }, []);
 
-  const loadPaymentHistory = async (pageNumber: number, isInitial: boolean = false) => {
+  const loadPaymentHistory = async (
+    pageNumber: number,
+    isInitial: boolean = false
+  ) => {
     try {
       setLoading(true);
-      const data = await userSubscriptionService.getPaymentHistory(pageNumber, pageSize) as PagedPaymentResponse;
-      
+      const data = (await userSubscriptionService.getPaymentHistory(
+        pageNumber,
+        pageSize
+      )) as PagedPaymentResponse;
+
       const newPayments = data.items;
-      
+
       if (isInitial) {
         setPayments(newPayments);
       } else {
-        setPayments(prev => [...prev, ...newPayments]);
+        setPayments((prev) => [...prev, ...newPayments]);
       }
 
       setHasMore(newPayments.length === pageSize);
@@ -133,7 +139,10 @@ export const PaymentHistoryTab: React.FC = () => {
                               <Typography variant="h6" fontWeight="medium">
                                 {payment.subscription.name}
                               </Typography>
-                              <Typography variant="body2" color="text.secondary">
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                              >
                                 {formatDate(payment.paymentDate)} • Period:{' '}
                                 {formatDate(payment.periodStart)} -{' '}
                                 {formatDate(payment.periodEnd)}

@@ -59,7 +59,6 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
   userRole,
   tabValue,
   handleTabChange,
-  availableSubscriptions,
   mySubscriptions,
   actionLoading,
   unsubscribedData,
@@ -122,7 +121,6 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
         {/* Available Subscriptions Tab */}
         <TabPanel value={tabValue} index={0}>
           <AvailableSubscriptionsTab
-            availableSubscriptions={availableSubscriptions}
             actionLoading={actionLoading}
             unsubscribeData={unsubscribedData}
             getUserSubscription={getUserSubscription}

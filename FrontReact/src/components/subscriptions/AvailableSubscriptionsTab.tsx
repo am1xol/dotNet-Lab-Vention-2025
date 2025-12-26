@@ -1,19 +1,17 @@
-import React from 'react';
-import { Box, Typography, Grid } from '@mui/material';
-import { motion } from 'framer-motion';
+import React, { useEffect, useState } from 'react';
+import { Box, Typography, Grid, CircularProgress, Button } from '@mui/material';
+import { AnimatePresence, motion } from 'framer-motion';
 import { SubscriptionCard } from '../subscriptions/SubscriptionCard';
+import { subscriptionService } from '../../services/subscription-service';
 import {
-  GroupedSubscriptions,
   UserSubscription,
-  Subscription,
+  SubscriptionsByCategory,
 } from '../../types/subscription';
-
 interface UnsubscribeInfo {
   validUntil: string;
 }
 
 interface AvailableSubscriptionsTabProps {
-  availableSubscriptions: GroupedSubscriptions;
   actionLoading: string | null;
   unsubscribeData: { [key: string]: UnsubscribeInfo };
   getUserSubscription: (subscriptionId: string) => UserSubscription | undefined;
@@ -22,10 +20,11 @@ interface AvailableSubscriptionsTabProps {
   handleUnsubscribe: (subscriptionId: string) => Promise<void>;
 }
 
+const PAGE_SIZE = 3;
+
 export const AvailableSubscriptionsTab: React.FC<
   AvailableSubscriptionsTabProps
 > = ({
-  availableSubscriptions,
   actionLoading,
   unsubscribeData,
   getUserSubscription,
@@ -33,83 +32,157 @@ export const AvailableSubscriptionsTab: React.FC<
   handleInitiatePayment,
   handleUnsubscribe,
 }) => {
-  const getUnsubscribeInfo = (subscriptionId: string) => {
-    return unsubscribeData[subscriptionId];
+  const [categoriesData, setCategoriesData] = useState<SubscriptionsByCategory>(
+    {}
+  );
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const initData = async () => {
+      try {
+        const categories = await subscriptionService.getCategories();
+        const initialData: SubscriptionsByCategory = {};
+
+        for (const cat of categories) {
+          const result = await subscriptionService.getSubscriptionsPaged(
+            1,
+            PAGE_SIZE,
+            cat
+          );
+          initialData[cat] = {
+            items: result.items,
+            currentPage: result.pageNumber,
+            totalPages: result.totalPages,
+            totalCount: result.totalCount,
+            isLoadingMore: false,
+          };
+        }
+        setCategoriesData(initialData);
+      } catch (error) {
+        console.error('Failed to fetch subscriptions', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    initData();
+  }, []);
+
+  const loadMore = async (category: string) => {
+    const currentCat = categoriesData[category];
+    if (currentCat.currentPage >= currentCat.totalPages) return;
+
+    setCategoriesData((prev: SubscriptionsByCategory) => ({
+      ...prev,
+      [category]: { ...prev[category], isLoadingMore: true },
+    }));
+
+    try {
+      const nextPage = currentCat.currentPage + 1;
+      const result = await subscriptionService.getSubscriptionsPaged(
+        nextPage,
+        PAGE_SIZE,
+        category
+      );
+
+      setCategoriesData((prev: SubscriptionsByCategory) => ({
+        ...prev,
+        [category]: {
+          ...prev[category],
+          items: [...prev[category].items, ...result.items],
+          currentPage: result.pageNumber,
+          isLoadingMore: false,
+        },
+      }));
+    } catch (error) {
+      setCategoriesData((prev: SubscriptionsByCategory) => ({
+        ...prev,
+        [category]: { ...prev[category], isLoadingMore: false },
+      }));
+    }
   };
 
-  if (Object.keys(availableSubscriptions).length === 0) {
+  if (loading)
     return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <Box textAlign="center" py={8}>
-          <Typography variant="h6" color="text.secondary">
-            No subscriptions available at the moment
-          </Typography>
-        </Box>
-      </motion.div>
+      <Box display="flex" justifyContent="center" py={10}>
+        <CircularProgress />
+      </Box>
     );
-  }
 
   return (
     <>
-      {Object.entries(availableSubscriptions).map(
-        ([category, subscriptions], categoryIndex) => (
-          <motion.div
-            key={category}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              duration: 0.6,
-              delay: categoryIndex * 0.1,
-            }}
-          >
-            <Box sx={{ mb: 6 }}>
-              <Typography variant="h4" gutterBottom>
-                {category}
+      {Object.entries(categoriesData).map(([category, data]) => (
+        <motion.div
+          key={category}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Box sx={{ mb: 6 }}>
+            <Typography
+              variant="h5"
+              fontWeight="bold"
+              gutterBottom
+              sx={{ textTransform: 'capitalize', mb: 3 }}
+            >
+              {category}
+              <Typography
+                component="span"
+                variant="body2"
+                color="text.secondary"
+                sx={{ ml: 2 }}
+              >
+                ({data.totalCount})
               </Typography>
-              <Grid container spacing={3}>
-                {subscriptions.map(
-                  (subscription: Subscription, index: number) => {
-                    const userSubscription = getUserSubscription(
-                      subscription.id
-                    );
-                    const isSubscribed = userSubscription?.isActive || false;
-                    const unsubscribeInfo = getUnsubscribeInfo(subscription.id);
-                    const isCancelled = userSubscription?.cancelledAt != null;
+            </Typography>
 
-                    return (
-                      <Grid
-                        size={{ xs: 12, md: 6, lg: 4 }}
-                        key={subscription.id}
+            <Grid container spacing={3}>
+              <AnimatePresence>
+                {data.items.map((subscription) => {
+                  if (!subscription || !subscription.id) return null;
+                  const userSub = getUserSubscription(subscription.id);
+                  return (
+                    <Grid key={subscription.id} size={{ xs: 12, md: 6, lg: 4 }}>
+                      <motion.div
+                        layout
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
                       >
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{
-                            duration: 0.5,
-                            delay: index * 0.05,
-                          }}
-                        >
-                          <SubscriptionCard
-                            subscription={subscription}
-                            isSubscribed={isSubscribed}
-                            isCancelled={isCancelled}
-                            validUntil={userSubscription?.validUntil}
-                            unsubscribeInfo={unsubscribeInfo}
-                            onSubscribe={handleSubscribe}
-                            onInitiatePayment={handleInitiatePayment}
-                            onUnsubscribe={handleUnsubscribe}
-                            loading={actionLoading === subscription.id}
-                          />
-                        </motion.div>
-                      </Grid>
-                    );
-                  }
-                )}
-              </Grid>
-            </Box>
-          </motion.div>
-        )
-      )}
+                        <SubscriptionCard
+                          subscription={subscription}
+                          isSubscribed={!!userSub?.isActive}
+                          isCancelled={!!userSub?.cancelledAt}
+                          validUntil={userSub?.validUntil}
+                          unsubscribeInfo={
+                            unsubscribeData
+                              ? unsubscribeData[subscription.id]
+                              : undefined
+                          }
+                          onSubscribe={handleSubscribe}
+                          onInitiatePayment={handleInitiatePayment}
+                          onUnsubscribe={handleUnsubscribe}
+                          loading={actionLoading === subscription.id}
+                        />
+                      </motion.div>
+                    </Grid>
+                  );
+                })}
+              </AnimatePresence>
+            </Grid>
+
+            {data.currentPage < data.totalPages && (
+              <Box sx={{ mt: 3, textAlign: 'center' }}>
+                <Button
+                  variant="outlined"
+                  onClick={() => loadMore(category)}
+                  disabled={data.isLoadingMore}
+                >
+                  {data.isLoadingMore ? 'Загрузка...' : 'Показать еще'}
+                </Button>
+              </Box>
+            )}
+          </Box>
+        </motion.div>
+      ))}
     </>
   );
 };

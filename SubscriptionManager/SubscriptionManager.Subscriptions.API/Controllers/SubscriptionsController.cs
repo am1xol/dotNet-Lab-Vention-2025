@@ -25,35 +25,70 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             _fileStorageService = fileStorageService;
         }
 
-        [HttpGet]
-        [ProducesResponseType(typeof(Dictionary<string, List<SubscriptionDto>>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<Dictionary<string, List<SubscriptionDto>>>> GetSubscriptions()
+        [HttpGet("categories")]
+        public async Task<ActionResult<List<string>>> GetCategories()
         {
-            var subscriptions = await _context.Subscriptions
+            var categories = await _context.Subscriptions
                 .Where(s => s.IsActive)
-                .Select(s => MapToDto(s))
+                .Select(s => s.Category)
+                .Distinct()
                 .ToListAsync();
 
-            foreach (var subscription in subscriptions)
+            return Ok(categories);
+        }
+
+        [HttpGet]
+        [ProducesResponseType(typeof(PagedResult<SubscriptionDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<PagedResult<SubscriptionDto>>> GetSubscriptions(
+            [FromQuery] PaginationParams pq,
+            [FromQuery] string? category = null)
+        {
+            var query = _context.Subscriptions
+                .Where(s => s.IsActive)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(category))
             {
-                if (subscription.IconFileId.HasValue)
+                query = query.Where(s => s.Category == category);
+            }
+
+            query = pq.OrderBy?.ToLower() switch
+            {
+                "name" => query.OrderBy(s => s.Name),
+                "price" => query.OrderBy(s => s.Price),
+                _ => query.OrderByDescending(s => s.CreatedAt)
+            };
+
+            var totalCount = await query.CountAsync();
+            var items = await query
+                .Skip((pq.PageNumber - 1) * pq.PageSize)
+                .Take(pq.PageSize)
+                .ToListAsync();
+
+            var dtos = items.Select(s => MapToDto(s)).ToList();
+
+            foreach (var dto in dtos)
+            {
+                if (dto.IconFileId.HasValue)
                 {
                     try
                     {
-                        subscription.IconUrl = await _fileStorageService.GetPresignedUrlAsync(subscription.IconFileId.Value);
+                        dto.IconUrl = await _fileStorageService.GetPresignedUrlAsync(dto.IconFileId.Value);
                     }
                     catch
                     {
-                        subscription.IconUrl = null;
+                        dto.IconUrl = null;
                     }
                 }
             }
 
-            var groupedSubscriptions = subscriptions
-                .GroupBy(s => s.Category)
-                .ToDictionary(g => g.Key, g => g.ToList());
-
-            return Ok(groupedSubscriptions);
+            return Ok(new PagedResult<SubscriptionDto>
+            {
+                Items = dtos,
+                TotalCount = totalCount,
+                PageNumber = pq.PageNumber,
+                PageSize = pq.PageSize
+            });
         }
 
         [HttpGet("{id}")]

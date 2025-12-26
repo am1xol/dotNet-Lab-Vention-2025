@@ -289,71 +289,50 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         }
 
         [HttpGet("my-subscriptions")]
-        [ProducesResponseType(typeof(Dictionary<string, List<UserSubscriptionDto>>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<Dictionary<string, List<UserSubscriptionDto>>>> GetMySubscriptions()
+        public async Task<ActionResult<PagedResult<UserSubscriptionDto>>> GetMySubscriptions(
+        [FromQuery] PaginationParams pq,
+        [FromQuery] string? category = null)
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
-            {
-                return Unauthorized("Invalid user ID in token");
-            }
+                return Unauthorized();
 
             var currentDate = DateTime.UtcNow;
-
-            var userSubscriptions = await _context.UserSubscriptions
-                .Where(us => us.UserId == userId &&
-                             us.IsActive &&
+            var query = _context.UserSubscriptions
+                .Where(us => us.UserId == userId && us.IsActive &&
                              (!us.CancelledAt.HasValue || currentDate <= us.ValidUntil))
                 .Include(us => us.Subscription)
-                .Select(us => new UserSubscriptionDto
-                {
-                    Id = us.Id,
-                    UserId = us.UserId,
-                    SubscriptionId = us.SubscriptionId,
-                    StartDate = us.StartDate,
-                    NextBillingDate = us.NextBillingDate,
-                    CancelledAt = us.CancelledAt,
-                    ValidUntil = us.ValidUntil,
-                    IsActive = us.IsActive,
-                    Status = us.CancelledAt.HasValue ? "Cancelled" : "Active",
-                    Subscription = new SubscriptionDto
-                    {
-                        Id = us.Subscription.Id,
-                        Name = us.Subscription.Name,
-                        Description = us.Subscription.Description,
-                        Price = us.Subscription.Price,
-                        Period = us.Subscription.Period,
-                        Category = us.Subscription.Category,
-                        IconFileId = us.Subscription.IconFileId,
-                        IconUrl = null,
-                        IsActive = us.Subscription.IsActive,
-                        CreatedAt = us.Subscription.CreatedAt,
-                        UpdatedAt = us.Subscription.UpdatedAt
-                    }
-                })
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(category))
+            {
+                query = query.Where(us => us.Subscription.Category == category);
+            }
+
+            var totalCount = await query.CountAsync();
+            var items = await query
+                .OrderByDescending(us => us.StartDate)
+                .Skip((pq.PageNumber - 1) * pq.PageSize)
+                .Take(pq.PageSize)
                 .ToListAsync();
 
-            foreach (var userSubscription in userSubscriptions)
+            var dtos = items.Select(us => MapToUserDto(us)).ToList();
+
+            foreach (var dto in dtos)
             {
-                if (userSubscription.Subscription.IconFileId.HasValue)
+                if (dto.Subscription.IconFileId.HasValue)
                 {
-                    try
-                    {
-                        userSubscription.Subscription.IconUrl = await _fileStorageService.GetPresignedUrlAsync(
-                            userSubscription.Subscription.IconFileId.Value);
-                    }
-                    catch
-                    {
-                        userSubscription.Subscription.IconUrl = null;
-                    }
+                    dto.Subscription.IconUrl = await _fileStorageService.GetPresignedUrlAsync(dto.Subscription.IconFileId.Value);
                 }
             }
 
-            var groupedSubscriptions = userSubscriptions
-                .GroupBy(us => us.Subscription.Category)
-                .ToDictionary(g => g.Key, g => g.ToList());
-
-            return Ok(groupedSubscriptions);
+            return Ok(new PagedResult<UserSubscriptionDto>
+            {
+                Items = dtos,
+                TotalCount = totalCount,
+                PageNumber = pq.PageNumber,
+                PageSize = pq.PageSize
+            });
         }
 
         [HttpPost("unsubscribe/{subscriptionId}")]
@@ -395,6 +374,32 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 "yearly" => DateTime.UtcNow.AddYears(1),
                 "lifetime" => DateTime.UtcNow.AddYears(100),
                 _ => DateTime.UtcNow.AddMonths(1)
+            };
+        }
+
+        private static UserSubscriptionDto MapToUserDto(UserSubscription us)
+        {
+            return new UserSubscriptionDto
+            {
+                Id = us.Id,
+                UserId = us.UserId,
+                SubscriptionId = us.SubscriptionId,
+                StartDate = us.StartDate,
+                NextBillingDate = us.NextBillingDate,
+                CancelledAt = us.CancelledAt,
+                ValidUntil = us.ValidUntil,
+                IsActive = us.IsActive,
+                Subscription = new SubscriptionDto
+                {
+                    Id = us.Subscription.Id,
+                    Name = us.Subscription.Name,
+                    Description = us.Subscription.Description,
+                    Price = us.Subscription.Price,
+                    Period = us.Subscription.Period,
+                    Category = us.Subscription.Category,
+                    IconFileId = us.Subscription.IconFileId,
+                    IsActive = us.Subscription.IsActive
+                }
             };
         }
     }

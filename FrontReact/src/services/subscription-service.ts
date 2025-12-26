@@ -4,6 +4,7 @@ import {
   CreateSubscriptionRequest,
   UpdateSubscriptionRequest,
   GroupedSubscriptions,
+  PagedResult,
 } from '../types/subscription';
 
 const API_BASE_URL = import.meta.env.VITE_SUBSCRIPTIONS_API_URL + '/api';
@@ -54,5 +55,30 @@ export const subscriptionService = {
   async getSubscriptionsForAdmin(): Promise<GroupedSubscriptions> {
     const response = await api.get(`${API_BASE_URL}/Subscriptions/admin/all`);
     return response.data as GroupedSubscriptions;
+  },
+
+  async getCategories(): Promise<string[]> {
+    const response = await api.get<string[]>(
+      `${API_BASE_URL}/Subscriptions/categories`
+    );
+    return response.data;
+  },
+
+  async getSubscriptionsPaged(
+    page: number,
+    pageSize: number,
+    category?: string
+  ): Promise<PagedResult<Subscription>> {
+    const response = await api.get<PagedResult<Subscription>>(
+      `${API_BASE_URL}/Subscriptions`,
+      {
+        params: {
+          pageNumber: page,
+          pageSize: pageSize,
+          category: category,
+        },
+      }
+    );
+    return response.data;
   },
 };

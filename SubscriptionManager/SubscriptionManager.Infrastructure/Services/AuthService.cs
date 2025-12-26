@@ -5,6 +5,8 @@ using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Models;
 using SubscriptionManager.Core.Models.Requests;
 using SubscriptionManager.Core.Models.Responses;
+using Microsoft.AspNetCore.Http; 
+using DeviceDetectorNET;
 
 namespace SubscriptionManager.Infrastructure.Services;
 
@@ -17,6 +19,7 @@ public class AuthService : IAuthService
     private readonly ITokenService _tokenService;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly ILogger<AuthService> _logger;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
     public AuthService(
         IUserRepository userRepository,
@@ -25,7 +28,8 @@ public class AuthService : IAuthService
         IEmailService emailService,
         ITokenService tokenService,
         IRefreshTokenRepository refreshTokenRepository,
-        ILogger<AuthService> logger)
+        ILogger<AuthService> logger,
+        IHttpContextAccessor httpContextAccessor)
     {
         _userRepository = userRepository;
         _passwordHasher = passwordHasher;
@@ -34,6 +38,24 @@ public class AuthService : IAuthService
         _tokenService = tokenService;
         _refreshTokenRepository = refreshTokenRepository;
         _logger = logger;
+        _httpContextAccessor = httpContextAccessor;
+    }
+
+    private string GetDeviceDescription()
+    {
+        var userAgent = _httpContextAccessor.HttpContext?.Request.Headers["User-Agent"].ToString();
+        if (string.IsNullOrEmpty(userAgent)) return "Unknown Device";
+
+        var dd = new DeviceDetector(userAgent);
+        dd.Parse();
+
+        if (dd.IsBot()) return "Bot/Crawler";
+
+        var clientInfo = dd.GetClient();
+        var osInfo = dd.GetOs();
+        var deviceName = dd.GetModel();
+
+        return $"{clientInfo.Match.Name} on {osInfo.Match.Name} {osInfo.Match.Version} {deviceName}".Trim();
     }
 
     public async Task<AuthResult> RegisterAsync(RegisterRequest request)
@@ -150,7 +172,7 @@ public class AuthService : IAuthService
             Id = Guid.NewGuid(),
             UserId = user.Id,
             Token = refreshToken,
-            DeviceName = "Web Browser",
+            DeviceName = GetDeviceDescription(),
             ExpiresAt = _tokenService.GetRefreshTokenExpiration(),
             CreatedAt = now,
             IsRevoked = false

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddAuthApiServices(builder.Configuration);
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddCors(options =>
 {

@@ -9,7 +9,10 @@ namespace SubscriptionManager.Core.DTOs
 {
     public class PaymentInitiationResult
     {
+        [JsonPropertyName("redirect_url")]
         public string RedirectUrl { get; set; } = string.Empty;
+
+        [JsonPropertyName("token")]
         public string Token { get; set; } = string.Empty;
     }
 

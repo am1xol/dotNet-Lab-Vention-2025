@@ -2,6 +2,8 @@ import api from './api';
 import {
   SubscribeResponse,
   GroupedUserSubscriptions,
+  PagedResult,
+  UserSubscription
 } from '../types/subscription';
 import { UserStatistics, PaymentInitiationResult } from '../types/payment';
 
@@ -25,10 +27,22 @@ export const userSubscriptionService = {
   },
 
   async getMySubscriptions(): Promise<GroupedUserSubscriptions> {
-    const response = await api.get(
+    const response = await api.get<PagedResult<UserSubscription>>(
       `${API_BASE_URL}/UserSubscriptions/my-subscriptions`
     );
-    return response.data as GroupedUserSubscriptions;
+
+    const items = response.data.items || [];
+
+    const grouped = items.reduce((acc: GroupedUserSubscriptions, us: any) => {
+      const category = us.subscription?.category || 'Other';
+      if (!acc[category]) {
+        acc[category] = [];
+      }
+      acc[category].push(us);
+      return acc;
+    }, {} as GroupedUserSubscriptions);
+
+    return grouped;
   },
 
   async unsubscribe(

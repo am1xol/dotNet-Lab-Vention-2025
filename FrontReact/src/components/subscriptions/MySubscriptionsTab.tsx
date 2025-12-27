@@ -1,6 +1,6 @@
-import React from 'react';
-import { Box, Typography, Grid } from '@mui/material';
-import { motion } from 'framer-motion';
+import React, { useEffect, useState } from 'react';
+import { Box, Typography, Grid, Button } from '@mui/material';
+import { AnimatePresence, motion } from 'framer-motion';
 import { SubscriptionCard } from '../subscriptions/SubscriptionCard';
 import {
   GroupedUserSubscriptions,
@@ -20,6 +20,8 @@ interface MySubscriptionsTabProps {
   handleUnsubscribe: (subscriptionId: string) => Promise<void>;
 }
 
+const PAGE_SIZE = 3;
+
 export const MySubscriptionsTab: React.FC<MySubscriptionsTabProps> = ({
   mySubscriptions,
   actionLoading,
@@ -28,93 +30,96 @@ export const MySubscriptionsTab: React.FC<MySubscriptionsTabProps> = ({
   handleInitiatePayment,
   handleUnsubscribe,
 }) => {
-  const getUnsubscribeInfo = (subscriptionId: string) => {
-    return unsubscribedData[subscriptionId];
+  const [displayData, setDisplayData] = useState<any>({});
+
+  useEffect(() => {
+    const initialData: any = {};
+    
+    Object.entries(mySubscriptions).forEach(([category, subs]) => {
+      const activeSubs = subs.filter(s => s.isActive);
+      if (activeSubs.length > 0) {
+        initialData[category] = {
+          allLines: activeSubs, 
+          visibleItems: activeSubs.slice(0, PAGE_SIZE),
+          currentPage: 1,
+          totalCount: activeSubs.length
+        };
+      }
+    });
+    setDisplayData(initialData);
+  }, [mySubscriptions]);
+
+  const loadMore = (category: string) => {
+    const cat = displayData[category];
+    const nextLimit = (cat.currentPage + 1) * PAGE_SIZE;
+    
+    setDisplayData((prev: any) => ({
+      ...prev,
+      [category]: {
+        ...prev[category],
+        visibleItems: prev[category].allLines.slice(0, nextLimit),
+        currentPage: prev[category].currentPage + 1
+      }
+    }));
   };
 
   if (Object.keys(mySubscriptions).length === 0) {
     return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <Box textAlign="center" py={8}>
-          <Typography variant="h6" color="text.secondary" gutterBottom>
-            You are not subscribed to any services yet.
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Explore available subscriptions to get started!
-          </Typography>
-        </Box>
-      </motion.div>
+      <Box textAlign="center" py={8}>
+        <Typography variant="h6" color="text.secondary">No active subscriptions found.</Typography>
+      </Box>
     );
   }
 
   return (
     <>
-      {Object.entries(mySubscriptions).map(
-        ([category, userSubscriptions], categoryIndex) => (
-          <motion.div
-            key={category}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              duration: 0.6,
-              delay: categoryIndex * 0.1,
-            }}
-          >
-            <Box key={category} sx={{ mb: 6 }}>
-              <Typography
-                variant="h4"
-                gutterBottom
-                sx={{
-                  mt: 2,
-                  mb: 4,
-                  color: '#7E57C2',
-                  fontWeight: 700,
-                  textTransform: 'capitalize',
-                  fontSize: '2rem',
-                }}
-              >
-                {category}
+      {Object.entries(displayData).map(([category, data]: [string, any], categoryIndex) => (
+        <motion.div
+          key={category}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: categoryIndex * 0.1 }}
+        >
+          <Box sx={{ mb: 6 }}>
+            <Typography variant="h4" gutterBottom sx={{ color: '#7E57C2', fontWeight: 700, textTransform: 'capitalize' }}>
+              {category} 
+              <Typography component="span" variant="h6" sx={{ ml: 2, opacity: 0.6 }}>
+                ({data.totalCount})
               </Typography>
-              <Grid container spacing={3}>
-                {userSubscriptions
-                  .filter((us) => us.isActive)
-                  .map((userSubscription: UserSubscription, index: number) => {
-                    const subscriptionId = userSubscription.subscription.id;
-                    const unsubscribeInfo = getUnsubscribeInfo(subscriptionId);
+            </Typography>
 
-                    return (
-                      <Grid
-                        size={{ xs: 12, md: 6, lg: 4 }}
-                        key={userSubscription.id}
-                      >
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{
-                            duration: 0.5,
-                            delay: index * 0.05,
-                          }}
-                        >
-                          <SubscriptionCard
-                            subscription={userSubscription.subscription}
-                            isSubscribed={userSubscription.isActive}
-                            isCancelled={userSubscription.cancelledAt != null}
-                            validUntil={userSubscription.validUntil}
-                            unsubscribeInfo={unsubscribeInfo}
-                            onSubscribe={handleSubscribe}
-                            onInitiatePayment={handleInitiatePayment}
-                            onUnsubscribe={handleUnsubscribe}
-                            loading={actionLoading === subscriptionId}
-                          />
-                        </motion.div>
-                      </Grid>
-                    );
-                  })}
-              </Grid>
-            </Box>
-          </motion.div>
-        )
-      )}
+            <Grid container spacing={3}>
+              <AnimatePresence mode="popLayout">
+                {data.visibleItems.map((userSubscription: UserSubscription) => (
+                  <Grid key={userSubscription.id} size={{ xs: 12, md: 6, lg: 4 }}>
+                    <motion.div layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                      <SubscriptionCard
+                        subscription={userSubscription.subscription}
+                        isSubscribed={userSubscription.isActive}
+                        isCancelled={userSubscription.cancelledAt != null}
+                        validUntil={userSubscription.validUntil}
+                        unsubscribeInfo={unsubscribedData[userSubscription.subscription.id]}
+                        onSubscribe={handleSubscribe}
+                        onInitiatePayment={handleInitiatePayment}
+                        onUnsubscribe={handleUnsubscribe}
+                        loading={actionLoading === userSubscription.subscription.id}
+                      />
+                    </motion.div>
+                  </Grid>
+                ))}
+              </AnimatePresence>
+            </Grid>
+
+            {data.visibleItems.length < data.totalCount && (
+              <Box sx={{ mt: 3, textAlign: 'center' }}>
+                <Button variant="outlined" onClick={() => loadMore(category)}>
+                  Показать еще
+                </Button>
+              </Box>
+            )}
+          </Box>
+        </motion.div>
+      ))}
     </>
   );
 };

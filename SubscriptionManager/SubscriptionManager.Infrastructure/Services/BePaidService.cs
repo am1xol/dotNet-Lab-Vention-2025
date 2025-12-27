@@ -1,33 +1,27 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using SubscriptionManager.Core.DTOs;
 using SubscriptionManager.Core.Interfaces;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+using SubscriptionManager.Core.Options;
 using System.Net.Http.Json;
-using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace SubscriptionManager.Infrastructure.Services
 {
     public class BePaidService : IPaymentGatewayService
     {
         private readonly HttpClient _httpClient;
-        private readonly IConfiguration _configuration;
+        private readonly BePaidOptions _options;
         private readonly ILogger<BePaidService> _logger;
 
-        public BePaidService(HttpClient httpClient, IConfiguration configuration, ILogger<BePaidService> logger)
+        private const string ApiVersion = "2.1";
+        private const string TransactionType = "payment";
+
+        public BePaidService(HttpClient httpClient, IOptions<BePaidOptions> options, ILogger<BePaidService> logger)
         {
             _httpClient = httpClient;
-            _configuration = configuration;
+            _options = options.Value;
             _logger = logger;
-
-            var shopId = _configuration["BePaid:ShopId"];
-            var secretKey = _configuration["BePaid:SecretKey"];
-            var authHeader = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{shopId}:{secretKey}"));
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", authHeader);
         }
 
         public async Task<PaymentInitiationResult> InitiatePaymentAsync(decimal amount, string currency, string description, string trackingId, string email)
@@ -36,21 +30,21 @@ namespace SubscriptionManager.Infrastructure.Services
             {
                 Checkout = new CheckoutData
                 {
-                    Test = _configuration.GetValue<bool>("BePaid:TestMode"),
-                    TransactionType = "payment",
-                    Version = "2.1",
+                    Test = _options.TestMode,
+                    TransactionType = TransactionType,
+                    Version = ApiVersion,
                     Order = new OrderData
                     {
-                        Amount = (long)(amount * 100),
+                        Amount = ConvertToCopies(amount), 
                         Currency = currency,
                         Description = description,
                         TrackingId = trackingId
                     },
                     Settings = new SettingsData
                     {
-                        SuccessUrl = _configuration["BePaid:ReturnUrl"]!,
-                        FailUrl = _configuration["BePaid:ReturnUrl"]!,
-                        NotificationUrl = _configuration["BePaid:NotificationUrl"]!
+                        SuccessUrl = _options.ReturnUrl,
+                        FailUrl = _options.ReturnUrl,
+                        NotificationUrl = _options.NotificationUrl
                     },
                     Customer = new CustomerData
                     {
@@ -59,10 +53,13 @@ namespace SubscriptionManager.Infrastructure.Services
                 }
             };
 
-            var jsonRequest = JsonSerializer.Serialize(request, new JsonSerializerOptions { WriteIndented = true });
-            _logger.LogInformation("Sending BePaid Checkout Request: {Request}", jsonRequest);
+            if (_logger.IsEnabled(LogLevel.Information))
+            {
+                var jsonDebug = JsonSerializer.Serialize(request, new JsonSerializerOptions { WriteIndented = true });
+                _logger.LogInformation("Sending BePaid Checkout Request: {Request}", jsonDebug);
+            }
 
-            var response = await _httpClient.PostAsJsonAsync("https://checkout.bepaid.by/ctp/api/checkouts", request);
+            var response = await _httpClient.PostAsJsonAsync(_options.ApiUrl, request);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -82,6 +79,11 @@ namespace SubscriptionManager.Infrastructure.Services
             }
 
             throw new Exception("Invalid response from bePaid");
+        }
+
+        private long ConvertToCopies(decimal amount)
+        {
+            return (long)(amount * 100);
         }
     }
 }

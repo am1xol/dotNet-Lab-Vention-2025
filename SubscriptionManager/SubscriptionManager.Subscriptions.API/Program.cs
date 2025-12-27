@@ -1,10 +1,28 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using SubscriptionManager.Core.Interfaces;
+using SubscriptionManager.Core.Options;
 using SubscriptionManager.Infrastructure.Data;
 using SubscriptionManager.Infrastructure.Services;
 using SubscriptionManager.Subscriptions.API;
+using System.Net.Http.Headers;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.Configure<BePaidOptions>(builder.Configuration.GetSection(BePaidOptions.SectionName));
+
+builder.Services.AddHttpClient<IPaymentGatewayService, BePaidService>((serviceProvider, client) =>
+{
+    var options = serviceProvider.GetRequiredService<IOptions<BePaidOptions>>().Value;
+
+    var authString = $"{options.ShopId}:{options.SecretKey}";
+    var base64Auth = Convert.ToBase64String(Encoding.ASCII.GetBytes(authString));
+
+    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", base64Auth);
+    client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+});
 
 builder.Services.AddSubscriptionsApiServices(builder.Configuration);
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();

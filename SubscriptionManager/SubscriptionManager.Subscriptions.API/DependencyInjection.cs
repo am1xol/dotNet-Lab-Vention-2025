@@ -7,6 +7,9 @@ using SubscriptionManager.Infrastructure.Data;
 using SubscriptionManager.Infrastructure.Services;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using System.Text;
+using SubscriptionManager.Core.Interfaces;
+using Microsoft.Extensions.Options;
+using System.Net.Http.Headers;
 
 namespace SubscriptionManager.Subscriptions.API
 {
@@ -15,16 +18,15 @@ namespace SubscriptionManager.Subscriptions.API
         public static IServiceCollection AddSubscriptionsApiServices(this IServiceCollection services, IConfiguration configuration)
         {
             services.ConfigureOptions(configuration);
-
             services.AddSubscriptionsAuthentication(configuration);
-
             services.AddSubscriptionsDatabase(configuration);
 
-            services.AddSubscriptionsApplicationServices();
+            services.AddSubscriptionsApplicationServices(configuration);
 
             services.AddSubscriptionsApiConfiguration();
-
             services.AddSubscriptionsHealthChecks(configuration);
+
+            services.AddAutoMapper(cfg => cfg.AddMaps(AppDomain.CurrentDomain.GetAssemblies()));
 
             return services;
         }
@@ -61,10 +63,22 @@ namespace SubscriptionManager.Subscriptions.API
             return services;
         }
 
-        private static IServiceCollection AddSubscriptionsApplicationServices(this IServiceCollection services)
+        private static IServiceCollection AddSubscriptionsApplicationServices(this IServiceCollection services, IConfiguration configuration)
         {
+            services.AddScoped<ISubscriptionService, SubscriptionService>();
             services.AddScoped<IFileStorageService, FileStorageService>();
-            services.AddHttpClient<Core.Interfaces.IPaymentGatewayService, Infrastructure.Services.BePaidService>();
+
+            services.Configure<BePaidOptions>(configuration.GetSection(BePaidOptions.SectionName));
+            services.AddHttpClient<IPaymentGatewayService, BePaidService>((serviceProvider, client) =>
+            {
+                var options = serviceProvider.GetRequiredService<IOptions<BePaidOptions>>().Value;
+                var authString = $"{options.ShopId}:{options.SecretKey}";
+                var base64Auth = Convert.ToBase64String(Encoding.ASCII.GetBytes(authString));
+
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", base64Auth);
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            });
+
             return services;
         }
 

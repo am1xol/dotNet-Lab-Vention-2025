@@ -22,6 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="..\SubscriptionManager.Core\SubscriptionManager.Core.csproj" />
     <ProjectReference Include="..\SubscriptionManager.Infrastructure\SubscriptionManager.Infrastructure.csproj" />
+    <ProjectReference Include="..\SubscriptionManager.Infrastructure.Shared\SubscriptionManager.Infrastructure.Shared.csproj" />
   </ItemGroup>
 
 </Project>

@@ -12,6 +12,7 @@ namespace SubscriptionManager.Infrastructure.Services;
 public class VerificationCodeService : IVerificationCodeService
 {
     private readonly VerificationCodeOptions _options;
+    private readonly TimeProvider _timeProvider;
     private static readonly Random _globalRandom = new();
     private static readonly ThreadLocal<Random> _localRandom = new(() =>
     {
@@ -21,9 +22,10 @@ public class VerificationCodeService : IVerificationCodeService
         }
     });
 
-    public VerificationCodeService(IOptions<VerificationCodeOptions> options)
+    public VerificationCodeService(IOptions<VerificationCodeOptions> options, TimeProvider timeProvider)
     {
         _options = options.Value;
+        _timeProvider = timeProvider;
     }
 
     public string GenerateCode()
@@ -36,6 +38,6 @@ public class VerificationCodeService : IVerificationCodeService
 
     public DateTime GetExpirationTime()
     {
-        return DateTime.UtcNow.AddHours(_options.ExpirationHours);
+        return _timeProvider.GetUtcNow().UtcDateTime.AddHours(_options.ExpirationHours);
     }
 }

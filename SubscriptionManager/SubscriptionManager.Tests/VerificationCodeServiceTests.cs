@@ -1,6 +1,9 @@
 ﻿using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using SubscriptionManager.Core.Options;
 using SubscriptionManager.Infrastructure.Services;
+using System;
+using System.Collections.Generic;
 using Xunit;
 
 namespace SubscriptionManager.Tests;
@@ -8,10 +11,28 @@ namespace SubscriptionManager.Tests;
 public class VerificationCodeServiceTests
 {
     [Fact]
+    public void GetExpirationTime_ReturnsExactTimeBasedOnProvider()
+    {
+        var expirationHours = 24;
+        var options = Options.Create(new VerificationCodeOptions { ExpirationHours = expirationHours });
+
+        var startTime = new DateTimeOffset(2025, 1, 1, 12, 0, 0, TimeSpan.Zero);
+        var fakeTimeProvider = new FakeTimeProvider(startTime);
+
+        var service = new VerificationCodeService(options, fakeTimeProvider);
+
+        var expiration = service.GetExpirationTime();
+
+        var expectedTime = startTime.UtcDateTime.AddHours(expirationHours);
+
+        Assert.Equal(expectedTime, expiration);
+    }
+
+    [Fact]
     public void GenerateCode_ReturnsCorrectLength()
     {
         var options = Options.Create(new VerificationCodeOptions { Length = 6 });
-        var service = new VerificationCodeService(options);
+        var service = new VerificationCodeService(options, TimeProvider.System);
 
         var code = service.GenerateCode();
 
@@ -23,7 +44,7 @@ public class VerificationCodeServiceTests
     public void GenerateCode_ReturnsUniqueCodes()
     {
         var options = Options.Create(new VerificationCodeOptions { Length = 6 });
-        var service = new VerificationCodeService(options);
+        var service = new VerificationCodeService(options, TimeProvider.System);
 
         var codes = new HashSet<string>();
         for (int i = 0; i < 100; i++)
@@ -34,19 +55,6 @@ public class VerificationCodeServiceTests
         Assert.Equal(100, codes.Count);
     }
 
-    [Fact]
-    public void GetExpirationTime_ReturnsFutureTime()
-    {
-        var options = Options.Create(new VerificationCodeOptions { ExpirationHours = 24 });
-        var service = new VerificationCodeService(options);
-        var now = DateTime.UtcNow;
-
-        var expiration = service.GetExpirationTime();
-
-        Assert.True(expiration > now);
-        Assert.True(expiration <= now.AddHours(24).AddMinutes(1));
-    }
-
     [Theory]
     [InlineData(4)]
     [InlineData(6)]
@@ -54,7 +62,7 @@ public class VerificationCodeServiceTests
     public void GenerateCode_RespectsDifferentLengths(int length)
     {
         var options = Options.Create(new VerificationCodeOptions { Length = length });
-        var service = new VerificationCodeService(options);
+        var service = new VerificationCodeService(options, TimeProvider.System);
 
         var code = service.GenerateCode();
 

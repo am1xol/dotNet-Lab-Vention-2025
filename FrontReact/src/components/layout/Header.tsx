@@ -151,7 +151,7 @@ const Header: React.FC = () => {
             <>
               <Button
                 variant="outlined"
-                onClick={() => navigate('/auth?form=signin')}
+                onClick={() => navigate('/auth/signin')}
                 sx={{
                   color: '#7E57C2',
                   borderColor: '#7E57C2',
@@ -172,7 +172,7 @@ const Header: React.FC = () => {
               </Button>
               <Button
                 variant="contained"
-                onClick={() => navigate('/auth?form=signup')}
+                onClick={() => navigate('/auth/signup')}
                 sx={{
                   background:
                     'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',

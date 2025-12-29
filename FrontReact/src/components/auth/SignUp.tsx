@@ -312,9 +312,7 @@ export const SignUp: React.FC = () => {
       const result = await authService.register(formData);
 
       if (result.success) {
-        console.log('Регистрация успешна, устанавливаем таймер 60 секунд');
         setResendTimer(RESEND_INTERVAL);
-        console.log('resendTimer установлен:', RESEND_INTERVAL);
         setStep('verification');
       } else {
         setError(result.error || 'Registration failed');

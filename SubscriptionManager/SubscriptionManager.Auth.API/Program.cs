@@ -7,16 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddAuthApiServices(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy(SharedConstants.CorsPolicy, policy =>
-    {
-        policy.WithOrigins("http://localhost:3000", "https://localhost:3000")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
-    });
-});
+builder.Services.AddSharedCors(SharedConstants.CorsPolicy);
 
 var app = builder.Build();
 

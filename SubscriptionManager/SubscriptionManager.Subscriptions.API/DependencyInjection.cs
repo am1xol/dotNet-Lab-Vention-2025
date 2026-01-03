@@ -1,15 +1,16 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Options;
 using SubscriptionManager.Infrastructure.Data;
 using SubscriptionManager.Infrastructure.Services;
+using SubscriptionManager.Subscriptions.API.Services;
 using Swashbuckle.AspNetCore.SwaggerGen;
-using System.Text;
-using SubscriptionManager.Core.Interfaces;
-using Microsoft.Extensions.Options;
 using System.Net.Http.Headers;
+using System.Text;
 
 namespace SubscriptionManager.Subscriptions.API
 {
@@ -67,6 +68,9 @@ namespace SubscriptionManager.Subscriptions.API
         {
             services.AddScoped<ISubscriptionService, SubscriptionService>();
             services.AddScoped<IFileStorageService, FileStorageService>();
+
+            services.AddScoped<IPaymentJobService, PaymentJobService>();
+            services.AddHostedService<PaymentCleanupBackgroundWorker>();
 
             services.Configure<BePaidOptions>(configuration.GetSection(BePaidOptions.SectionName));
             services.AddHttpClient<IPaymentGatewayService, BePaidService>((serviceProvider, client) =>

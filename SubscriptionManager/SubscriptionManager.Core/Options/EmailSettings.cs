@@ -10,7 +10,7 @@ namespace SubscriptionManager.Core.Options
     {
         public const string SectionName = "EmailSettings";
 
-        public string SmtpServer { get; set; } = "localhost";
+        public string SmtpServer { get; set; } = "127.0.0.1";
         public int SmtpPort { get; set; } = 1025;
         public string SenderEmail { get; set; } = "noreply@subscriptionmanager.com";
         public string SenderName { get; set; } = "Subscription Manager";

@@ -11,7 +11,7 @@ namespace SubscriptionManager.Core.Options
         public const string SectionName = "MinIO";
 
         public string Endpoint { get; set; } = "minio:9000";
-        public string ExternalEndpoint { get; set; } = "localhost:9000";
+        public string ExternalEndpoint { get; set; } = "127.0.0.1:9000";
         public string AccessKey { get; set; } = "minioadmin";
         public string SecretKey { get; set; } = "minioadmin";
         public string BucketName { get; set; } = "subscriptions";

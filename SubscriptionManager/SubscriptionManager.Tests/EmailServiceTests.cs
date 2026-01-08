@@ -17,7 +17,7 @@ namespace SubscriptionManager.Tests
         {
             var settings = new EmailSettings
             {
-                SmtpServer = "localhost",
+                SmtpServer = "127.0.0.1",
                 SmtpPort = 1025,
                 SenderEmail = "test@example.com",
                 SenderName = "Test Sender"
@@ -33,7 +33,7 @@ namespace SubscriptionManager.Tests
         {
             var settings = new EmailSettings
             {
-                SmtpServer = "localhost",
+                SmtpServer = "127.0.0.1",
                 SmtpPort = 1025,
                 SenderEmail = "noreply@test.com",
                 SenderName = "Test Sender",
@@ -52,7 +52,7 @@ namespace SubscriptionManager.Tests
         {
             var settings = new EmailSettings
             {
-                SmtpServer = "localhost",
+                SmtpServer = "127.0.0.1",
                 SmtpPort = 1025,
                 SenderEmail = "noreply@test.com",
                 SenderName = "Test Sender",

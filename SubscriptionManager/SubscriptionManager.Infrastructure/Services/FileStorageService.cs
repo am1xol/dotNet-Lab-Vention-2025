@@ -65,7 +65,7 @@ namespace SubscriptionManager.Infrastructure.Services
             }
             _minioClient = internalClientBuilder.Build();
 
-            var externalEndpoint = _minioOptions.ExternalEndpoint?.Replace("http://", "").Replace("https://", "") ?? "localhost:9000";
+            var externalEndpoint = _minioOptions.ExternalEndpoint?.Replace("http://", "").Replace("https://", "") ?? "127.0.0.1:9000";
             var externalClientBuilder = new MinioClient()
                 .WithEndpoint(externalEndpoint)
                 .WithCredentials(_minioOptions.AccessKey, _minioOptions.SecretKey);

@@ -137,7 +137,7 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                                 (!us.CancelledAt.HasValue || DateTime.UtcNow <= us.ValidUntil));
 
             var totalSubscriptionsCount = await _context.UserSubscriptions
-                .CountAsync(us => us.UserId == userId);
+                .CountAsync(us => us.UserId == userId && us.IsActive);
 
             var recentPayments = await _context.Payments
                 .Where(p => p.UserId == userId)

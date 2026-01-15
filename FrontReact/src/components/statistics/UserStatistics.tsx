@@ -308,7 +308,13 @@ export const UserStatistics: React.FC<UserStatisticsProps> = ({
                 <Chip
                   label={payment.status}
                   size="small"
-                  color={payment.status === 'Completed' ? 'success' : 'default'}
+                  color={
+                    payment.status === 'Completed' 
+                      ? 'success' 
+                      : payment.status === 'Failed' 
+                      ? 'error' 
+                      : 'default'
+                  }
                   sx={{
                     mt: 0.5,
                     height: 20,

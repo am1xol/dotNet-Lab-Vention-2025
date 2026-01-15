@@ -169,6 +169,8 @@ export const PaymentHistoryTab: React.FC = () => {
                                 color={
                                   payment.status === 'Completed'
                                     ? 'success'
+                                    : payment.status === 'Failed'
+                                    ? 'error' 
                                     : 'default'
                                 }
                                 sx={{ mt: 1 }}

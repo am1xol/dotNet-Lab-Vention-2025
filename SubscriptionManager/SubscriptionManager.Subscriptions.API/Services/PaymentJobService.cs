@@ -21,7 +21,7 @@ namespace SubscriptionManager.Subscriptions.API.Services
 
         public async Task<int> CleanupStuckPaymentsAsync(CancellationToken ct)
         {
-            var threshold = DateTime.UtcNow.AddMinutes(-1);
+            var threshold = DateTime.UtcNow.AddMinutes(-1); 
 
             var stuckPayments = await _context.Payments
                 .Include(p => p.UserSubscription)
@@ -30,18 +30,11 @@ namespace SubscriptionManager.Subscriptions.API.Services
 
             if (!stuckPayments.Any()) return 0;
 
-            _logger.LogInformation("Найдено {Count} просроченных платежей. Очистка...", stuckPayments.Count);
+            _logger.LogInformation("Найдено {Count} зависших платежей. Обновление статуса на Failed...", stuckPayments.Count);
 
             foreach (var payment in stuckPayments)
             {
                 payment.Status = PaymentStatus.Failed;
-
-                _context.Payments.Remove(payment);
-
-                if (payment.UserSubscription != null && !payment.UserSubscription.IsActive)
-                {
-                    _context.UserSubscriptions.Remove(payment.UserSubscription);
-                }
             }
 
             return await _context.SaveChangesAsync(ct);

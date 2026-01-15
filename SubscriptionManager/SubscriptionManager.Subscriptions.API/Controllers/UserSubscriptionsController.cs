@@ -21,6 +21,14 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         private readonly IFileStorageService _fileStorageService;
         private readonly IPaymentGatewayService _paymentGateway;
 
+        private enum UserSubStatus
+        {
+            Pending = 0,
+            Active = 1,
+            Cancelled = 2,
+            Expired = 3
+        }
+
         public UserSubscriptionsController(SubscriptionsDbContext context, IFileStorageService fileStorageService, IPaymentGatewayService paymentGateway)
         {
             _context = context;
@@ -44,8 +52,10 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 return NotFound("Subscription not found");
 
             var existingSubscription = await _context.UserSubscriptions
-                .FirstOrDefaultAsync(us => us.UserId == userId && us.SubscriptionId == subscriptionId && us.IsActive);
-
+                .FirstOrDefaultAsync(us => us.UserId == userId && 
+                                        us.SubscriptionId == subscriptionId && 
+                                        us.IsActive);
+            
             if (existingSubscription != null)
                 return BadRequest("User already subscribed");
 
@@ -55,7 +65,7 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 SubscriptionId = subscriptionId,
                 StartDate = DateTime.UtcNow,
                 NextBillingDate = CalculateNextBillingDate(subscription.Period),
-                IsActive = false
+                IsActive = false 
             };
 
             _context.UserSubscriptions.Add(userSubscription);

@@ -82,3 +82,19 @@ export interface CategoryData {
 }
 
 export type SubscriptionsByCategory = Record<string, CategoryData>;
+
+
+export interface SubscriptionFilters {
+  search?: string;
+  period?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  orderBy?: string;
+  descending?: boolean;
+}
+
+export interface CategoryPageState {
+  category: string;
+  filters: SubscriptionFilters;
+  page: number;
+}

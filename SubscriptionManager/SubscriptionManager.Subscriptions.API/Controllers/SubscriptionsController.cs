@@ -41,7 +41,13 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         [ProducesResponseType(typeof(PagedResult<SubscriptionDto>), StatusCodes.Status200OK)]
         public async Task<ActionResult<PagedResult<SubscriptionDto>>> GetSubscriptions(
             [FromQuery] PaginationParams pq,
-            [FromQuery] string? category = null)
+            [FromQuery] string? category = null,
+            [FromQuery] string? search = null,
+            [FromQuery] string? period = null,
+            [FromQuery] decimal? minPrice = null,
+            [FromQuery] decimal? maxPrice = null,
+            [FromQuery] string? orderBy = null,
+            [FromQuery] bool? descending = null)
         {
             var query = _context.Subscriptions
                 .Where(s => s.IsActive)
@@ -52,12 +58,51 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 query = query.Where(s => s.Category == category);
             }
 
-            query = pq.OrderBy?.ToLower() switch
+            if (!string.IsNullOrEmpty(search))
             {
-                "name" => query.OrderBy(s => s.Name),
-                "price" => query.OrderBy(s => s.Price),
-                _ => query.OrderByDescending(s => s.CreatedAt)
-            };
+                query = query.Where(s => 
+                    s.Name.Contains(search) || 
+                    s.Description.Contains(search));
+            }
+
+            if (!string.IsNullOrEmpty(period))
+            {
+                var periods = period.Split(',', StringSplitOptions.RemoveEmptyEntries);
+                query = query.Where(s => periods.Contains(s.Period));
+            }
+
+            if (minPrice.HasValue)
+            {
+                query = query.Where(s => s.Price >= minPrice.Value);
+            }
+
+            if (maxPrice.HasValue)
+            {
+                query = query.Where(s => s.Price <= maxPrice.Value);
+            }
+
+            if (!string.IsNullOrEmpty(orderBy))
+            {
+                query = orderBy.ToLower() switch
+                {
+                    "name" => descending.HasValue && descending.Value ? 
+                        query.OrderByDescending(s => s.Name) : 
+                        query.OrderBy(s => s.Name),
+                    "price" => descending.HasValue && descending.Value ? 
+                        query.OrderByDescending(s => s.Price) : 
+                        query.OrderBy(s => s.Price),
+                    "createdat" => descending.HasValue && descending.Value ? 
+                        query.OrderByDescending(s => s.CreatedAt) : 
+                        query.OrderBy(s => s.CreatedAt),
+                    _ => descending.HasValue && descending.Value ? 
+                        query.OrderByDescending(s => s.CreatedAt) : 
+                        query.OrderBy(s => s.CreatedAt)
+                };
+            }
+            else
+            {
+                query = query.OrderByDescending(s => s.CreatedAt);
+            }
 
             var totalCount = await query.CountAsync();
             var items = await query

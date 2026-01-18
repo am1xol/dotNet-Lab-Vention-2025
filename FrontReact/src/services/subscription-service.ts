@@ -81,4 +81,35 @@ export const subscriptionService = {
     );
     return response.data;
   },
+
+  async getSubscriptionsWithFilters(
+    page: number,
+    pageSize: number,
+    category?: string,
+    search?: string,
+    orderBy?: string,
+    descending?: boolean,
+    minPrice?: number,
+    maxPrice?: number,
+    period?: string
+  ): Promise<PagedResult<Subscription>> {
+    const params: any = {
+      pageNumber: page,
+      pageSize: pageSize,
+    };
+
+    if (category) params.category = category;
+    if (search) params.search = search;
+    if (orderBy) params.orderBy = orderBy;
+    if (descending !== undefined) params.descending = descending;
+    if (minPrice !== undefined) params.minPrice = minPrice;
+    if (maxPrice !== undefined) params.maxPrice = maxPrice;
+    if (period) params.period = period;
+
+    const response = await api.get<PagedResult<Subscription>>(
+      `${API_BASE_URL}/Subscriptions`,
+      { params }
+    );
+    return response.data;
+  },
 };

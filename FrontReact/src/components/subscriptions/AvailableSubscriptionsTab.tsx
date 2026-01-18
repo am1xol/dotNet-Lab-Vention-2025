@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Typography, Grid, CircularProgress, Button } from '@mui/material';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { SubscriptionCard } from '../subscriptions/SubscriptionCard';
 import { subscriptionService } from '../../services/subscription-service';
 import {
@@ -36,6 +37,7 @@ export const AvailableSubscriptionsTab: React.FC<
     {}
   );
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const initData = async () => {
@@ -67,38 +69,8 @@ export const AvailableSubscriptionsTab: React.FC<
     initData();
   }, []);
 
-  const loadMore = async (category: string) => {
-    const currentCat = categoriesData[category];
-    if (currentCat.currentPage >= currentCat.totalPages) return;
-
-    setCategoriesData((prev: SubscriptionsByCategory) => ({
-      ...prev,
-      [category]: { ...prev[category], isLoadingMore: true },
-    }));
-
-    try {
-      const nextPage = currentCat.currentPage + 1;
-      const result = await subscriptionService.getSubscriptionsPaged(
-        nextPage,
-        PAGE_SIZE,
-        category
-      );
-
-      setCategoriesData((prev: SubscriptionsByCategory) => ({
-        ...prev,
-        [category]: {
-          ...prev[category],
-          items: [...prev[category].items, ...result.items],
-          currentPage: result.pageNumber,
-          isLoadingMore: false,
-        },
-      }));
-    } catch (error) {
-      setCategoriesData((prev: SubscriptionsByCategory) => ({
-        ...prev,
-        [category]: { ...prev[category], isLoadingMore: false },
-      }));
-    }
+  const handleShowAll = (category: string) => {
+    navigate(`/category/${category}`);
   };
 
   if (loading)
@@ -173,10 +145,9 @@ export const AvailableSubscriptionsTab: React.FC<
               <Box sx={{ mt: 3, textAlign: 'center' }}>
                 <Button
                   variant="outlined"
-                  onClick={() => loadMore(category)}
-                  disabled={data.isLoadingMore}
+                  onClick={() => handleShowAll(category)}
                 >
-                  {data.isLoadingMore ? 'Загрузка...' : 'Показать еще'}
+                  Показать все ({data.totalCount})
                 </Button>
               </Box>
             )}

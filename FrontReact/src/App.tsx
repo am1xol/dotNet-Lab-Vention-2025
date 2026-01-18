@@ -12,6 +12,7 @@ import { ForgotPasswordForm } from './components/auth/ForgotPasswordForm';
 import { ResetPasswordForm } from './components/auth/ResetPasswordForm';
 import { UserProfile } from './components/profile/UserProfile';
 import { DashboardPage } from './pages/DashboardPage';
+import { CategorySubscriptionsPage } from './pages/CategorySubscriptionsPage';
 
 function App() {
   return (
@@ -42,6 +43,8 @@ function App() {
 
           <Route path="/profile" element={<UserProfile />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+
+          <Route path="/category/:category" element={<CategorySubscriptionsPage />} />
         </Routes>
       </Router>
     </>

@@ -19,10 +19,9 @@ import {
   CreateSubscriptionRequest,
   UpdateSubscriptionRequest,
 } from '../../types/subscription';
+import { RichTextEditor } from './RichTextEditor';
 
-type SubscriptionFormData =
-  | CreateSubscriptionRequest
-  | UpdateSubscriptionRequest;
+type SubscriptionFormData = CreateSubscriptionRequest | UpdateSubscriptionRequest;
 
 interface SubscriptionFormDialogProps {
   open: boolean;
@@ -44,6 +43,7 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
   const [formData, setFormData] = useState<SubscriptionFormData>({
     name: '',
     description: '',
+    descriptionMarkdown: '',
     price: 0,
     period: 'monthly',
     category: '',
@@ -69,6 +69,7 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
         setFormData({
           name: initialData.name,
           description: initialData.description,
+          descriptionMarkdown: initialData.descriptionMarkdown || '',
           price: initialData.price,
           period: initialData.period,
           category: initialData.category,
@@ -79,6 +80,7 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
         setFormData({
           name: '',
           description: '',
+          descriptionMarkdown: '',
           price: 0,
           period: 'monthly',
           category: '',
@@ -100,6 +102,16 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
     const file = event.target.files?.[0];
     if (!file) return;
 
+    if (!file.type.startsWith('image/')) {
+      setFileUploadError('Please select an image file');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setFileUploadError('File size should be less than 5MB');
+      return;
+    }
+
     setSelectedFile(file);
     setIsUploading(true);
     setFileUploadError(null);
@@ -108,7 +120,7 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
       const result = await fileService.uploadFile(file);
       handleInputChange('iconFileId', result.fileId);
     } catch (err: any) {
-      setFileUploadError('Failed to upload file');
+      setFileUploadError(err.message || 'Failed to upload file');
       handleInputChange('iconFileId', undefined);
       setSelectedFile(null);
     } finally {
@@ -129,103 +141,74 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
   };
 
   const handleSave = () => {
-    onSave(formData);
+    const rawContent = formData.descriptionMarkdown || '';
+    const cleanContent = rawContent === '<p><br></p>' ? '' : rawContent;
+    const plainTextDescription = cleanContent.replace(/<[^>]+>/g, ' ');
+    
+    const finalDescription = formData.description || 
+      (plainTextDescription ? plainTextDescription.substring(0, 100).trim() + (plainTextDescription.length > 100 ? '...' : '') : '');
+
+    const finalData = {
+      ...formData,
+      description: finalDescription,
+      descriptionMarkdown: cleanContent,
+    };
+    
+    onSave(finalData);
   };
 
   const isFormValid =
     formData.name &&
-    formData.description &&
     formData.category &&
-    formData.price >= 0;
+    formData.price >= 0 &&
+    (formData.description || (formData.descriptionMarkdown && formData.descriptionMarkdown !== '<p><br></p>'));
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
         {isEditMode ? 'Edit Subscription' : 'Create New Subscription'}
       </DialogTitle>
       <DialogContent>
-        {fileUploadError && (
-          <Typography color="error" variant="body2" sx={{ mt: 1 }}>
-            {fileUploadError}
-          </Typography>
-        )}
-        <Grid container spacing={2} sx={{ mt: 1 }}>
-          <Grid size={{ xs: 12 }}>
+        <Grid container spacing={3} sx={{ mt: 1 }}>
+          <Grid size = {{ xs:12}}>
             <TextField
               fullWidth
-              label="Name"
+              label="Subscription Name"
               value={formData.name}
               onChange={(e) => handleInputChange('name', e.target.value)}
+              required
             />
           </Grid>
-          <Grid size={{ xs: 12 }}>
+          
+          <Grid size = {{ xs:12, md:6}}>
             <TextField
               fullWidth
-              label="Description"
+              label="Short Description"
               multiline
-              rows={3}
+              rows={2}
               value={formData.description}
               onChange={(e) => handleInputChange('description', e.target.value)}
+              helperText="Brief text shown on the card (optional if detailed description is provided)"
             />
           </Grid>
-          <Grid size={{ xs: 6 }}>
-            <TextField
-              fullWidth
-              label="Price"
-              type="number"
-              value={formData.price}
-              onChange={(e) =>
-                handleInputChange('price', parseFloat(e.target.value) || 0)
-              }
-              inputProps={{ min: 0 }}
-            />
-          </Grid>
-          <Grid size={{ xs: 6 }}>
-            <TextField
-              fullWidth
-              select
-              label="Period"
-              value={formData.period}
-              onChange={(e) => handleInputChange('period', e.target.value)}
-            >
-              {periods.map((period) => (
-                <MenuItem key={period} value={period}>
-                  {period.charAt(0).toUpperCase() + period.slice(1)}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-          <Grid size={{ xs: 6 }}>
-            <TextField
-              fullWidth
-              select
-              label="Category"
-              value={formData.category}
-              onChange={(e) => handleInputChange('category', e.target.value)}
-            >
-              {categories.map((category) => (
-                <MenuItem key={category} value={category}>
-                  {category}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-          <Grid size={{ xs: 6 }}>
+          
+          <Grid size = {{ xs:12, md:6}}>
             <Box>
               <input
                 type="file"
                 accept="image/*"
                 onChange={handleFileSelect}
                 style={{ display: 'none' }}
-                id={`file-upload-${isEditMode ? 'edit' : 'create'}`}
+                id="file-upload"
               />
-              <label htmlFor={`file-upload-${isEditMode ? 'edit' : 'create'}`}>
+              <label htmlFor="file-upload">
                 <Button
                   variant="outlined"
                   component="span"
                   startIcon={<CloudUpload />}
                   disabled={isUploading || uploading}
                   fullWidth
+                  sx={{ height: '56px' }} 
                 >
                   {isUploading ? 'Uploading...' : 'Upload Icon'}
                 </Button>
@@ -239,15 +222,89 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
                     gap: 1,
                   }}
                 >
-                  <Typography variant="body2">
-                    {selectedFile?.name || 'Current Icon'}
+                  <Typography variant="body2" noWrap>
+                    {selectedFile?.name || 'Current icon'}
                   </Typography>
-                  <IconButton size="small" onClick={handleRemoveFile}>
+                  <IconButton 
+                    size="small" 
+                    onClick={handleRemoveFile}
+                    disabled={isUploading}
+                    color="error"
+                  >
                     <Delete />
                   </IconButton>
                 </Box>
               )}
+              {fileUploadError && (
+                <Typography color="error" variant="caption" sx={{ mt: 0.5, display: 'block' }}>
+                  {fileUploadError}
+                </Typography>
+              )}
             </Box>
+          </Grid>
+
+          <Grid size = {{ xs:12, md:6}}>
+            <TextField
+              fullWidth
+              label="Price"
+              type="number"
+              value={formData.price}
+              onChange={(e) =>
+                handleInputChange('price', parseFloat(e.target.value) || 0)
+              }
+              inputProps={{ min: 0, step: 0.01 }}
+              required
+              helperText="BYN"
+            />
+          </Grid>
+          
+          <Grid size = {{ xs:12, md:6}}>
+            <TextField
+              fullWidth
+              select
+              label="Billing Period"
+              value={formData.period}
+              onChange={(e) => handleInputChange('period', e.target.value)}
+              required
+            >
+              {periods.map((period) => (
+                <MenuItem key={period} value={period}>
+                  {period.charAt(0).toUpperCase() + period.slice(1)}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+          
+          <Grid size = {{ xs:12}}>
+            <TextField
+              fullWidth
+              select
+              label="Category"
+              value={formData.category}
+              onChange={(e) => handleInputChange('category', e.target.value)}
+              required
+            >
+              <MenuItem value="">
+                <em>Select category</em>
+              </MenuItem>
+              {categories.map((category) => (
+                <MenuItem key={category} value={category}>
+                  {category}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+
+          <Grid size = {{ xs:12}}>
+            <Typography variant="h6" gutterBottom sx={{ mt: 1 }}>
+              Detailed Description
+            </Typography>
+            <RichTextEditor
+              value={formData.descriptionMarkdown || ''}
+              onChange={(value) => handleInputChange('descriptionMarkdown', value)}
+              label="Features & Details"
+              placeholder="Describe what's included in this subscription..."
+            />
           </Grid>
         </Grid>
       </DialogContent>

@@ -18,6 +18,9 @@ namespace SubscriptionManager.Core
 
         [StringLength(500)]
         public string Description { get; set; } = string.Empty;
+        
+        [StringLength(4000)]
+        public string DescriptionMarkdown { get; set; } = string.Empty;
 
         [Required]
         public decimal Price { get; set; }

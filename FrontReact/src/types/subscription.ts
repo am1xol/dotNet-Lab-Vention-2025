@@ -2,6 +2,7 @@ export interface Subscription {
   id: string;
   name: string;
   description: string;
+  descriptionMarkdown: string;
   price: number;
   period: string;
   category: string;
@@ -15,6 +16,7 @@ export interface Subscription {
 export interface CreateSubscriptionRequest {
   name: string;
   description: string;
+  descriptionMarkdown: string;
   price: number;
   period: string;
   category: string;
@@ -24,6 +26,7 @@ export interface CreateSubscriptionRequest {
 export interface UpdateSubscriptionRequest {
   name: string;
   description: string;
+  descriptionMarkdown: string;
   price: number;
   period: string;
   category: string;

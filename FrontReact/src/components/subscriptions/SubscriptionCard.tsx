@@ -10,7 +10,10 @@ import {
   Avatar,
   LinearProgress,
   Tooltip,
+  Collapse,
 } from '@mui/material';
+import { ExpandMore, ExpandLess } from '@mui/icons-material';
+import DOMPurify from 'dompurify';
 import { Subscription } from '../../types/subscription';
 
 interface SubscriptionCardProps {
@@ -39,6 +42,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   loading = false,
 }) => {
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const formatPrice = (price: number) => {
     return `${price} BYN`;
@@ -151,6 +155,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
     try {
       await onInitiatePayment(subscription.id);
     } catch (e) {
+      console.error(e);
     } finally {
       setPaymentLoading(false);
     }
@@ -167,11 +172,16 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   };
 
   const finalLoadingState = loading || paymentLoading;
-
   const buttonState = getButtonState();
   const status = getSubscriptionStatus();
   const statusText = getStatusText();
   const statusColor = getStatusColor();
+
+  const hasMarkdownContent = subscription.descriptionMarkdown && subscription.descriptionMarkdown.trim().length > 0;
+
+  const createMarkup = (htmlContent: string) => {
+    return { __html: DOMPurify.sanitize(htmlContent) };
+  };
 
   return (
     <>
@@ -256,16 +266,55 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
           <Typography
             color="text.secondary"
             sx={{
-              mb: 3,
+              mb: 2,
               lineHeight: 1.6,
-              display: '-webkit-box',
-              WebkitLineClamp: 3,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
             }}
           >
             {subscription.description}
           </Typography>
+
+          {hasMarkdownContent && (
+            <>
+              <Collapse in={expanded} timeout="auto" unmountOnExit>
+                <Box
+                  sx={{
+                    mt: 2,
+                    mb: 2,
+                    p: 2,
+                    backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                    borderRadius: 1,
+                    border: '1px solid rgba(0, 0, 0, 0.05)',
+                    maxHeight: expanded ? 'none' : '200px',
+                    overflow: 'hidden',
+                    '& h1': { fontSize: '1.25rem', fontWeight: 600, mt: 1, mb: 1 },
+                    '& h2': { fontSize: '1.1rem', fontWeight: 600, mt: 1, mb: 1 },
+                    '& h3': { fontSize: '1rem', fontWeight: 600, mt: 1, mb: 0.5 },
+                    '& p': { mb: 1, fontSize: '0.95rem' },
+                    '& ul, & ol': { pl: 2.5, mb: 1 },
+                    '& li': { mb: 0.5 },
+                    '& a': { color: '#7E57C2', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } },
+                    '& blockquote': { borderLeft: '3px solid #ccc', pl: 2, color: 'text.secondary', my: 1 },
+                  }}
+                >
+                  <div dangerouslySetInnerHTML={createMarkup(subscription.descriptionMarkdown || '')} />
+                </Box>
+              </Collapse>
+
+              <Button
+                size="small"
+                onClick={() => setExpanded(!expanded)}
+                endIcon={expanded ? <ExpandLess /> : <ExpandMore />}
+                sx={{
+                  color: 'primary.main',
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  mb: 2,
+                }}
+              >
+                {expanded ? 'Show less details' : 'Show more details'}
+              </Button>
+            </>
+          )}
 
           <Box
             display="flex"

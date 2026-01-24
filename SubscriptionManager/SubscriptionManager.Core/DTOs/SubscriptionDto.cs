@@ -11,6 +11,7 @@ namespace SubscriptionManager.Core.DTOs
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
+        public string DescriptionMarkdown { get; set; } = string.Empty;
         public decimal Price { get; set; }
         public string Period { get; set; } = string.Empty;
         public string Category { get; set; } = string.Empty;
@@ -25,6 +26,7 @@ namespace SubscriptionManager.Core.DTOs
     {
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
+        public string DescriptionMarkdown { get; set; } = string.Empty;
         public decimal Price { get; set; }
         public string Period { get; set; } = string.Empty;
         public string Category { get; set; } = string.Empty;
@@ -35,6 +37,7 @@ namespace SubscriptionManager.Core.DTOs
     {
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
+        public string DescriptionMarkdown { get; set; } = string.Empty;
         public decimal Price { get; set; }
         public string Period { get; set; } = string.Empty;
         public string Category { get; set; } = string.Empty;

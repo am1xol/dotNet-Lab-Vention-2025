@@ -217,6 +217,7 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 Id = Guid.NewGuid(),
                 Name = request.Name,
                 Description = request.Description,
+                DescriptionMarkdown = request.DescriptionMarkdown,
                 Price = request.Price,
                 Period = request.Period,
                 Category = request.Category,
@@ -270,6 +271,7 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
 
             existingSubscription.Name = request.Name;
             existingSubscription.Description = request.Description;
+            existingSubscription.DescriptionMarkdown = request.DescriptionMarkdown;
             existingSubscription.Price = request.Price;
             existingSubscription.Period = request.Period;
             existingSubscription.Category = request.Category;
@@ -373,6 +375,7 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 Id = subscription.Id,
                 Name = subscription.Name,
                 Description = subscription.Description,
+                DescriptionMarkdown = subscription.DescriptionMarkdown,
                 Price = subscription.Price,
                 Period = subscription.Period,
                 Category = subscription.Category,

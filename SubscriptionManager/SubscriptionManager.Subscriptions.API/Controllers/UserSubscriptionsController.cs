@@ -89,13 +89,15 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             try
             {
                 var userEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? "customer@example.com";
+                var expirationDate = DateTime.UtcNow.AddMinutes(30);
 
                 var paymentResult = await _paymentGateway.InitiatePaymentAsync(
                     subscription.Price,
                     "BYN",
                     $"Subscription: {subscription.Name}",
                     payment.Id.ToString(),
-                    userEmail
+                    userEmail,
+                    expirationDate
                 );
 
                 return Ok(paymentResult);

@@ -31,7 +31,6 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
 
             if (!Guid.TryParse(webhookData.Transaction.TrackingId, out var paymentId))
             {
-                _logger.LogError("Invalid TrackingId format");
                 return BadRequest("Invalid TrackingId");
             }
 
@@ -41,31 +40,38 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
 
             if (payment == null)
             {
-                _logger.LogError("Payment not found: {PaymentId}", paymentId);
                 return NotFound("Payment not found");
             }
 
-            if (webhookData.Transaction.Status == "successful")
-            {
-                payment.Status = PaymentStatus.Completed;
-                payment.ExternalTransactionId = webhookData.Transaction.Id;
-                payment.CardLastFour = webhookData.Transaction.CreditCard?.Last4 ?? "";
-                payment.CardBrand = webhookData.Transaction.CreditCard?.Brand ?? "";
+            payment.ExternalTransactionId = webhookData.Transaction.Id;
 
-                if (payment.UserSubscription != null)
-                {
-                    payment.UserSubscription.IsActive = true; 
-                    _logger.LogInformation("Subscription {SubId} activated for user {UserId}", payment.UserSubscription.Id, payment.UserId);
-                }
-            }
-            else if (webhookData.Transaction.Status == "failed")
+            switch (webhookData.Transaction.Status)
             {
-                payment.Status = PaymentStatus.Failed;
-                payment.ExternalTransactionId = webhookData.Transaction.Id;
+                case "successful":
+                    payment.Status = PaymentStatus.Completed;
+                    payment.CardLastFour = webhookData.Transaction.CreditCard?.Last4 ?? "";
+                    payment.CardBrand = webhookData.Transaction.CreditCard?.Brand ?? "";
+
+                    if (payment.UserSubscription != null)
+                    {
+                        payment.UserSubscription.IsActive = true;
+                        _logger.LogInformation("Subscription activated: {SubId}", payment.UserSubscription.Id);
+                    }
+                    break;
+
+                case "failed":
+                case "error":  
+                case "expired":
+                    payment.Status = PaymentStatus.Failed;
+                    _logger.LogWarning("Payment failed with status: {Status}", webhookData.Transaction.Status);
+                    break;
+
+                default:
+                    _logger.LogInformation("Unhandled status: {Status}", webhookData.Transaction.Status);
+                    break;
             }
 
             await _context.SaveChangesAsync();
-
             return Ok(new { message = "Webhook processed" });
         }
     }

@@ -56,6 +56,10 @@ namespace SubscriptionManager.Core.DTOs
 
         [JsonPropertyName("tracking_id")]
         public string TrackingId { get; set; } = string.Empty;
+
+        [JsonPropertyName("expired_at")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? ExpiredAt { get; set; }
     }
 
     public class SettingsData

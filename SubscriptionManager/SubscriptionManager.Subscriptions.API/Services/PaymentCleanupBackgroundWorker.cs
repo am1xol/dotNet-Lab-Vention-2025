@@ -18,6 +18,7 @@
                 using (var scope = _serviceProvider.CreateScope())
                 {
                     var jobService = scope.ServiceProvider.GetRequiredService<IPaymentJobService>();
+                    await jobService.CheckExpiringSubscriptionsAsync(stoppingToken);
                     await jobService.CleanupStuckPaymentsAsync(stoppingToken);
                 }
 

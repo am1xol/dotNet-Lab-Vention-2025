@@ -2,7 +2,9 @@
 using Microsoft.AspNetCore.Mvc;
 using SubscriptionManager.Core;
 using SubscriptionManager.Core.DTOs;
+using SubscriptionManager.Core.Models;
 using SubscriptionManager.Infrastructure.Data;
+using SubscriptionManager.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace SubscriptionManager.Subscriptions.API.Controllers
@@ -13,12 +15,14 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
     {
         private readonly SubscriptionsDbContext _context;
         private readonly IConfiguration _configuration;
+        private readonly INotificationService _notificationService;
         private readonly ILogger<PaymentsController> _logger;
 
-        public PaymentsController(SubscriptionsDbContext context, IConfiguration configuration, ILogger<PaymentsController> logger)
+        public PaymentsController(SubscriptionsDbContext context, IConfiguration configuration, INotificationService notificationService, ILogger<PaymentsController> logger)
         {
             _context = context;
             _configuration = configuration;
+            _notificationService = notificationService;
             _logger = logger;
         }
 
@@ -56,6 +60,10 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                     {
                         payment.UserSubscription.IsActive = true;
                         _logger.LogInformation("Subscription activated: {SubId}", payment.UserSubscription.Id);
+                        await _notificationService.CreateAsync(payment.UserId, 
+                            "Подписка активна", 
+                            "Оплата прошла успешно!", 
+                            NotificationType.Info);
                     }
                     break;
 
@@ -63,6 +71,10 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 case "error":  
                 case "expired":
                     payment.Status = PaymentStatus.Failed;
+                    await _notificationService.CreateAsync(payment.UserId, 
+                        "Ошибка оплаты", 
+                        "Не удалось провести платеж. Проверьте данные карты.", 
+                        NotificationType.Error);
                     _logger.LogWarning("Payment failed with status: {Status}", webhookData.Transaction.Status);
                     break;
 

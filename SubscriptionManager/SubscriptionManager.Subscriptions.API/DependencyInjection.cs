@@ -69,6 +69,8 @@ namespace SubscriptionManager.Subscriptions.API
             services.AddScoped<ISubscriptionService, SubscriptionService>();
             services.AddScoped<IFileStorageService, FileStorageService>();
 
+            services.AddScoped<INotificationService, NotificationService>();
+
             services.AddScoped<IPaymentJobService, PaymentJobService>();
             services.AddHostedService<PaymentCleanupBackgroundWorker>();
 

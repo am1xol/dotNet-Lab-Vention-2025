@@ -7,6 +7,7 @@ WORKDIR /src
 COPY ["SubscriptionManager/SubscriptionManager.Subscriptions.API/SubscriptionManager.Subscriptions.API.csproj", "SubscriptionManager/SubscriptionManager.Subscriptions.API/"]
 COPY ["SubscriptionManager/SubscriptionManager.Core/SubscriptionManager.Core.csproj", "SubscriptionManager/SubscriptionManager.Core/"]
 COPY ["SubscriptionManager/SubscriptionManager.Infrastructure/SubscriptionManager.Infrastructure.csproj", "SubscriptionManager/SubscriptionManager.Infrastructure/"]
+COPY ["SubscriptionManager/SubscriptionManager.Infrastructure.Shared/SubscriptionManager.Infrastructure.Shared.csproj", "SubscriptionManager/SubscriptionManager.Infrastructure.Shared/"]
 RUN dotnet restore "SubscriptionManager/SubscriptionManager.Subscriptions.API/SubscriptionManager.Subscriptions.API.csproj"
 COPY . .
 WORKDIR "/src/SubscriptionManager/SubscriptionManager.Subscriptions.API"

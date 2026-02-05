@@ -1,11 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SubscriptionManager.Core;
 using SubscriptionManager.Core.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SubscriptionManager.Infrastructure.Data
 {
@@ -19,6 +14,7 @@ namespace SubscriptionManager.Infrastructure.Data
         public DbSet<UserSubscription> UserSubscriptions { get; set; }
         public DbSet<StoredFile> StoredFiles { get; set; }
         public DbSet<Payment> Payments { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

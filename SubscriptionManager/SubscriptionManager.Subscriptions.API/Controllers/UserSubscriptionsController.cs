@@ -20,6 +20,7 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         private readonly SubscriptionsDbContext _context;
         private readonly IFileStorageService _fileStorageService;
         private readonly IPaymentGatewayService _paymentGateway;
+        private readonly INotificationService _notificationService;
 
         private enum UserSubStatus
         {
@@ -29,11 +30,12 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             Expired = 3
         }
 
-        public UserSubscriptionsController(SubscriptionsDbContext context, IFileStorageService fileStorageService, IPaymentGatewayService paymentGateway)
+        public UserSubscriptionsController(SubscriptionsDbContext context, IFileStorageService fileStorageService, IPaymentGatewayService paymentGateway, INotificationService notificationService)
         {
             _context = context;
             _fileStorageService = fileStorageService;
             _paymentGateway = paymentGateway;
+            _notificationService = notificationService;
         }
 
         [HttpPost("initiate-payment/{subscriptionId}")] 
@@ -375,6 +377,37 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 Message = "Subscription cancelled successfully",
                 ValidUntil = userSubscription.ValidUntil
             });
+        }
+
+        [HttpPost("admin/expire/{userSubscriptionId}")]
+        [Authorize(Roles = "Admin")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> AdminExpireSubscription(Guid userSubscriptionId)
+        {
+            var userSubscription = await _context.UserSubscriptions
+                .Include(us => us.Subscription)
+                .FirstOrDefaultAsync(us => us.Id == userSubscriptionId);
+
+            if (userSubscription == null)
+            {
+                return NotFound("User subscription not found");
+            }
+
+            userSubscription.IsActive = false;
+            userSubscription.CancelledAt = DateTime.UtcNow;
+            userSubscription.ValidUntil = DateTime.UtcNow;
+
+            await _notificationService.CreateAsync(
+                userSubscription.UserId,
+                "Подписка истекла", 
+                $"Срок действия вашей подписки '{userSubscription.Subscription.Name}' истек. Пожалуйста, продлите её, чтобы продолжить пользоваться сервисом.",
+                NotificationType.Warning 
+            );
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = $"Subscription {userSubscription.Subscription.Name} for user {userSubscription.UserId} has been expired and user notified." });
         }
 
         private DateTime CalculateNextBillingDate(string period)

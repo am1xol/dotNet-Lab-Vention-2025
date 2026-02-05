@@ -170,8 +170,8 @@ export const PaymentHistoryTab: React.FC = () => {
                                   payment.status === 'Completed'
                                     ? 'success'
                                     : payment.status === 'Failed'
-                                    ? 'error' 
-                                    : 'default'
+                                      ? 'error'
+                                      : 'default'
                                 }
                                 sx={{ mt: 1 }}
                               />

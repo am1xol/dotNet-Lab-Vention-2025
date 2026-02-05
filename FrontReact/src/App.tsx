@@ -44,7 +44,10 @@ function App() {
           <Route path="/profile" element={<UserProfile />} />
           <Route path="/dashboard" element={<DashboardPage />} />
 
-          <Route path="/category/:category" element={<CategorySubscriptionsPage />} />
+          <Route
+            path="/category/:category"
+            element={<CategorySubscriptionsPage />}
+          />
         </Routes>
       </Router>
     </>

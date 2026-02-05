@@ -67,15 +67,15 @@ const FloatingCircle = styled(Box)(({ theme }) => ({
   animation: 'float 8s ease-in-out infinite',
   zIndex: 0,
   '@keyframes float': {
-    '0%, 100%': { 
+    '0%, 100%': {
       transform: 'translate(0px, 0px) scale(1)',
       opacity: 0.3,
     },
-    '33%': { 
+    '33%': {
       transform: 'translate(30px, -20px) scale(1.1)',
       opacity: 0.4,
     },
-    '66%': { 
+    '66%': {
       transform: 'translate(-20px, 15px) scale(0.9)',
       opacity: 0.2,
     },
@@ -102,15 +102,17 @@ export const CategorySubscriptionsPage: React.FC = () => {
   const { category } = useParams<{ category: string }>();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
-  
+
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-  const [mySubscriptions, setMySubscriptions] = useState<UserSubscription[]>([]);
+  const [mySubscriptions, setMySubscriptions] = useState<UserSubscription[]>(
+    []
+  );
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  
+
   // Filters
   const [search, setSearch] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -119,13 +121,13 @@ export const CategorySubscriptionsPage: React.FC = () => {
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortDesc, setSortDesc] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  
+
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [unsubscribedData, setUnsubscribedData] = useState<{
     [key: string]: { validUntil: string };
   }>({});
-  
+
   const pageSize = 12;
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -134,11 +136,11 @@ export const CategorySubscriptionsPage: React.FC = () => {
     if (searchTimerRef.current) {
       clearTimeout(searchTimerRef.current);
     }
-    
+
     searchTimerRef.current = setTimeout(() => {
       setSearchQuery(search);
     }, 500);
-    
+
     return () => {
       if (searchTimerRef.current) {
         clearTimeout(searchTimerRef.current);
@@ -149,7 +151,7 @@ export const CategorySubscriptionsPage: React.FC = () => {
   // Load user subscriptions
   const loadMySubscriptions = useCallback(async () => {
     if (!isAuthenticated) return;
-    
+
     try {
       const result = await userSubscriptionService.getMySubscriptions();
       const allSubscriptions = Object.values(result).flat();
@@ -160,46 +162,48 @@ export const CategorySubscriptionsPage: React.FC = () => {
   }, [isAuthenticated]);
 
   // Load category subscriptions via API with filters
-  const loadSubscriptions = useCallback(async (resetPage = false) => {
-    const currentPage = resetPage ? 1 : page;
-    
-    if (resetPage) {
-      setLoading(true);
-    } else {
-      setLoadingMore(true);
-    }
-    
-    try {
-      const result = await subscriptionService.getSubscriptionsWithFilters(
-        currentPage,
-        pageSize,
-        category,
-        searchQuery || undefined,
-        sortBy,
-        sortDesc,
-        priceRange[0] > 0 ? priceRange[0] : undefined,
-        priceRange[1] < 1000 ? priceRange[1] : undefined,
-        selectedPeriods.length > 0 ? selectedPeriods.join(',') : undefined
-      );
-      
+  const loadSubscriptions = useCallback(
+    async (resetPage = false) => {
+      const currentPage = resetPage ? 1 : page;
+
       if (resetPage) {
-        setSubscriptions(result.items);
-        setPage(1);
+        setLoading(true);
       } else {
-        setSubscriptions(prev => [...prev, ...result.items]);
+        setLoadingMore(true);
       }
-      
-      setTotalPages(Math.ceil(result.totalCount / pageSize));
-      setTotalCount(result.totalCount);
-      
-    } catch (error) {
-      console.error('Failed to fetch subscriptions', error);
-      setError('Failed to load subscriptions');
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  }, [category, searchQuery, selectedPeriods, priceRange, sortBy, sortDesc, page]);
+
+      try {
+        const result = await subscriptionService.getSubscriptionsWithFilters(
+          currentPage,
+          pageSize,
+          category,
+          searchQuery || undefined,
+          sortBy,
+          sortDesc,
+          priceRange[0] > 0 ? priceRange[0] : undefined,
+          priceRange[1] < 1000 ? priceRange[1] : undefined,
+          selectedPeriods.length > 0 ? selectedPeriods.join(',') : undefined
+        );
+
+        if (resetPage) {
+          setSubscriptions(result.items);
+          setPage(1);
+        } else {
+          setSubscriptions((prev) => [...prev, ...result.items]);
+        }
+
+        setTotalPages(Math.ceil(result.totalCount / pageSize));
+        setTotalCount(result.totalCount);
+      } catch (error) {
+        console.error('Failed to fetch subscriptions', error);
+        setError('Failed to load subscriptions');
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [category, searchQuery, selectedPeriods, priceRange, sortBy, sortDesc, page]
+  );
 
   // Load on category or auth change
   useEffect(() => {
@@ -217,12 +221,14 @@ export const CategorySubscriptionsPage: React.FC = () => {
       const timer = setTimeout(() => {
         loadSubscriptions(true);
       }, 300);
-      
+
       return () => clearTimeout(timer);
     }
   }, [searchQuery, selectedPeriods, priceRange, sortBy, sortDesc]);
 
-  const getUserSubscription = (subscriptionId: string): UserSubscription | undefined => {
+  const getUserSubscription = (
+    subscriptionId: string
+  ): UserSubscription | undefined => {
     if (!isAuthenticated || !mySubscriptions) return undefined;
     return mySubscriptions.find(
       (us) => us?.subscriptionId === subscriptionId && us?.isActive
@@ -234,7 +240,7 @@ export const CategorySubscriptionsPage: React.FC = () => {
       navigate('/auth/signin');
       return;
     }
-    
+
     setActionLoading(subscriptionId);
     setError(null);
     try {
@@ -275,7 +281,7 @@ export const CategorySubscriptionsPage: React.FC = () => {
       navigate('/auth/signin');
       return;
     }
-    
+
     try {
       setActionLoading(subscriptionId);
       await userSubscriptionService.subscribe(subscriptionId);
@@ -292,7 +298,7 @@ export const CategorySubscriptionsPage: React.FC = () => {
       navigate('/auth/signin');
       return;
     }
-    
+
     try {
       setActionLoading(subscriptionId);
       const response =
@@ -311,7 +317,7 @@ export const CategorySubscriptionsPage: React.FC = () => {
 
   const handleLoadMore = () => {
     if (page < totalPages) {
-      setPage(prev => prev + 1);
+      setPage((prev) => prev + 1);
       loadSubscriptions(false);
     }
   };
@@ -321,9 +327,9 @@ export const CategorySubscriptionsPage: React.FC = () => {
   };
 
   const handlePeriodToggle = (period: string) => {
-    setSelectedPeriods(prev =>
+    setSelectedPeriods((prev) =>
       prev.includes(period)
-        ? prev.filter(p => p !== period)
+        ? prev.filter((p) => p !== period)
         : [...prev, period]
     );
   };
@@ -337,7 +343,7 @@ export const CategorySubscriptionsPage: React.FC = () => {
   };
 
   const toggleSortOrder = () => {
-    setSortDesc(prev => !prev);
+    setSortDesc((prev) => !prev);
   };
 
   const resetFilters = () => {
@@ -363,12 +369,52 @@ export const CategorySubscriptionsPage: React.FC = () => {
 
   return (
     <PageContainer>
-      <FloatingCircle sx={{ top: '10%', left: '5%', width: '150px', height: '150px', animationDelay: '0s' }} />
-      <FloatingCircle sx={{ top: '20%', right: '10%', width: '200px', height: '200px', animationDelay: '1.5s' }} />
-      <FloatingCircle sx={{ bottom: '15%', left: '15%', width: '120px', height: '120px', animationDelay: '3s' }} />
-      <FloatingCircle sx={{ bottom: '25%', right: '20%', width: '180px', height: '180px', animationDelay: '4.5s' }} />
-      <FloatingCircle sx={{ top: '60%', left: '25%', width: '100px', height: '100px', animationDelay: '6s' }} />
-      
+      <FloatingCircle
+        sx={{
+          top: '10%',
+          left: '5%',
+          width: '150px',
+          height: '150px',
+          animationDelay: '0s',
+        }}
+      />
+      <FloatingCircle
+        sx={{
+          top: '20%',
+          right: '10%',
+          width: '200px',
+          height: '200px',
+          animationDelay: '1.5s',
+        }}
+      />
+      <FloatingCircle
+        sx={{
+          bottom: '15%',
+          left: '15%',
+          width: '120px',
+          height: '120px',
+          animationDelay: '3s',
+        }}
+      />
+      <FloatingCircle
+        sx={{
+          bottom: '25%',
+          right: '20%',
+          width: '180px',
+          height: '180px',
+          animationDelay: '4.5s',
+        }}
+      />
+      <FloatingCircle
+        sx={{
+          top: '60%',
+          left: '25%',
+          width: '100px',
+          height: '100px',
+          animationDelay: '6s',
+        }}
+      />
+
       <ContentContainer>
         <Box sx={{ mx: 'auto', px: { xs: 2, md: 3 } }}>
           {/* Header and navigation */}
@@ -380,14 +426,23 @@ export const CategorySubscriptionsPage: React.FC = () => {
             >
               Back
             </Button>
-            
-            <Typography variant="h4" gutterBottom sx={{ textTransform: 'capitalize' }}>
-              {category} 
-              <Typography component="span" variant="h6" color="text.secondary" sx={{ ml: 2 }}>
+
+            <Typography
+              variant="h4"
+              gutterBottom
+              sx={{ textTransform: 'capitalize' }}
+            >
+              {category}
+              <Typography
+                component="span"
+                variant="h6"
+                color="text.secondary"
+                sx={{ ml: 2 }}
+              >
                 ({totalCount} subscriptions)
               </Typography>
             </Typography>
-            
+
             {!isAuthenticated && (
               <Alert severity="info" sx={{ mt: 2 }}>
                 You need to log in to subscribe to services
@@ -415,7 +470,11 @@ export const CategorySubscriptionsPage: React.FC = () => {
 
           {/* Search and filters panel */}
           <Paper sx={{ p: 2, mb: 3, borderRadius: 2, boxShadow: 2 }}>
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
+            <Stack
+              direction={{ xs: 'column', md: 'row' }}
+              spacing={2}
+              alignItems="center"
+            >
               <TextField
                 placeholder="Search subscriptions..."
                 value={search}
@@ -430,29 +489,38 @@ export const CategorySubscriptionsPage: React.FC = () => {
                 sx={{ flexGrow: 1 }}
                 size="small"
               />
-              
-              <IconButton 
+
+              <IconButton
                 onClick={() => setShowFilters(!showFilters)}
                 color={showFilters ? 'primary' : 'default'}
               >
                 <FilterListIcon />
               </IconButton>
-              
+
               <FormControl size="small" sx={{ minWidth: 200 }}>
                 <InputLabel>Sort by</InputLabel>
-                <Select value={sortBy} onChange={handleSortChange} label="Sort by">
-                  {SORT_OPTIONS.map(option => (
+                <Select
+                  value={sortBy}
+                  onChange={handleSortChange}
+                  label="Sort by"
+                >
+                  {SORT_OPTIONS.map((option) => (
                     <MenuItem key={option.value} value={option.value}>
                       {option.label}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
-              
-              <IconButton onClick={toggleSortOrder} color={sortDesc ? 'primary' : 'default'}>
-                <SortIcon sx={{ transform: sortDesc ? 'rotate(180deg)' : 'none' }} />
+
+              <IconButton
+                onClick={toggleSortOrder}
+                color={sortDesc ? 'primary' : 'default'}
+              >
+                <SortIcon
+                  sx={{ transform: sortDesc ? 'rotate(180deg)' : 'none' }}
+                />
               </IconButton>
-              
+
               <Button onClick={resetFilters} variant="outlined" size="small">
                 Reset
               </Button>
@@ -466,26 +534,39 @@ export const CategorySubscriptionsPage: React.FC = () => {
                 exit={{ opacity: 0, height: 0 }}
               >
                 <Divider sx={{ my: 2 }} />
-                
+
                 <Grid container spacing={3}>
                   <Grid size={{ xs: 12, md: 6 }}>
                     <Typography variant="subtitle2" gutterBottom>
                       Period
                     </Typography>
-                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                      {PERIODS.map(period => (
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      flexWrap="wrap"
+                      useFlexGap
+                    >
+                      {PERIODS.map((period) => (
                         <Chip
                           key={period}
                           label={period}
                           onClick={() => handlePeriodToggle(period)}
-                          color={selectedPeriods.includes(period) ? 'primary' : 'default'}
-                          variant={selectedPeriods.includes(period) ? 'filled' : 'outlined'}
+                          color={
+                            selectedPeriods.includes(period)
+                              ? 'primary'
+                              : 'default'
+                          }
+                          variant={
+                            selectedPeriods.includes(period)
+                              ? 'filled'
+                              : 'outlined'
+                          }
                           size="small"
                         />
                       ))}
                     </Stack>
                   </Grid>
-                  
+
                   <Grid size={{ xs: 12, md: 6 }}>
                     <Typography variant="subtitle2" gutterBottom>
                       Price: from {priceRange[0]} to {priceRange[1]} RUB
@@ -517,7 +598,9 @@ export const CategorySubscriptionsPage: React.FC = () => {
               <CircularProgress />
             </Box>
           ) : subscriptions.length === 0 ? (
-            <Card sx={{ p: 4, textAlign: 'center', borderRadius: 2, boxShadow: 2 }}>
+            <Card
+              sx={{ p: 4, textAlign: 'center', borderRadius: 2, boxShadow: 2 }}
+            >
               <Typography variant="h6" color="text.secondary">
                 No subscriptions found
               </Typography>
@@ -528,10 +611,13 @@ export const CategorySubscriptionsPage: React.FC = () => {
           ) : (
             <>
               <Grid container spacing={3}>
-                {subscriptions.map(subscription => {
+                {subscriptions.map((subscription) => {
                   const userSub = getUserSubscription(subscription.id);
                   return (
-                    <Grid key={subscription.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
+                    <Grid
+                      key={subscription.id}
+                      size={{ xs: 12, sm: 6, md: 4, lg: 3 }}
+                    >
                       <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -557,7 +643,7 @@ export const CategorySubscriptionsPage: React.FC = () => {
                   );
                 })}
               </Grid>
-              
+
               {/* Load more button */}
               {page < totalPages && (
                 <Box sx={{ mt: 4, textAlign: 'center' }}>

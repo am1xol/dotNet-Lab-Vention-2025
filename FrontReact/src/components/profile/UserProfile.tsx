@@ -12,6 +12,7 @@ import {
   Avatar,
   Chip,
   Divider,
+  Badge,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -22,6 +23,7 @@ import {
   ArrowBack,
   VerifiedUser,
   CalendarToday,
+  Notifications,
 } from '@mui/icons-material';
 import { UserProfile as UserProfileType } from '../../types/user';
 import { userService } from '../../services/user-service';
@@ -29,16 +31,31 @@ import Header from '../layout/Header';
 import FloatingIcons from '../shared/FloatingServiceIcons';
 import { ProfileForm } from './ProfileForm';
 import { ChangePasswordForm } from './ChangePasswordForm';
+import { NotificationsTab } from './NotificationsTab';
+import { notificationService } from '../../services/notification-service';
 
 export const UserProfile: React.FC = () => {
   const [user, setUser] = useState<UserProfileType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
-  const [activeSection, setActiveSection] = useState<'profile' | 'security'>(
-    'profile'
-  );
+  const [activeSection, setActiveSection] = useState<
+    'profile' | 'security' | 'notifications'
+  >('profile');
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      try {
+        const data = await notificationService.getUserNotifications();
+        setUnreadCount(data.filter((n) => !n.isRead).length);
+      } catch (err) {
+        console.error('Failed to fetch unread count');
+      }
+    };
+    fetchUnreadCount();
+  }, []);
 
   useEffect(() => {
     loadUserProfile();
@@ -262,6 +279,34 @@ export const UserProfile: React.FC = () => {
                   >
                     Security & Password
                   </Button>
+
+                  <Button
+                    variant={
+                      activeSection === 'notifications' ? 'contained' : 'text'
+                    }
+                    onClick={() => setActiveSection('notifications')}
+                    startIcon={
+                      <Badge
+                        badgeContent={unreadCount}
+                        color="error"
+                        variant="dot"
+                        invisible={unreadCount === 0}
+                      >
+                        <Notifications />
+                      </Badge>
+                    }
+                    sx={{ justifyContent: 'flex-start' }}
+                  >
+                    Notifications
+                    {unreadCount > 0 && (
+                      <Typography
+                        variant="caption"
+                        sx={{ ml: 1, color: 'error.main', fontWeight: 'bold' }}
+                      >
+                        ({unreadCount})
+                      </Typography>
+                    )}
+                  </Button>
                 </Stack>
 
                 <Divider sx={{ my: 2 }} />
@@ -299,26 +344,31 @@ export const UserProfile: React.FC = () => {
                   }}
                 >
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
-                    {activeSection === 'profile' ? (
+                    {activeSection === 'profile' && (
                       <Person sx={{ color: '#7E57C2', mr: 2 }} />
-                    ) : (
+                    )}
+                    {activeSection === 'security' && (
                       <Security sx={{ color: '#7E57C2', mr: 2 }} />
                     )}
+                    {activeSection === 'notifications' && (
+                      <Notifications sx={{ color: '#7E57C2', mr: 2 }} />
+                    )}
+
                     <Typography variant="h5" fontWeight="600" color="#7E57C2">
-                      {activeSection === 'profile'
-                        ? 'Personal Information'
-                        : 'Security Settings'}
+                      {activeSection === 'profile' && 'Personal Information'}
+                      {activeSection === 'security' && 'Security Settings'}
+                      {activeSection === 'notifications' && 'My Notifications'}
                     </Typography>
                   </Box>
 
-                  {activeSection === 'profile' ? (
+                  {activeSection === 'profile' && (
                     <ProfileForm
                       user={user}
                       onProfileUpdated={handleProfileUpdated}
                     />
-                  ) : (
-                    <ChangePasswordForm />
                   )}
+                  {activeSection === 'security' && <ChangePasswordForm />}
+                  {activeSection === 'notifications' && <NotificationsTab />}
                 </Card>
               </motion.div>
             </Grid>

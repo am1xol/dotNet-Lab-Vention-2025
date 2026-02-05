@@ -21,7 +21,9 @@ import {
 } from '../../types/subscription';
 import { RichTextEditor } from './RichTextEditor';
 
-type SubscriptionFormData = CreateSubscriptionRequest | UpdateSubscriptionRequest;
+type SubscriptionFormData =
+  | CreateSubscriptionRequest
+  | UpdateSubscriptionRequest;
 
 interface SubscriptionFormDialogProps {
   open: boolean;
@@ -144,16 +146,20 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
     const rawContent = formData.descriptionMarkdown || '';
     const cleanContent = rawContent === '<p><br></p>' ? '' : rawContent;
     const plainTextDescription = cleanContent.replace(/<[^>]+>/g, ' ');
-    
-    const finalDescription = formData.description || 
-      (plainTextDescription ? plainTextDescription.substring(0, 100).trim() + (plainTextDescription.length > 100 ? '...' : '') : '');
+
+    const finalDescription =
+      formData.description ||
+      (plainTextDescription
+        ? plainTextDescription.substring(0, 100).trim() +
+          (plainTextDescription.length > 100 ? '...' : '')
+        : '');
 
     const finalData = {
       ...formData,
       description: finalDescription,
       descriptionMarkdown: cleanContent,
     };
-    
+
     onSave(finalData);
   };
 
@@ -161,7 +167,9 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
     formData.name &&
     formData.category &&
     formData.price >= 0 &&
-    (formData.description || (formData.descriptionMarkdown && formData.descriptionMarkdown !== '<p><br></p>'));
+    (formData.description ||
+      (formData.descriptionMarkdown &&
+        formData.descriptionMarkdown !== '<p><br></p>'));
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
@@ -170,7 +178,7 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
       </DialogTitle>
       <DialogContent>
         <Grid container spacing={3} sx={{ mt: 1 }}>
-          <Grid size = {{ xs:12}}>
+          <Grid size={{ xs: 12 }}>
             <TextField
               fullWidth
               label="Subscription Name"
@@ -179,8 +187,8 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
               required
             />
           </Grid>
-          
-          <Grid size = {{ xs:12, md:6}}>
+
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Short Description"
@@ -191,8 +199,8 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
               helperText="Brief text shown on the card (optional if detailed description is provided)"
             />
           </Grid>
-          
-          <Grid size = {{ xs:12, md:6}}>
+
+          <Grid size={{ xs: 12, md: 6 }}>
             <Box>
               <input
                 type="file"
@@ -208,7 +216,7 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
                   startIcon={<CloudUpload />}
                   disabled={isUploading || uploading}
                   fullWidth
-                  sx={{ height: '56px' }} 
+                  sx={{ height: '56px' }}
                 >
                   {isUploading ? 'Uploading...' : 'Upload Icon'}
                 </Button>
@@ -225,8 +233,8 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
                   <Typography variant="body2" noWrap>
                     {selectedFile?.name || 'Current icon'}
                   </Typography>
-                  <IconButton 
-                    size="small" 
+                  <IconButton
+                    size="small"
                     onClick={handleRemoveFile}
                     disabled={isUploading}
                     color="error"
@@ -236,14 +244,18 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
                 </Box>
               )}
               {fileUploadError && (
-                <Typography color="error" variant="caption" sx={{ mt: 0.5, display: 'block' }}>
+                <Typography
+                  color="error"
+                  variant="caption"
+                  sx={{ mt: 0.5, display: 'block' }}
+                >
                   {fileUploadError}
                 </Typography>
               )}
             </Box>
           </Grid>
 
-          <Grid size = {{ xs:12, md:6}}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Price"
@@ -257,8 +269,8 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
               helperText="BYN"
             />
           </Grid>
-          
-          <Grid size = {{ xs:12, md:6}}>
+
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               select
@@ -274,8 +286,8 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
               ))}
             </TextField>
           </Grid>
-          
-          <Grid size = {{ xs:12}}>
+
+          <Grid size={{ xs: 12 }}>
             <TextField
               fullWidth
               select
@@ -295,13 +307,15 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
             </TextField>
           </Grid>
 
-          <Grid size = {{ xs:12}}>
+          <Grid size={{ xs: 12 }}>
             <Typography variant="h6" gutterBottom sx={{ mt: 1 }}>
               Detailed Description
             </Typography>
             <RichTextEditor
               value={formData.descriptionMarkdown || ''}
-              onChange={(value) => handleInputChange('descriptionMarkdown', value)}
+              onChange={(value) =>
+                handleInputChange('descriptionMarkdown', value)
+              }
               label="Features & Details"
               placeholder="Describe what's included in this subscription..."
             />

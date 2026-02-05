@@ -3,7 +3,7 @@ import {
   SubscribeResponse,
   GroupedUserSubscriptions,
   PagedResult,
-  UserSubscription
+  UserSubscription,
 } from '../types/subscription';
 import { UserStatistics, PaymentInitiationResult } from '../types/payment';
 

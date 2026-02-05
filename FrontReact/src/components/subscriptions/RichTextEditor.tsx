@@ -32,9 +32,14 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   const formats = [
     'header',
-    'bold', 'italic', 'underline', 'strike',
-    'list', 'bullet',
-    'color', 'background',
+    'bold',
+    'italic',
+    'underline',
+    'strike',
+    'list',
+    'bullet',
+    'color',
+    'background',
     'link',
   ];
 
@@ -57,10 +62,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         sx={{
           '& .quill': {
             borderRadius: 1,
-            border: (theme) => 
+            border: (theme) =>
               `1px solid ${error ? theme.palette.error.main : 'rgba(0, 0, 0, 0.23)'}`,
             '&:hover': {
-              borderColor: (theme) => 
+              borderColor: (theme) =>
                 error ? theme.palette.error.main : 'rgba(0, 0, 0, 0.87)',
             },
             '&:focus-within': {
@@ -88,8 +93,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
             minHeight: '200px',
           },
           '& .ql-editor:focus': {
-            outline: 'none', 
-          }
+            outline: 'none',
+          },
         }}
       >
         <ReactQuill

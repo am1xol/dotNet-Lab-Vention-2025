@@ -41,14 +41,26 @@ export const SubscriptionFilters: React.FC<SubscriptionFiltersProps> = ({
   onResetFilters,
 }) => {
   return (
-    <Box sx={{ mb: 4, p: 3, bgcolor: 'background.paper', borderRadius: 2, boxShadow: 1 }}>
-      <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+    <Box
+      sx={{
+        mb: 4,
+        p: 3,
+        bgcolor: 'background.paper',
+        borderRadius: 2,
+        boxShadow: 1,
+      }}
+    >
+      <Typography
+        variant="h6"
+        gutterBottom
+        sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+      >
         <FilterList /> Фильтры и сортировка
       </Typography>
-      
+
       <Grid container spacing={3}>
         {/* Поиск */}
-        <Grid size = {{ xs:12, md:2}}>
+        <Grid size={{ xs: 12, md: 2 }}>
           <TextField
             fullWidth
             label="Поиск подписок"
@@ -63,13 +75,15 @@ export const SubscriptionFilters: React.FC<SubscriptionFiltersProps> = ({
         </Grid>
 
         {/* Сортировка */}
-        <Grid size = {{ xs:12, md:2}}>
+        <Grid size={{ xs: 12, md: 2 }}>
           <FormControl fullWidth>
             <InputLabel>Сортировать по</InputLabel>
             <Select
               value={sortBy}
               label="Сортировать по"
-              onChange={(e) => onSortByChange(e.target.value as 'name' | 'price' | 'createdAt')}
+              onChange={(e) =>
+                onSortByChange(e.target.value as 'name' | 'price' | 'createdAt')
+              }
             >
               <MenuItem value="name">Названию</MenuItem>
               <MenuItem value="price">Цене</MenuItem>
@@ -78,13 +92,15 @@ export const SubscriptionFilters: React.FC<SubscriptionFiltersProps> = ({
           </FormControl>
         </Grid>
 
-        <Grid size = {{ xs:12, md:2}}>
+        <Grid size={{ xs: 12, md: 2 }}>
           <FormControl fullWidth>
             <InputLabel>Порядок</InputLabel>
             <Select
               value={sortOrder}
               label="Порядок"
-              onChange={(e) => onSortOrderChange(e.target.value as 'asc' | 'desc')}
+              onChange={(e) =>
+                onSortOrderChange(e.target.value as 'asc' | 'desc')
+              }
             >
               <MenuItem value="asc">По возрастанию</MenuItem>
               <MenuItem value="desc">По убыванию</MenuItem>
@@ -93,14 +109,16 @@ export const SubscriptionFilters: React.FC<SubscriptionFiltersProps> = ({
         </Grid>
 
         {/* Фильтр по цене */}
-        <Grid size = {{ xs:12, md:2}}>
+        <Grid size={{ xs: 12, md: 2 }}>
           <Box sx={{ px: 2 }}>
             <Typography gutterBottom>
               Диапазон цены: {priceRange[0]} - {priceRange[1]} ₽
             </Typography>
             <Slider
               value={priceRange}
-              onChange={(_, newValue) => onPriceRangeChange(newValue as [number, number])}
+              onChange={(_, newValue) =>
+                onPriceRangeChange(newValue as [number, number])
+              }
               valueLabelDisplay="auto"
               min={0}
               max={10000}
@@ -110,7 +128,7 @@ export const SubscriptionFilters: React.FC<SubscriptionFiltersProps> = ({
         </Grid>
 
         {/* по периоду */}
-        <Grid size = {{ xs:12, md:2}}>
+        <Grid size={{ xs: 12, md: 2 }}>
           <FormControl fullWidth>
             <InputLabel>Период</InputLabel>
             <Select
@@ -128,7 +146,7 @@ export const SubscriptionFilters: React.FC<SubscriptionFiltersProps> = ({
         </Grid>
 
         {/* Кнопка сброса */}
-        <Grid size = {{ xs:12, md:2}}>
+        <Grid size={{ xs: 12, md: 2 }}>
           <Button
             fullWidth
             variant="outlined"

@@ -17,17 +17,27 @@ export const ActiveFilters: React.FC<ActiveFiltersProps> = ({
   onRemoveFilter,
   onClearAll,
 }) => {
-  const hasFilters = search || selectedPeriods.length > 0 || priceRange[0] > 0 || priceRange[1] < 1000;
+  const hasFilters =
+    search ||
+    selectedPeriods.length > 0 ||
+    priceRange[0] > 0 ||
+    priceRange[1] < 1000;
 
   if (!hasFilters) return null;
 
   return (
     <Box sx={{ mb: 2 }}>
-      <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap>
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={1}
+        flexWrap="wrap"
+        useFlexGap
+      >
         <Typography variant="body2" color="text.secondary">
           Активные фильтры:
         </Typography>
-        
+
         {search && (
           <Chip
             label={`Поиск: "${search}"`}
@@ -36,8 +46,8 @@ export const ActiveFilters: React.FC<ActiveFiltersProps> = ({
             size="small"
           />
         )}
-        
-        {selectedPeriods.map(period => (
+
+        {selectedPeriods.map((period) => (
           <Chip
             key={period}
             label={`Период: ${period}`}
@@ -46,7 +56,7 @@ export const ActiveFilters: React.FC<ActiveFiltersProps> = ({
             size="small"
           />
         ))}
-        
+
         {(priceRange[0] > 0 || priceRange[1] < 1000) && (
           <Chip
             label={`Цена: ${priceRange[0]}-${priceRange[1]} руб.`}
@@ -55,7 +65,7 @@ export const ActiveFilters: React.FC<ActiveFiltersProps> = ({
             size="small"
           />
         )}
-        
+
         <Chip
           label="Очистить все"
           onClick={onClearAll}

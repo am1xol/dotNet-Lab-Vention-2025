@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import FloatingIcons from '../shared/FloatingServiceIcons';
 import Header from './Header';
+import { NotificationWatcher } from '../shared/NotificationWatcher';
 
 interface DashboardShellProps {
   children: React.ReactNode;
@@ -50,6 +51,8 @@ const DashboardShell: React.FC<DashboardShellProps> = ({
       }}
     >
       <FloatingIcons />
+
+      <NotificationWatcher />
 
       <Box sx={{ position: 'absolute', top: 20, left: 20, zIndex: 1000 }}>
         <motion.div

@@ -177,7 +177,9 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   const statusText = getStatusText();
   const statusColor = getStatusColor();
 
-  const hasMarkdownContent = subscription.descriptionMarkdown && subscription.descriptionMarkdown.trim().length > 0;
+  const hasMarkdownContent =
+    subscription.descriptionMarkdown &&
+    subscription.descriptionMarkdown.trim().length > 0;
 
   const createMarkup = (htmlContent: string) => {
     return { __html: DOMPurify.sanitize(htmlContent) };
@@ -286,17 +288,45 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                     border: '1px solid rgba(0, 0, 0, 0.05)',
                     maxHeight: expanded ? 'none' : '200px',
                     overflow: 'hidden',
-                    '& h1': { fontSize: '1.25rem', fontWeight: 600, mt: 1, mb: 1 },
-                    '& h2': { fontSize: '1.1rem', fontWeight: 600, mt: 1, mb: 1 },
-                    '& h3': { fontSize: '1rem', fontWeight: 600, mt: 1, mb: 0.5 },
+                    '& h1': {
+                      fontSize: '1.25rem',
+                      fontWeight: 600,
+                      mt: 1,
+                      mb: 1,
+                    },
+                    '& h2': {
+                      fontSize: '1.1rem',
+                      fontWeight: 600,
+                      mt: 1,
+                      mb: 1,
+                    },
+                    '& h3': {
+                      fontSize: '1rem',
+                      fontWeight: 600,
+                      mt: 1,
+                      mb: 0.5,
+                    },
                     '& p': { mb: 1, fontSize: '0.95rem' },
                     '& ul, & ol': { pl: 2.5, mb: 1 },
                     '& li': { mb: 0.5 },
-                    '& a': { color: '#7E57C2', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } },
-                    '& blockquote': { borderLeft: '3px solid #ccc', pl: 2, color: 'text.secondary', my: 1 },
+                    '& a': {
+                      color: '#7E57C2',
+                      textDecoration: 'none',
+                      '&:hover': { textDecoration: 'underline' },
+                    },
+                    '& blockquote': {
+                      borderLeft: '3px solid #ccc',
+                      pl: 2,
+                      color: 'text.secondary',
+                      my: 1,
+                    },
                   }}
                 >
-                  <div dangerouslySetInnerHTML={createMarkup(subscription.descriptionMarkdown || '')} />
+                  <div
+                    dangerouslySetInnerHTML={createMarkup(
+                      subscription.descriptionMarkdown || ''
+                    )}
+                  />
                 </Box>
               </Collapse>
 

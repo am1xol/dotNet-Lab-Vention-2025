@@ -86,7 +86,6 @@ export interface CategoryData {
 
 export type SubscriptionsByCategory = Record<string, CategoryData>;
 
-
 export interface SubscriptionFilters {
   search?: string;
   period?: string;

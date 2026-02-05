@@ -309,11 +309,11 @@ export const UserStatistics: React.FC<UserStatisticsProps> = ({
                   label={payment.status}
                   size="small"
                   color={
-                    payment.status === 'Completed' 
-                      ? 'success' 
-                      : payment.status === 'Failed' 
-                      ? 'error' 
-                      : 'default'
+                    payment.status === 'Completed'
+                      ? 'success'
+                      : payment.status === 'Failed'
+                        ? 'error'
+                        : 'default'
                   }
                   sx={{
                     mt: 0.5,

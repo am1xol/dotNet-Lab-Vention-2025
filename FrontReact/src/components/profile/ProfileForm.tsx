@@ -27,7 +27,10 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
     email: user.email,
   });
 
-  const [fieldErrors, setFieldErrors] = useState<{ firstName?: string; lastName?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<{
+    firstName?: string;
+    lastName?: string;
+  }>({});
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
@@ -48,7 +51,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
       if (trimmedValue.length === 0) {
         return 'Поле не может быть пустым';
       }
-      
+
       if (trimmedValue.length < 2) {
         return 'Минимум 2 символа (не считая пробелы)';
       }
@@ -66,18 +69,18 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    
+
     setFormData({ ...formData, [name]: value });
 
     const errorMessage = validateField(name, value);
-    setFieldErrors(prev => ({ ...prev, [name]: errorMessage }));
-    
+    setFieldErrors((prev) => ({ ...prev, [name]: errorMessage }));
+
     setError('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const cleanData: UpdateProfileRequest = {
       ...formData,
       firstName: formData.firstName.trim(),
@@ -157,16 +160,19 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
           }
         />
 
-        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', pt: 2 }}>
+        <Box
+          sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', pt: 2 }}
+        >
           <Button
             type="submit"
             variant="contained"
             startIcon={loading ? <CircularProgress size={16} /> : <Save />}
             disabled={!hasChanges || !isFormValid || loading}
             sx={{
-              background: (!hasChanges || !isFormValid) 
-                ? 'rgba(0, 0, 0, 0.12)' 
-                : 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+              background:
+                !hasChanges || !isFormValid
+                  ? 'rgba(0, 0, 0, 0.12)'
+                  : 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
               minWidth: 140,
               borderRadius: 2,
             }}

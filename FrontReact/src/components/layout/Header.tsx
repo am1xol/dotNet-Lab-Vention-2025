@@ -1,13 +1,40 @@
-import React from 'react';
-import { AppBar, Toolbar, Typography, Button, Box } from '@mui/material';
+import React, { useEffect, useState } from 'react';
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Button,
+  Box,
+  IconButton,
+} from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { useAuthStore } from '../../store/auth-store';
 import { useNavigate } from 'react-router-dom';
+import { notificationService } from '../../services/notification-service';
 
 const Header: React.FC = () => {
   const { isAuthenticated, logout, user } = useAuthStore();
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
+  const [, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const updateCount = async () => {
+      try {
+        const data = await notificationService.getUserNotifications();
+        const count = data.filter((n) => !n.isRead).length;
+        setUnreadCount(count);
+      } catch (err) {
+        console.error('Failed to fetch notification count');
+      }
+    };
+
+    updateCount();
+    const id = setInterval(updateCount, 10000);
+    return () => clearInterval(id);
+  }, [isAuthenticated]);
 
   const handleLogout = () => {
     logout();
@@ -92,6 +119,11 @@ const Header: React.FC = () => {
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
           {isAuthenticated ? (
             <>
+              <IconButton
+                onClick={() => navigate('/profile')}
+                sx={{ color: '#7E57C2', mr: 1 }}
+              >
+              </IconButton>
               <Typography
                 variant="body1"
                 sx={{

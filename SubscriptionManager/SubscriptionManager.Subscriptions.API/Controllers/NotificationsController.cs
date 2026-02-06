@@ -19,25 +19,27 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<NotificationDto>>> GetMyNotifications()
-        {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
-            if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
-                return Unauthorized();
+public async Task<ActionResult<PagedNotificationsDto>> GetMyNotifications(
+    [FromQuery] int page = 1, 
+    [FromQuery] int pageSize = 5)
+{
+    var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+    if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+        return Unauthorized();
 
-            var notifications = await _notificationService.GetUserNotificationsAsync(userId);
-            return Ok(notifications);
-        }
+    var result = await _notificationService.GetPagedNotificationsAsync(userId, page, pageSize);
+    return Ok(result);
+}
 
-        [HttpPost("{id}/read")]
-        public async Task<IActionResult> MarkAsRead(Guid id)
-        {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
-            if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
-                return Unauthorized();
+[HttpPost("read-all")]
+public async Task<IActionResult> MarkAllAsRead()
+{
+    var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+    if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+        return Unauthorized();
 
-            await _notificationService.MarkAsReadAsync(id, userId);
-            return Ok();
-        }
+    await _notificationService.MarkAllAsReadAsync(userId);
+    return Ok();
+}
     }
 }

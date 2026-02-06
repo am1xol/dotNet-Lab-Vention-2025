@@ -29,20 +29,45 @@ import { notificationService } from '../../services/notification-service';
 export const NotificationsTab: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const pageSize = 5;
 
   useEffect(() => {
-    loadNotifications();
+    initLoad();
   }, []);
 
-  const loadNotifications = async () => {
+  const initLoad = async () => {
     try {
       setLoading(true);
-      const data = await notificationService.getUserNotifications();
-      setNotifications(data);
+      const data = await notificationService.getUserNotifications(1, pageSize);
+      setNotifications(data.items);
+      setTotalCount(data.totalCount);
+      setPage(1);
     } catch (error) {
       console.error('Failed to load notifications', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLoadMore = async () => {
+    try {
+      setLoadingMore(true);
+      const nextPage = page + 1;
+      const data = await notificationService.getUserNotifications(
+        nextPage,
+        pageSize
+      );
+
+      setNotifications((prev) => [...prev, ...data.items]);
+      setPage(nextPage);
+      setTotalCount(data.totalCount);
+    } catch (error) {
+      console.error('Failed to load more notifications', error);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -54,7 +79,15 @@ export const NotificationsTab: React.FC = () => {
       await notificationService.markAsRead(id);
     } catch (error) {
       console.error('Failed to mark as read', error);
-      loadNotifications();
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await notificationService.markAllAsRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    } catch (error) {
+      console.error('Failed to mark all as read', error);
     }
   };
 
@@ -85,6 +118,8 @@ export const NotificationsTab: React.FC = () => {
     }
   };
 
+  const hasMore = notifications.length < totalCount;
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}>
@@ -97,9 +132,9 @@ export const NotificationsTab: React.FC = () => {
     return (
       <Box sx={{ textAlign: 'center', py: 8, color: 'text.secondary' }}>
         <NotificationsIcon sx={{ fontSize: 60, mb: 2, opacity: 0.3 }} />
-        <Typography variant="h6">Уведомлений пока нет</Typography>
+        <Typography variant="h6">No notifications yet</Typography>
         <Typography variant="body2">
-          Здесь будут отображаться новости о подписках и платежах
+          News about subscriptions and payments will be displayed here
         </Typography>
       </Box>
     );
@@ -114,16 +149,22 @@ export const NotificationsTab: React.FC = () => {
         mb={3}
       >
         <Typography variant="h6" color="#7E57C2" fontWeight="600">
-          История уведомлений
+          Notification history ({totalCount})
         </Typography>
-        <Button
-          startIcon={<MarkEmailRead />}
-          size="small"
-          onClick={loadNotifications}
-          sx={{ color: '#7E57C2' }}
-        >
-          Обновить
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button
+            startIcon={<MarkEmailRead />}
+            size="small"
+            onClick={handleMarkAllRead}
+            disabled={notifications.every((n) => n.isRead)}
+            sx={{ color: '#7E57C2' }}
+          >
+            Read all
+          </Button>
+          <Button size="small" onClick={initLoad} sx={{ color: '#7E57C2' }}>
+            Update
+          </Button>
+        </Stack>
       </Stack>
 
       <List sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -150,9 +191,7 @@ export const NotificationsTab: React.FC = () => {
                     notification.isRead
                   ),
                   transition: 'all 0.2s',
-                  '&:hover': {
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-                  },
+                  '&:hover': { boxShadow: '0 4px 12px rgba(0,0,0,0.05)' },
                 }}
               >
                 <ListItem
@@ -218,6 +257,31 @@ export const NotificationsTab: React.FC = () => {
           ))}
         </AnimatePresence>
       </List>
+
+      {hasMore && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+          <Button
+            variant="outlined"
+            onClick={handleLoadMore}
+            disabled={loadingMore}
+            sx={{
+              color: '#7E57C2',
+              borderColor: '#7E57C2',
+              px: 4,
+              '&:hover': {
+                borderColor: '#5E35B1',
+                bgcolor: 'rgba(126, 87, 194, 0.04)',
+              },
+            }}
+          >
+            {loadingMore ? (
+              <CircularProgress size={24} sx={{ color: '#7E57C2' }} />
+            ) : (
+              'Load more'
+            )}
+          </Button>
+        </Box>
+      )}
     </Box>
   );
 };

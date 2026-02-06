@@ -23,8 +23,8 @@ const Header: React.FC = () => {
 
     const updateCount = async () => {
       try {
-        const data = await notificationService.getUserNotifications();
-        const count = data.filter((n) => !n.isRead).length;
+        const data = await notificationService.getUserNotifications(1, 100);
+        const count = data.items.filter((n: any) => !n.isRead).length;
         setUnreadCount(count);
       } catch (err) {
         console.error('Failed to fetch notification count');
@@ -122,8 +122,7 @@ const Header: React.FC = () => {
               <IconButton
                 onClick={() => navigate('/profile')}
                 sx={{ color: '#7E57C2', mr: 1 }}
-              >
-              </IconButton>
+              ></IconButton>
               <Typography
                 variant="body1"
                 sx={{

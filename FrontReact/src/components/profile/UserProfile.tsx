@@ -48,8 +48,8 @@ export const UserProfile: React.FC = () => {
   useEffect(() => {
     const fetchUnreadCount = async () => {
       try {
-        const data = await notificationService.getUserNotifications();
-        setUnreadCount(data.filter((n) => !n.isRead).length);
+        const data = await notificationService.getUserNotifications(1, 100);
+        setUnreadCount(data.items.filter((n: any) => !n.isRead).length);
       } catch (err) {
         console.error('Failed to fetch unread count');
       }
@@ -281,6 +281,7 @@ export const UserProfile: React.FC = () => {
                   </Button>
 
                   <Button
+                    fullWidth
                     variant={
                       activeSection === 'notifications' ? 'contained' : 'text'
                     }
@@ -295,17 +296,40 @@ export const UserProfile: React.FC = () => {
                         <Notifications />
                       </Badge>
                     }
-                    sx={{ justifyContent: 'flex-start' }}
+                    sx={{
+                      justifyContent: 'flex-start',
+                      borderRadius: 2,
+                      py: 1.5,
+                      ...(activeSection === 'notifications' && {
+                        background:
+                          'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                      }),
+                    }}
                   >
-                    Notifications
-                    {unreadCount > 0 && (
-                      <Typography
-                        variant="caption"
-                        sx={{ ml: 1, color: 'error.main', fontWeight: 'bold' }}
-                      >
-                        ({unreadCount})
-                      </Typography>
-                    )}
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        width: '100%',
+                      }}
+                    >
+                      Notifications
+                      {unreadCount > 0 && (
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            ml: 1,
+                            color:
+                              activeSection === 'notifications'
+                                ? 'white'
+                                : 'error.main',
+                            fontWeight: 'bold',
+                          }}
+                        >
+                          ({unreadCount})
+                        </Typography>
+                      )}
+                    </Box>
                   </Button>
                 </Stack>
 

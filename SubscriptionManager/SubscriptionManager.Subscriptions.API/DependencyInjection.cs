@@ -61,6 +61,9 @@ namespace SubscriptionManager.Subscriptions.API
             services.AddDbContext<SubscriptionsDbContext>(options =>
                 options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
 
+            services.AddDbContext<AuthDbContext>(options =>
+                options.UseSqlServer(configuration.GetConnectionString("AuthConnection")));
+
             return services;
         }
 
@@ -84,6 +87,9 @@ namespace SubscriptionManager.Subscriptions.API
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", base64Auth);
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             });
+
+            services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
+            services.AddScoped<IEmailService, EmailService>();
 
             return services;
         }

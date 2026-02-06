@@ -102,4 +102,32 @@ public class EmailService : IEmailService
 
         await client.SendMailAsync(mailMessage);
     }
+
+    public async Task SendNotificationEmailAsync(string email, string title, string message)
+    {
+        using var client = new SmtpClient(_emailSettings.SmtpServer, _emailSettings.SmtpPort);
+        client.EnableSsl = _emailSettings.EnableSsl;
+        if (_emailSettings.UseAuthentication)
+            client.Credentials = new NetworkCredential(_emailSettings.UserName, _emailSettings.Password);
+
+        var mailMessage = new MailMessage
+        {
+            From = new MailAddress(_emailSettings.SenderEmail, _emailSettings.SenderName),
+            Subject = title, 
+            Body = $"""
+                Hello!
+                
+                You have a new notification in Subscription Manager:
+                
+                {message}
+                
+                Best regards,
+                {_emailSettings.SenderName}
+                """,
+            IsBodyHtml = false
+        };
+        mailMessage.To.Add(email);
+
+        await client.SendMailAsync(mailMessage);
+    }
 }

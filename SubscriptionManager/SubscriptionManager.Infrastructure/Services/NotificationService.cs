@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SubscriptionManager.Core.DTOs;
+using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Models;
 using SubscriptionManager.Infrastructure.Data;
 
@@ -17,10 +19,16 @@ namespace SubscriptionManager.Infrastructure.Services
     public class NotificationService : INotificationService
     {
         private readonly SubscriptionsDbContext _context;
+        private readonly AuthDbContext _authContext;
+        private readonly IEmailService _emailService;
+        private readonly ILogger<NotificationService> _logger;
 
-        public NotificationService(SubscriptionsDbContext context)
+        public NotificationService(SubscriptionsDbContext context, AuthDbContext authContext, IEmailService emailService, ILogger<NotificationService> logger)
         {
             _context = context;
+            _authContext = authContext;
+            _emailService = emailService;
+            _logger = logger;
         }
 
         public async Task CreateAsync(Guid userId, string title, string message, NotificationType type)
@@ -36,6 +44,23 @@ namespace SubscriptionManager.Infrastructure.Services
 
             _context.Notifications.Add(notification);
             await _context.SaveChangesAsync();
+
+            try 
+            {
+                var userEmail = await _authContext.Users
+                    .Where(u => u.Id == userId)
+                    .Select(u => u.Email)
+                    .FirstOrDefaultAsync();
+
+                if (!string.IsNullOrEmpty(userEmail))
+                {
+                    await _emailService.SendNotificationEmailAsync(userEmail, title, message);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send email notification");
+            }
         }
 
         public async Task<PagedNotificationsDto> GetPagedNotificationsAsync(Guid userId, int page, int pageSize)

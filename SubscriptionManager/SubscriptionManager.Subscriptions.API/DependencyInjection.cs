@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Options;
 using SubscriptionManager.Infrastructure.Data;
@@ -106,7 +106,9 @@ namespace SubscriptionManager.Subscriptions.API
         {
             options.SwaggerDoc("v1", new OpenApiInfo { Title = "Subscriptions API", Version = "v1" });
 
-            options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+            const string schemeName = "Bearer";
+
+            options.AddSecurityDefinition(schemeName, new OpenApiSecurityScheme
             {
                 Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
                 Name = "Authorization",
@@ -115,20 +117,13 @@ namespace SubscriptionManager.Subscriptions.API
                 Scheme = "Bearer"
             });
 
-            options.AddSecurityRequirement(new OpenApiSecurityRequirement
-        {
+            options.AddSecurityRequirement(_ => new OpenApiSecurityRequirement
             {
-                new OpenApiSecurityScheme
                 {
-                    Reference = new OpenApiReference
-                    {
-                        Type = ReferenceType.SecurityScheme,
-                        Id = "Bearer"
-                    }
-                },
-                new string[] {}
-            }
-        });
+                    new OpenApiSecuritySchemeReference(schemeName),
+                    new List<string>()
+                }
+            });
         }
         private static IServiceCollection AddSubscriptionsHealthChecks(this IServiceCollection services, IConfiguration configuration)
         {

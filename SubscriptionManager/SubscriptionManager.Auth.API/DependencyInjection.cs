@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Options;
 using SubscriptionManager.Infrastructure.Data;
@@ -96,7 +96,11 @@ namespace SubscriptionManager.Auth.API
         }
         private static void ConfigureSwagger(SwaggerGenOptions options)
         {
-            options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+            options.SwaggerDoc("v1", new OpenApiInfo { Title = "Subscriptions API", Version = "v1" });
+
+            const string schemeName = "Bearer";
+
+            options.AddSecurityDefinition(schemeName, new OpenApiSecurityScheme
             {
                 Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
                 Name = "Authorization",
@@ -105,20 +109,13 @@ namespace SubscriptionManager.Auth.API
                 Scheme = "Bearer"
             });
 
-            options.AddSecurityRequirement(new OpenApiSecurityRequirement
-        {
+            options.AddSecurityRequirement(_ => new OpenApiSecurityRequirement
             {
-                new OpenApiSecurityScheme
                 {
-                    Reference = new OpenApiReference
-                    {
-                        Type = ReferenceType.SecurityScheme,
-                        Id = "Bearer"
-                    }
-                },
-                new string[] {}
-            }
-        });
+                    new OpenApiSecuritySchemeReference(schemeName),
+                    new List<string>()
+                }
+            });
         }
         private static IServiceCollection AddAuthHealthChecks(this IServiceCollection services, IConfiguration configuration)
         {

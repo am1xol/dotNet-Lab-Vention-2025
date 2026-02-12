@@ -51,8 +51,12 @@ public class CustomPasswordHasher : IPasswordHasher
 
     private static byte[] PBKDF2(string password, byte[] salt, int iterations, int outputBytes)
     {
-        using var pbkdf2 = new Rfc2898DeriveBytes(password, salt, iterations, HashAlgorithmName.SHA256);
-        return pbkdf2.GetBytes(outputBytes);
+        return Rfc2898DeriveBytes.Pbkdf2(
+        password,
+        salt,
+        iterations,
+        HashAlgorithmName.SHA256,
+        outputBytes);
     }
 
     private static bool SlowEquals(byte[] a, byte[] b)

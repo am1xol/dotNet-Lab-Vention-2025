@@ -1,8 +1,8 @@
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 WORKDIR /app
 EXPOSE 8080
 
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY ["SubscriptionManager/SubscriptionManager.Subscriptions.API/SubscriptionManager.Subscriptions.API.csproj", "SubscriptionManager/SubscriptionManager.Subscriptions.API/"]
 COPY ["SubscriptionManager/SubscriptionManager.Core/SubscriptionManager.Core.csproj", "SubscriptionManager/SubscriptionManager.Core/"]

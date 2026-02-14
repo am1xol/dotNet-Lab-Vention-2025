@@ -8,6 +8,8 @@ builder.Services.AddSubscriptionsApiServices(builder.Configuration);
 
 builder.Services.AddSharedCors(SharedConstants.CorsPolicy);
 
+builder.Services.AddObservability(builder.Configuration, "Subscriptions.API");
+
 var app = builder.Build();
 
 await app.ApplyMigrationsAsync<SubscriptionsDbContext>();

@@ -9,6 +9,8 @@ builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddSharedCors(SharedConstants.CorsPolicy);
 
+builder.Services.AddObservability(builder.Configuration, "Auth.API");
+
 var app = builder.Build();
 
 await app.ApplyMigrationsAsync<AuthDbContext>();

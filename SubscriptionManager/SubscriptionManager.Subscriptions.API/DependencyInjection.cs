@@ -11,6 +11,11 @@ using SubscriptionManager.Subscriptions.API.Services;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using System.Net.Http.Headers;
 using System.Text;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using OpenTelemetry.Logs;
+using Microsoft.OpenApi.Models;
 
 namespace SubscriptionManager.Subscriptions.API
 {
@@ -104,26 +109,44 @@ namespace SubscriptionManager.Subscriptions.API
         }
         private static void ConfigureSwagger(SwaggerGenOptions options)
         {
-            options.SwaggerDoc("v1", new OpenApiInfo { Title = "Subscriptions API", Version = "v1" });
+            options.SwaggerDoc("v1", new OpenApiInfo
+            {
+                Title = "Subscriptions API",
+                Version = "v1"
+            });
 
             const string schemeName = "Bearer";
 
-            options.AddSecurityDefinition(schemeName, new OpenApiSecurityScheme
+            // Определение схемы
+            var securityScheme = new OpenApiSecurityScheme
             {
-                Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
                 Name = "Authorization",
+                Description = "Введите только JWT токен",
                 In = ParameterLocation.Header,
-                Type = SecuritySchemeType.ApiKey,
-                Scheme = "Bearer"
-            });
+                Type = SecuritySchemeType.Http,
+                Scheme = "bearer",
+                BearerFormat = "JWT"
+            };
 
-            options.AddSecurityRequirement(_ => new OpenApiSecurityRequirement
+            options.AddSecurityDefinition(schemeName, securityScheme);
+
+            // Определение требования
+            var securityRequirement = new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
             {
+                Reference = new OpenApiReference
                 {
-                    new OpenApiSecuritySchemeReference(schemeName),
-                    new List<string>()
+                    Type = ReferenceType.SecurityScheme,
+                    Id = schemeName
                 }
-            });
+            },
+            Array.Empty<string>()
+        }
+    };
+
+            options.AddSecurityRequirement(securityRequirement);
         }
         private static IServiceCollection AddSubscriptionsHealthChecks(this IServiceCollection services, IConfiguration configuration)
         {
@@ -141,6 +164,55 @@ namespace SubscriptionManager.Subscriptions.API
                 );
 
             services.AddScoped<IFileStorageService, FileStorageService>();
+
+            return services;
+        }
+
+        public static IServiceCollection AddObservability(this IServiceCollection services, IConfiguration configuration, string serviceName)
+        {
+            services.AddOpenTelemetry()
+                .WithTracing(tracing =>
+                {
+                    tracing.AddSource(serviceName)
+                        .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(serviceName))
+                        .AddAspNetCoreInstrumentation()
+                        .AddHttpClientInstrumentation()
+                        .AddSqlClientInstrumentation()
+                        .AddEntityFrameworkCoreInstrumentation()
+                        .AddOtlpExporter(options =>
+                        {
+                            options.Endpoint = new Uri(configuration["OTEL_EXPORTER_OTLP_ENDPOINT"] ?? "http://localhost:4317");
+                            options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+                        });
+                })
+                .WithMetrics(metrics =>
+                {
+                    metrics.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(serviceName))
+                        .AddAspNetCoreInstrumentation()
+                        .AddHttpClientInstrumentation()
+                        .AddRuntimeInstrumentation()
+                        .AddOtlpExporter(options =>
+                        {
+                            options.Endpoint = new Uri(configuration["OTEL_EXPORTER_OTLP_ENDPOINT"] ?? "http://localhost:4317");
+                            options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+                        });
+                });
+
+            services.AddLogging(logging =>
+            {
+                logging.AddOpenTelemetry(options =>
+                {
+                    options.IncludeFormattedMessage = true;
+                    options.IncludeScopes = true;
+
+                    options.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(serviceName));
+                    options.AddOtlpExporter(otlpOptions =>
+                    {
+                        otlpOptions.Endpoint = new Uri(configuration["OTEL_EXPORTER_OTLP_ENDPOINT"] ?? "http://localhost:4317");
+                        otlpOptions.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+                    });
+                });
+            });
 
             return services;
         }

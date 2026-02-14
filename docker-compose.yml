@@ -1,4 +1,17 @@
 services:
+  aspire-dashboard:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:13.1 
+    container_name: aspire-dashboard
+    ports:
+      - "18888:18888"
+      - "4317:4317"
+    environment:
+      - ASPIRE_DASHBOARD_OTLP_PRIMARY_API_KEY=YourSecretKey123!
+      - DOTNET_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS=true 
+      - DOTNET_DASHBOARD_OTLP_ENDPOINT_URL=http://0.0.0.0:4317
+    networks:
+      - app-network
+
   auth-api:
     build: 
       context: .
@@ -13,8 +26,12 @@ services:
       - MinIO__AccessKey=minioadmin
       - MinIO__SecretKey=minioadmin
       - MinIO__BucketName=subscriptions
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://aspire-dashboard:4317
+      - OTEL_SERVICE_NAME=Auth.API
+      - OTEL_EXPORTER_OTLP_HEADERS=x-otlp-api-key=YourSecretKey123!
     depends_on:
       - sql-server
+      - aspire-dashboard
     networks:
       - app-network
     entrypoint: [ "sh", "-c", "sleep 30 && dotnet SubscriptionManager.Auth.API.dll" ]
@@ -40,8 +57,12 @@ services:
       - MinIO__AccessKey=minioadmin
       - MinIO__SecretKey=minioadmin
       - MinIO__BucketName=subscriptions
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://aspire-dashboard:4317
+      - OTEL_SERVICE_NAME=Subscriptions.API
+      - OTEL_EXPORTER_OTLP_HEADERS=x-otlp-api-key=YourSecretKey123!
     depends_on:
       - sql-server
+      - aspire-dashboard
     entrypoint: [ "sh", "-c", "sleep 30 && dotnet SubscriptionManager.Subscriptions.API.dll" ]
     networks:
       - app-network

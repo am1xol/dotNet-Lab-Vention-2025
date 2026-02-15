@@ -20,13 +20,13 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: 10.0.x
 
     - name: Install dependencies
-      run: dotnet restore SubscriptionManager/SubscriptionManager.sln
+      run: dotnet restore SubscriptionManager/SubscriptionManager.slnx
       
     - name: Build
-      run: dotnet build SubscriptionManager/SubscriptionManager.sln --configuration Release --no-restore
+      run: dotnet build SubscriptionManager/SubscriptionManager.slnx --configuration Release --no-restore
     
     - name: Test
-      run: dotnet test SubscriptionManager/SubscriptionManager.sln --no-restore --verbosity normal
+      run: dotnet test SubscriptionManager/SubscriptionManager.slnx --no-restore --verbosity normal

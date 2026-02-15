@@ -30,11 +30,12 @@ services:
       - OTEL_SERVICE_NAME=Auth.API
       - OTEL_EXPORTER_OTLP_HEADERS=x-otlp-api-key=YourSecretKey123!
     depends_on:
-      - sql-server
-      - aspire-dashboard
+      sql-server:
+        condition: service_healthy
+      aspire-dashboard:
+        condition: service_started
     networks:
       - app-network
-    entrypoint: [ "sh", "-c", "sleep 30 && dotnet SubscriptionManager.Auth.API.dll" ]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health/live"]
       interval: 30s
@@ -61,9 +62,10 @@ services:
       - OTEL_SERVICE_NAME=Subscriptions.API
       - OTEL_EXPORTER_OTLP_HEADERS=x-otlp-api-key=YourSecretKey123!
     depends_on:
-      - sql-server
-      - aspire-dashboard
-    entrypoint: [ "sh", "-c", "sleep 30 && dotnet SubscriptionManager.Subscriptions.API.dll" ]
+      sql-server:
+        condition: service_healthy
+      aspire-dashboard:
+        condition: service_started
     networks:
       - app-network
     healthcheck:
@@ -98,6 +100,12 @@ services:
       - sqlserver_data:/var/opt/mssql
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "YourPassword123!", "-C", "-Q", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
       
   minio:
     image: minio/minio

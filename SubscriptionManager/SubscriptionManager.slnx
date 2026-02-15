@@ -1,0 +1,13 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="SubscriptionManager.Auth.API/SubscriptionManager.Auth.API.csproj" />
+  <Project Path="SubscriptionManager.Core/SubscriptionManager.Core.csproj" />
+  <Project Path="SubscriptionManager.Infrastructure.Shared/SubscriptionManager.Infrastructure.Shared.csproj" />
+  <Project Path="SubscriptionManager.Infrastructure/SubscriptionManager.Infrastructure.csproj" />
+  <Project Path="SubscriptionManager.Subscriptions.API/SubscriptionManager.Subscriptions.API.csproj" />
+  <Project Path="SubscriptionManager.Tests/SubscriptionManager.Tests.csproj" />
+</Solution>

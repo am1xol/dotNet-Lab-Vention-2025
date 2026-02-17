@@ -94,16 +94,10 @@ namespace SubscriptionManager.Infrastructure.Services
 
         public async Task MarkAllAsReadAsync(Guid userId)
         {
-            var unreadNotifications = await _context.Notifications
+            await _context.Notifications
                 .Where(n => n.UserId == userId && !n.IsRead)
-                .ToListAsync();
-
-            foreach (var notification in unreadNotifications)
-            {
-                notification.IsRead = true;
-            }
-
-            await _context.SaveChangesAsync();
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(n => n.IsRead, true));
         }
 
         public async Task<List<NotificationDto>> GetUserNotificationsAsync(Guid userId)

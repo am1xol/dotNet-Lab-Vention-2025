@@ -344,15 +344,11 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
 
             if (!request.IsActive && subscription.IsActive)
             {
-                var activeUserSubscriptions = await _context.UserSubscriptions
+                await _context.UserSubscriptions
                     .Where(us => us.SubscriptionId == id && us.IsActive)
-                    .ToListAsync();
-
-                foreach (var userSubscription in activeUserSubscriptions)
-                {
-                    userSubscription.CancelledAt = DateTime.UtcNow;
-                    userSubscription.ValidUntil = userSubscription.NextBillingDate;
-                }
+                    .ExecuteUpdateAsync(setters => setters
+                        .SetProperty(us => us.CancelledAt, DateTime.UtcNow)
+                        .SetProperty(us => us.ValidUntil, us => us.NextBillingDate));
             }
 
             subscription.IsActive = request.IsActive;

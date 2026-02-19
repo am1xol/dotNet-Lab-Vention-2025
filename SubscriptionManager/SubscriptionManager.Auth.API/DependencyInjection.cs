@@ -9,9 +9,9 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Options;
-using SubscriptionManager.Infrastructure.Data;
-using SubscriptionManager.Infrastructure.Repositories;
-using SubscriptionManager.Infrastructure.Services;
+using SubscriptionManager.Auth.Infrastructure.Data;
+using SubscriptionManager.Auth.Infrastructure.Repositories;
+using SubscriptionManager.Auth.Infrastructure.Services;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using System.Text;
 

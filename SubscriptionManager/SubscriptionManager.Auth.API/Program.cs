@@ -1,5 +1,5 @@
 using SubscriptionManager.Auth.API;
-using SubscriptionManager.Infrastructure.Data;
+using SubscriptionManager.Auth.Infrastructure.Data;
 using SubscriptionManager.Infrastructure.Shared;
 
 var builder = WebApplication.CreateBuilder(args);

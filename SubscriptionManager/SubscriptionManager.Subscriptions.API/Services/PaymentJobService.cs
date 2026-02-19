@@ -1,9 +1,9 @@
 ﻿using SubscriptionManager.Core;
 using SubscriptionManager.Core.Models;
-using SubscriptionManager.Infrastructure.Data;
+using SubscriptionManager.Subscriptions.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using SubscriptionManager.Core.Interfaces;
-using SubscriptionManager.Infrastructure.Services;
+using SubscriptionManager.Subscriptions.Infrastructure.Services;
 
 namespace SubscriptionManager.Subscriptions.API.Services
 {

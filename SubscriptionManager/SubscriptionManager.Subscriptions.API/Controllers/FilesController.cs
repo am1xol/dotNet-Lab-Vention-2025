@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SubscriptionManager.Core.Models;
-using SubscriptionManager.Infrastructure.Services;
+using SubscriptionManager.Subscriptions.Infrastructure.Services;
 
 namespace SubscriptionManager.Subscriptions.API.Controllers
 {

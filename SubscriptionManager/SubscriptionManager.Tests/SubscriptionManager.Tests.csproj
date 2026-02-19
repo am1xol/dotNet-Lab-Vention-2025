@@ -31,7 +31,6 @@
   <ItemGroup>
     <ProjectReference Include="..\SubscriptionManager.Auth.API\SubscriptionManager.Auth.API.csproj" />
     <ProjectReference Include="..\SubscriptionManager.Core\SubscriptionManager.Core.csproj" />
-    <ProjectReference Include="..\SubscriptionManager.Infrastructure\SubscriptionManager.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
-using SubscriptionManager.Infrastructure.Data;
+using SubscriptionManager.Auth.Infrastructure.Data;
 
 namespace SubscriptionManager.Auth.API
 {

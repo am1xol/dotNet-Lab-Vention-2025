@@ -1,7 +1,7 @@
 ﻿using HealthChecks.UI.Client;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
-using SubscriptionManager.Infrastructure.Data;
+using SubscriptionManager.Subscriptions.Infrastructure.Data;
 
 namespace SubscriptionManager.Subscriptions.API
 {

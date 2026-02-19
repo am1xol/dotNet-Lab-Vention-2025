@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Options;
 using SubscriptionManager.Core.Options;
-using SubscriptionManager.Infrastructure.Services;
+using SubscriptionManager.Auth.Infrastructure.Services;
 using Xunit;
 
 namespace SubscriptionManager.Tests;

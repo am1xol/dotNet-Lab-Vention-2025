@@ -5,8 +5,8 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Options;
-using SubscriptionManager.Infrastructure.Data;
-using SubscriptionManager.Infrastructure.Services;
+using SubscriptionManager.Subscriptions.Infrastructure.Data;
+using SubscriptionManager.Subscriptions.Infrastructure.Services;
 using SubscriptionManager.Subscriptions.API.Services;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using System.Net.Http.Headers;
@@ -16,6 +16,8 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using OpenTelemetry.Logs;
 using Microsoft.OpenApi.Models;
+using SubscriptionManager.Auth.Infrastructure.Data;
+using SubscriptionManager.Auth.Infrastructure.Services;
 
 namespace SubscriptionManager.Subscriptions.API
 {

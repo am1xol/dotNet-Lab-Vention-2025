@@ -6,7 +6,7 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY ["SubscriptionManager/SubscriptionManager.Subscriptions.API/SubscriptionManager.Subscriptions.API.csproj", "SubscriptionManager/SubscriptionManager.Subscriptions.API/"]
 COPY ["SubscriptionManager/SubscriptionManager.Core/SubscriptionManager.Core.csproj", "SubscriptionManager/SubscriptionManager.Core/"]
-COPY ["SubscriptionManager/SubscriptionManager.Infrastructure/SubscriptionManager.Infrastructure.csproj", "SubscriptionManager/SubscriptionManager.Infrastructure/"]
+COPY ["SubscriptionManager/SubscriptionManager.Subscriptions.Infrastructure/SubscriptionManager.Subscriptions.Infrastructure.csproj", "SubscriptionManager/SubscriptionManager.Subscriptions.Infrastructure/"]
 COPY ["SubscriptionManager/SubscriptionManager.Infrastructure.Shared/SubscriptionManager.Infrastructure.Shared.csproj", "SubscriptionManager/SubscriptionManager.Infrastructure.Shared/"]
 RUN dotnet restore "SubscriptionManager/SubscriptionManager.Subscriptions.API/SubscriptionManager.Subscriptions.API.csproj"
 COPY . .

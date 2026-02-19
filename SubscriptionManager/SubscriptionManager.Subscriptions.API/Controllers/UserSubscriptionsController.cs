@@ -6,8 +6,8 @@ using SubscriptionManager.Core;
 using SubscriptionManager.Core.DTOs;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Models;
-using SubscriptionManager.Infrastructure.Data;
-using SubscriptionManager.Infrastructure.Services;
+using SubscriptionManager.Subscriptions.Infrastructure.Data;
+using SubscriptionManager.Subscriptions.Infrastructure.Services;
 using System.Security.Claims;
 
 namespace SubscriptionManager.Subscriptions.API.Controllers

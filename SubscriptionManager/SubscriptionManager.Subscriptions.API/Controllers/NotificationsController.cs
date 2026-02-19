@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SubscriptionManager.Core.DTOs;
-using SubscriptionManager.Infrastructure.Services;
+using SubscriptionManager.Subscriptions.Infrastructure.Services;
 using System.Security.Claims;
 
 namespace SubscriptionManager.Subscriptions.API.Controllers

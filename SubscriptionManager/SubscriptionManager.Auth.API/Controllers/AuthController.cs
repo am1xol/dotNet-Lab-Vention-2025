@@ -6,8 +6,6 @@ using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Models;
 using SubscriptionManager.Core.Models.Requests;
 using SubscriptionManager.Core.Models.Responses;
-using SubscriptionManager.Infrastructure.Repositories;
-using SubscriptionManager.Infrastructure.Services;
 using System.Security.Claims;
 
 namespace SubscriptionManager.API.Controllers;

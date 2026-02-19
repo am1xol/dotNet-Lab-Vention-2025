@@ -6,7 +6,7 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY ["SubscriptionManager/SubscriptionManager.Auth.API/SubscriptionManager.Auth.API.csproj", "SubscriptionManager/SubscriptionManager.Auth.API/"]
 COPY ["SubscriptionManager/SubscriptionManager.Core/SubscriptionManager.Core.csproj", "SubscriptionManager/SubscriptionManager.Core/"]
-COPY ["SubscriptionManager/SubscriptionManager.Infrastructure/SubscriptionManager.Infrastructure.csproj", "SubscriptionManager/SubscriptionManager.Infrastructure/"]
+COPY ["SubscriptionManager/SubscriptionManager.Auth.Infrastructure/SubscriptionManager.Auth.Infrastructure.csproj", "SubscriptionManager/SubscriptionManager.Auth.Infrastructure/"]
 COPY ["SubscriptionManager/SubscriptionManager.Infrastructure.Shared/SubscriptionManager.Infrastructure.Shared.csproj", "SubscriptionManager/SubscriptionManager.Infrastructure.Shared/"]
 RUN dotnet restore "SubscriptionManager/SubscriptionManager.Auth.API/SubscriptionManager.Auth.API.csproj"
 COPY . .

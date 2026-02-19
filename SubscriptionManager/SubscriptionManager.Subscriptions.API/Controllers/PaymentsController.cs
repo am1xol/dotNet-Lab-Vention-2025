@@ -3,8 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using SubscriptionManager.Core;
 using SubscriptionManager.Core.DTOs;
 using SubscriptionManager.Core.Models;
-using SubscriptionManager.Infrastructure.Data;
-using SubscriptionManager.Infrastructure.Services;
+using SubscriptionManager.Subscriptions.Infrastructure.Data;
+using SubscriptionManager.Subscriptions.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace SubscriptionManager.Subscriptions.API.Controllers

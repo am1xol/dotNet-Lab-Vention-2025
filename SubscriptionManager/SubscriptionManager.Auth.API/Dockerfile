@@ -4,6 +4,8 @@ EXPOSE 8080
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
+COPY ["SubscriptionManager/Directory.Build.props", "./"]
+COPY ["SubscriptionManager/Directory.Packages.props", "./"]
 COPY ["SubscriptionManager/SubscriptionManager.Auth.API/SubscriptionManager.Auth.API.csproj", "SubscriptionManager/SubscriptionManager.Auth.API/"]
 COPY ["SubscriptionManager/SubscriptionManager.Core/SubscriptionManager.Core.csproj", "SubscriptionManager/SubscriptionManager.Core/"]
 COPY ["SubscriptionManager/SubscriptionManager.Auth.Infrastructure/SubscriptionManager.Auth.Infrastructure.csproj", "SubscriptionManager/SubscriptionManager.Auth.Infrastructure/"]

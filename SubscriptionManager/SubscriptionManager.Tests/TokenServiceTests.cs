@@ -1,14 +1,9 @@
 ﻿using Microsoft.Extensions.Options;
+using SubscriptionManager.Auth.Infrastructure.Services;
 using SubscriptionManager.Core.Models;
 using SubscriptionManager.Core.Options;
-using SubscriptionManager.Auth.Infrastructure.Services;
-using System;
-using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
-using System.Linq;
 using System.Security.Claims;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SubscriptionManager.Tests
 {

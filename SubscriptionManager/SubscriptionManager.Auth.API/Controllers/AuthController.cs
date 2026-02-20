@@ -1,12 +1,8 @@
 ﻿using EmailValidation;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
 using SubscriptionManager.Core.Interfaces;
-using SubscriptionManager.Core.Models;
 using SubscriptionManager.Core.Models.Requests;
 using SubscriptionManager.Core.Models.Responses;
-using System.Security.Claims;
 
 namespace SubscriptionManager.API.Controllers;
 

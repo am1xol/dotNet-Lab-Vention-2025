@@ -1,12 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Security.Cryptography;
-using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Options;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Options;
+using System.Security.Cryptography;
 
 namespace SubscriptionManager.Auth.Infrastructure.Services;
 

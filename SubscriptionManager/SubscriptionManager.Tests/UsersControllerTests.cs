@@ -2,11 +2,11 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
+using SubscriptionManager.Auth.API.Controllers;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Models;
 using SubscriptionManager.Core.Models.Responses;
 using System.Security.Claims;
-using SubscriptionManager.Auth.API.Controllers;
 
 namespace SubscriptionManager.Tests
 {
@@ -25,7 +25,7 @@ namespace SubscriptionManager.Tests
                 IsEmailVerified = true,
                 CreatedAt = DateTime.UtcNow
             };
-            
+
             var userRepository = new TestUserRepository(user);
             var mockLogger = new Mock<ILogger<UsersController>>();
             var controller = new UsersController(userRepository, null!, mockLogger.Object);

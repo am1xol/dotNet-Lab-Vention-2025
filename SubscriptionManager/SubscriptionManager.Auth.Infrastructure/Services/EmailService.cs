@@ -1,16 +1,8 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Options;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Options;
-using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
 using System.Net;
 using System.Net.Mail;
-using System.Text;
-using System.Threading.Tasks;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace SubscriptionManager.Auth.Infrastructure.Services;
 
@@ -113,7 +105,7 @@ public class EmailService : IEmailService
         var mailMessage = new MailMessage
         {
             From = new MailAddress(_emailSettings.SenderEmail, _emailSettings.SenderName),
-            Subject = title, 
+            Subject = title,
             Body = $"""
                 Hello!
                 

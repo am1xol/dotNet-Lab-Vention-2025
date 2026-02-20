@@ -37,7 +37,7 @@ namespace SubscriptionManager.Subscriptions.Infrastructure.Services
                     Version = ApiVersion,
                     Order = new OrderData
                     {
-                        Amount = ConvertToCopies(amount), 
+                        Amount = ConvertToCopies(amount),
                         Currency = currency,
                         Description = description,
                         TrackingId = trackingId,
@@ -92,9 +92,9 @@ namespace SubscriptionManager.Subscriptions.Infrastructure.Services
         public async Task<PaymentStatus?> CheckPaymentStatusAsync(string trackingId)
         {
             try
-            {                
+            {
                 var response = await _httpClient.GetAsync($"https://api.bepaid.by/beyag/transactions/tracking_id/{trackingId}");
-                
+
                 if (!response.IsSuccessStatusCode)
                 {
                     _logger.LogError("Error checking bePaid status: {StatusCode}", response.StatusCode);
@@ -102,7 +102,7 @@ namespace SubscriptionManager.Subscriptions.Infrastructure.Services
                 }
 
                 var result = await response.Content.ReadFromJsonAsync<BePaidTrackingResponse>();
-                
+
                 var transaction = result?.Transactions?.OrderByDescending(t => t.CreatedAt).FirstOrDefault();
 
                 if (transaction == null) return null;

@@ -1,12 +1,11 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using DeviceDetectorNET;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using SubscriptionManager.Core.Constants;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Models;
 using SubscriptionManager.Core.Models.Requests;
 using SubscriptionManager.Core.Models.Responses;
-using Microsoft.AspNetCore.Http; 
-using DeviceDetectorNET;
 
 namespace SubscriptionManager.Auth.Infrastructure.Services;
 

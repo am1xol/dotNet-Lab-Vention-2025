@@ -1,12 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 using SubscriptionManager.Core.DTOs;
 using SubscriptionManager.Subscriptions.Infrastructure.Data;
-using AutoMapper;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SubscriptionManager.Subscriptions.Infrastructure.Services
 {

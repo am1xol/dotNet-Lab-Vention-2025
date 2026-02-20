@@ -1,5 +1,3 @@
-using System;
-
 namespace SubscriptionManager.Core.Models
 {
     public class Notification

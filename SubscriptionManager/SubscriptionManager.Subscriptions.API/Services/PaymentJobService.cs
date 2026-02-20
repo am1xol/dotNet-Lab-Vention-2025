@@ -1,8 +1,8 @@
-﻿using SubscriptionManager.Core;
+﻿using Microsoft.EntityFrameworkCore;
+using SubscriptionManager.Core;
+using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Models;
 using SubscriptionManager.Subscriptions.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
-using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Subscriptions.Infrastructure.Services;
 
 namespace SubscriptionManager.Subscriptions.API.Services
@@ -30,7 +30,7 @@ namespace SubscriptionManager.Subscriptions.API.Services
         public async Task<int> CleanupStuckPaymentsAsync(CancellationToken ct)
         {
             var checkThreshold = DateTime.UtcNow.AddMinutes(-35);
-            
+
             var stuckPayments = await _context.Payments
                 .Include(p => p.UserSubscription)
                     .ThenInclude(us => us.Subscription)
@@ -54,7 +54,7 @@ namespace SubscriptionManager.Subscriptions.API.Services
                         if (remoteStatus.Value != PaymentStatus.Pending)
                         {
                             payment.Status = remoteStatus.Value;
-                            
+
                             if (payment.Status == PaymentStatus.Completed && payment.UserSubscription != null)
                             {
                                 payment.UserSubscription.IsActive = true;
@@ -73,9 +73,9 @@ namespace SubscriptionManager.Subscriptions.API.Services
                         }
                     }
                     else
-                    {                        
+                    {
                         payment.Status = PaymentStatus.Failed;
-                        
+
                         await _notificationService.CreateAsync(
                             payment.UserId,
                             "Время ожидания истекло",
@@ -107,8 +107,8 @@ namespace SubscriptionManager.Subscriptions.API.Services
 
             var expiredSubscriptions = await _context.UserSubscriptions
                 .Include(us => us.Subscription)
-                .Where(us => us.IsActive 
-                             && us.NextBillingDate < now 
+                .Where(us => us.IsActive
+                             && us.NextBillingDate < now
                              && (!us.ValidUntil.HasValue || us.ValidUntil < now))
                 .ToListAsync(ct);
 

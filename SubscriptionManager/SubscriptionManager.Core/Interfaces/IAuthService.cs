@@ -1,10 +1,5 @@
 ﻿using SubscriptionManager.Core.Models.Requests;
 using SubscriptionManager.Core.Models.Responses;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SubscriptionManager.Core.Interfaces
 {

@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using SubscriptionManager.Core.Models;
+﻿using SubscriptionManager.Core.Models;
 
 namespace SubscriptionManager.Core.Interfaces;
 

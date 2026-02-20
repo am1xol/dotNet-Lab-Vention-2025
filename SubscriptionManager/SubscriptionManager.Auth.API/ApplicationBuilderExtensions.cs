@@ -1,7 +1,4 @@
-﻿using HealthChecks.UI.Client;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.EntityFrameworkCore;
-using SubscriptionManager.Auth.Infrastructure.Data;
+﻿using SubscriptionManager.Infrastructure.Shared;
 
 namespace SubscriptionManager.Auth.API
 {
@@ -43,45 +40,9 @@ namespace SubscriptionManager.Auth.API
         private static WebApplication ConfigureEndpoints(this WebApplication app)
         {
             app.MapControllers();
-            app.ConfigureHealthChecks();
+            app.MapSharedHealthChecks();
 
             return app;
-        }
-        private static WebApplication ConfigureHealthChecks(this WebApplication app)
-        {
-            app.MapHealthChecks("/health", new HealthCheckOptions
-            {
-                ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse,
-                Predicate = _ => true
-            });
-
-            app.MapHealthChecks("/health/ready", new HealthCheckOptions
-            {
-                ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse,
-                Predicate = check => check.Tags.Contains("database")
-            });
-
-            app.MapHealthChecks("/health/live", new HealthCheckOptions
-            {
-                ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse,
-                Predicate = check => !check.Tags.Contains("database")
-            });
-
-            return app;
-        }
-        public static async Task ApplyMigrationsAsync(this WebApplication app)
-        {
-            using var scope = app.Services.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
-            try
-            {
-                await dbContext.Database.MigrateAsync();
-                Console.WriteLine("Migrations applied successfully");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Migrations warning: {ex.Message}");
-            }
         }
     }
 }

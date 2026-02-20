@@ -1,6 +1,6 @@
+using SubscriptionManager.Infrastructure.Shared;
 using SubscriptionManager.Subscriptions.API;
 using SubscriptionManager.Subscriptions.Infrastructure.Data;
-using SubscriptionManager.Infrastructure.Shared;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,7 +8,7 @@ builder.Services.AddSubscriptionsApiServices(builder.Configuration);
 
 builder.Services.AddSharedCors(SharedConstants.CorsPolicy);
 
-builder.Services.AddObservability(builder.Configuration, "Subscriptions.API");
+builder.Services.AddSharedObservability(builder.Configuration, "Subscriptions.API");
 
 var app = builder.Build();
 

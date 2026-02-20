@@ -1,5 +1,4 @@
 ﻿using SubscriptionManager.Core.Validation;
-using Xunit;
 
 namespace SubscriptionManager.Tests;
 

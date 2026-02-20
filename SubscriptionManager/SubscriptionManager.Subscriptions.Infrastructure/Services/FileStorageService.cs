@@ -5,11 +5,6 @@ using Minio.DataModel.Args;
 using SubscriptionManager.Core.Models;
 using SubscriptionManager.Core.Options;
 using SubscriptionManager.Subscriptions.Infrastructure.Data;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace SubscriptionManager.Subscriptions.Infrastructure.Services
 {

@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
+﻿using System.Text.Json.Serialization;
 
 namespace SubscriptionManager.Core.DTOs
 {
@@ -98,7 +93,7 @@ namespace SubscriptionManager.Core.DTOs
         public long? Amount { get; set; }
 
         [JsonPropertyName("tracking_id")]
-        public string TrackingId { get; set; } = string.Empty; 
+        public string TrackingId { get; set; } = string.Empty;
 
         [JsonPropertyName("payment_method_type")]
         public string PaymentMethodType { get; set; } = string.Empty;

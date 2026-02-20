@@ -1,10 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using SubscriptionManager.Auth.Infrastructure.Data;
 using SubscriptionManager.Core.DTOs;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Models;
 using SubscriptionManager.Subscriptions.Infrastructure.Data;
-using SubscriptionManager.Auth.Infrastructure.Data;
 
 namespace SubscriptionManager.Subscriptions.Infrastructure.Services
 {
@@ -46,7 +46,7 @@ namespace SubscriptionManager.Subscriptions.Infrastructure.Services
             _context.Notifications.Add(notification);
             await _context.SaveChangesAsync();
 
-            try 
+            try
             {
                 var userEmail = await _authContext.Users
                     .Where(u => u.Id == userId)
@@ -71,7 +71,7 @@ namespace SubscriptionManager.Subscriptions.Infrastructure.Services
                 .OrderByDescending(n => n.CreatedAt);
 
             var totalCount = await query.CountAsync();
-            
+
             var items = await query
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
@@ -86,10 +86,10 @@ namespace SubscriptionManager.Subscriptions.Infrastructure.Services
                 })
                 .ToListAsync();
 
-            return new PagedNotificationsDto 
-            { 
-                Items = items, 
-                TotalCount = totalCount 
+            return new PagedNotificationsDto
+            {
+                Items = items,
+                TotalCount = totalCount
             };
         }
 

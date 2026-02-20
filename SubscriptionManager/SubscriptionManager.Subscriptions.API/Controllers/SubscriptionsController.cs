@@ -1,13 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SubscriptionManager.Core;
 using SubscriptionManager.Core.DTOs;
-using SubscriptionManager.Core.Models;
 using SubscriptionManager.Subscriptions.Infrastructure.Data;
 using SubscriptionManager.Subscriptions.Infrastructure.Services;
-using System.Security.Claims;
 
 namespace SubscriptionManager.Subscriptions.API.Controllers
 {
@@ -60,8 +57,8 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
 
             if (!string.IsNullOrEmpty(search))
             {
-                query = query.Where(s => 
-                    s.Name.Contains(search) || 
+                query = query.Where(s =>
+                    s.Name.Contains(search) ||
                     s.Description.Contains(search));
             }
 
@@ -85,17 +82,17 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             {
                 query = orderBy.ToLower() switch
                 {
-                    "name" => descending.HasValue && descending.Value ? 
-                        query.OrderByDescending(s => s.Name) : 
+                    "name" => descending.HasValue && descending.Value ?
+                        query.OrderByDescending(s => s.Name) :
                         query.OrderBy(s => s.Name),
-                    "price" => descending.HasValue && descending.Value ? 
-                        query.OrderByDescending(s => s.Price) : 
+                    "price" => descending.HasValue && descending.Value ?
+                        query.OrderByDescending(s => s.Price) :
                         query.OrderBy(s => s.Price),
-                    "createdat" => descending.HasValue && descending.Value ? 
-                        query.OrderByDescending(s => s.CreatedAt) : 
+                    "createdat" => descending.HasValue && descending.Value ?
+                        query.OrderByDescending(s => s.CreatedAt) :
                         query.OrderBy(s => s.CreatedAt),
-                    _ => descending.HasValue && descending.Value ? 
-                        query.OrderByDescending(s => s.CreatedAt) : 
+                    _ => descending.HasValue && descending.Value ?
+                        query.OrderByDescending(s => s.CreatedAt) :
                         query.OrderBy(s => s.CreatedAt)
                 };
             }

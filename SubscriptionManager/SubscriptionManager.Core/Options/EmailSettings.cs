@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace SubscriptionManager.Core.Options
+﻿namespace SubscriptionManager.Core.Options
 {
     public class EmailSettings
     {

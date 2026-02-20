@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using SubscriptionManager.Core.DTOs;
+﻿using SubscriptionManager.Core.DTOs;
 
 namespace SubscriptionManager.Core.Interfaces
 {

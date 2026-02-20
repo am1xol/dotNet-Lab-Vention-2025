@@ -1,11 +1,11 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SubscriptionManager.Core;
 using SubscriptionManager.Core.DTOs;
 using SubscriptionManager.Core.Models;
 using SubscriptionManager.Subscriptions.Infrastructure.Data;
 using SubscriptionManager.Subscriptions.Infrastructure.Services;
-using Microsoft.EntityFrameworkCore;
 
 namespace SubscriptionManager.Subscriptions.API.Controllers
 {
@@ -60,20 +60,20 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                     {
                         payment.UserSubscription.IsActive = true;
                         _logger.LogInformation("Subscription activated: {SubId}", payment.UserSubscription.Id);
-                        await _notificationService.CreateAsync(payment.UserId, 
-                            "Подписка активна", 
-                            "Оплата прошла успешно!", 
+                        await _notificationService.CreateAsync(payment.UserId,
+                            "Подписка активна",
+                            "Оплата прошла успешно!",
                             NotificationType.Info);
                     }
                     break;
 
                 case "failed":
-                case "error":  
+                case "error":
                 case "expired":
                     payment.Status = PaymentStatus.Failed;
-                    await _notificationService.CreateAsync(payment.UserId, 
-                        "Ошибка оплаты", 
-                        "Не удалось провести платеж. Проверьте данные карты.", 
+                    await _notificationService.CreateAsync(payment.UserId,
+                        "Ошибка оплаты",
+                        "Не удалось провести платеж. Проверьте данные карты.",
                         NotificationType.Error);
                     _logger.LogWarning("Payment failed with status: {Status}", webhookData.Transaction.Status);
                     break;

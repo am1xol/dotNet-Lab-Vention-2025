@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SubscriptionManager.Core;
@@ -38,12 +37,12 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             _notificationService = notificationService;
         }
 
-        [HttpPost("initiate-payment/{subscriptionId}")] 
-        [ProducesResponseType(typeof(PaymentInitiationResult), StatusCodes.Status200OK)] 
+        [HttpPost("initiate-payment/{subscriptionId}")]
+        [ProducesResponseType(typeof(PaymentInitiationResult), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<ActionResult<PaymentInitiationResult>> InitiateSubscriptionPayment([FromRoute] Guid subscriptionId) 
+        public async Task<ActionResult<PaymentInitiationResult>> InitiateSubscriptionPayment([FromRoute] Guid subscriptionId)
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
@@ -54,10 +53,10 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 return NotFound("Subscription not found");
 
             var existingSubscription = await _context.UserSubscriptions
-                .FirstOrDefaultAsync(us => us.UserId == userId && 
-                                        us.SubscriptionId == subscriptionId && 
+                .FirstOrDefaultAsync(us => us.UserId == userId &&
+                                        us.SubscriptionId == subscriptionId &&
                                         us.IsActive);
-            
+
             if (existingSubscription != null)
                 return BadRequest("User already subscribed");
 
@@ -67,7 +66,7 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 SubscriptionId = subscriptionId,
                 StartDate = DateTime.UtcNow,
                 NextBillingDate = CalculateNextBillingDate(subscription.Period),
-                IsActive = false 
+                IsActive = false
             };
 
             _context.UserSubscriptions.Add(userSubscription);
@@ -174,7 +173,7 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 .Where(us => us.UserId == userId &&
                            us.IsActive &&
                            !us.CancelledAt.HasValue &&
-                           us.NextBillingDate > DateTime.UtcNow) 
+                           us.NextBillingDate > DateTime.UtcNow)
                 .Include(us => us.Subscription)
                 .Select(us => new UpcomingPaymentDto
                 {
@@ -400,9 +399,9 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
 
             await _notificationService.CreateAsync(
                 userSubscription.UserId,
-                "Подписка истекла", 
+                "Подписка истекла",
                 $"Срок действия вашей подписки '{userSubscription.Subscription.Name}' истек. Пожалуйста, продлите её, чтобы продолжить пользоваться сервисом.",
-                NotificationType.Warning 
+                NotificationType.Warning
             );
 
             await _context.SaveChangesAsync();

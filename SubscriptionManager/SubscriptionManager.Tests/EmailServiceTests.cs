@@ -1,12 +1,7 @@
 ﻿using Microsoft.Extensions.Options;
-using SubscriptionManager.Core.Options;
 using SubscriptionManager.Auth.Infrastructure.Services;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+using SubscriptionManager.Core.Options;
 using System.Net.Mail;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SubscriptionManager.Tests
 {

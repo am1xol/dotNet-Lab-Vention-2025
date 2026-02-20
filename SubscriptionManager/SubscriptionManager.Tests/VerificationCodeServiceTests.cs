@@ -1,10 +1,7 @@
 ﻿using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
-using SubscriptionManager.Core.Options;
 using SubscriptionManager.Auth.Infrastructure.Services;
-using System;
-using System.Collections.Generic;
-using Xunit;
+using SubscriptionManager.Core.Options;
 
 namespace SubscriptionManager.Tests;
 

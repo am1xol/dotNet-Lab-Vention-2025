@@ -42,6 +42,8 @@ namespace SubscriptionManager.Infrastructure.Shared
                 opt.AddOtlpExporter(otlp => { otlp.Endpoint = new Uri(otelEndpoint); otlp.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc; });
             }));
 
+            services.AddSingleton(TimeProvider.System);
+
             return services;
         }
 

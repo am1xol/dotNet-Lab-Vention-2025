@@ -14,10 +14,12 @@ namespace SubscriptionManager.Auth.Infrastructure.Services;
 public class TokenService : ITokenService
 {
     private readonly JwtOptions _jwtOptions;
+    private readonly TimeProvider _timeProvider;
 
-    public TokenService(IOptions<JwtOptions> jwtOptions)
+    public TokenService(IOptions<JwtOptions> jwtOptions, TimeProvider timeProvider)
     {
         _jwtOptions = jwtOptions.Value;
+        _timeProvider = timeProvider;
     }
 
     public string GenerateAccessToken(User user)
@@ -35,11 +37,14 @@ public class TokenService : ITokenService
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.Secret));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
+        var utcNow = _timeProvider.GetUtcNow().UtcDateTime;
+
         var token = new JwtSecurityToken(
             issuer: _jwtOptions.Issuer,
             audience: _jwtOptions.Audience,
             claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(_jwtOptions.AccessTokenExpirationMinutes),
+            notBefore: utcNow,
+            expires: utcNow.AddMinutes(_jwtOptions.AccessTokenExpirationMinutes),
             signingCredentials: credentials
         );
 
@@ -56,6 +61,6 @@ public class TokenService : ITokenService
 
     public DateTime GetRefreshTokenExpiration()
     {
-        return DateTime.UtcNow.AddDays(_jwtOptions.RefreshTokenExpirationDays);
+        return _timeProvider.GetUtcNow().UtcDateTime.AddDays(_jwtOptions.RefreshTokenExpirationDays);
     }
 }

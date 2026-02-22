@@ -130,6 +130,8 @@ services:
     environment:
       MP_SMTP_AUTH: "testuser:testpassword"
       MP_SMTP_AUTH_ALLOW_INSECURE: 1
+      MP_ENABLE_CHAOS: "true"
+      MP_CHAOS_TRIGGERS: "Sender:500:25"
     networks:
       - app-network
 

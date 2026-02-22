@@ -97,9 +97,14 @@ public class AuthService : IAuthService
         {
             await _emailService.SendVerificationEmailAsync(user.Email, verificationCode, user.FirstName);
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Could not send verification email for user {UserId} after multiple retries.", user.Id);
 
+            return new AuthResult
+            {
+                Error = "User registered, but we couldn't send the verification email. Please use 'Resend Code' option."
+            };
         }
 
         return new AuthResult { UserId = user.Id.ToString() };
@@ -260,7 +265,12 @@ public class AuthService : IAuthService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send password reset email to {Email}", user.Email);
+            _logger.LogError(ex, "Failed to send password reset email to {Email} after retries", user.Email);
+
+            return new ForgotPasswordResponse
+            {
+                Error = "We encountered a technical issue sending the reset code. Please try again later."
+            };
         }
 
         return new ForgotPasswordResponse { Message = "If the email exists, a reset code has been sent." };
@@ -336,6 +346,11 @@ public class AuthService : IAuthService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send verification email during resend for user {UserId}", user.Id);
+
+            return new AuthResult 
+            { 
+                Error = "Failed to send verification code. Please try again in a minute." 
+            };
         }
 
         return new AuthResult { UserId = user.Id.ToString() };

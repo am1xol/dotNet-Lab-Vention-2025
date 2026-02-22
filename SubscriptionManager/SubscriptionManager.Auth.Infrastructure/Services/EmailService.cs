@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Options;
 using System.Net;
@@ -9,10 +10,54 @@ namespace SubscriptionManager.Auth.Infrastructure.Services;
 public class EmailService : IEmailService
 {
     private readonly EmailSettings _emailSettings;
+    private readonly ILogger<EmailService> _logger;
 
-    public EmailService(IOptions<EmailSettings> emailSettings)
+    public EmailService(IOptions<EmailSettings> emailSettings, ILogger<EmailService> logger)
     {
         _emailSettings = emailSettings.Value;
+        _logger = logger;
+    }
+
+    private async Task SendWithRetryAsync(MailMessage mailMessage)
+    {
+        int maxRetries = 3;
+        TimeSpan delay = TimeSpan.FromSeconds(2); 
+
+        for (int i = 0; i <= maxRetries; i++)
+        {
+            try
+            {
+                using var client = new SmtpClient(_emailSettings.SmtpServer, _emailSettings.SmtpPort);
+                client.EnableSsl = _emailSettings.EnableSsl;
+
+                if (_emailSettings.UseAuthentication)
+                {
+                    client.Credentials = new NetworkCredential(_emailSettings.UserName, _emailSettings.Password);
+                }
+
+                await client.SendMailAsync(mailMessage);
+
+                if (i > 0)
+                {
+                    _logger.LogInformation("Successfully sent email after {Retries} retries.", i);
+                }
+                return;
+            }
+            catch (Exception ex)
+            {
+                if (i == maxRetries)
+                {
+                    _logger.LogError(ex, "Failed to send email to {Recipient} after {MaxRetries} retries.", mailMessage.To.FirstOrDefault()?.Address, maxRetries);
+                    throw;
+                }
+
+                _logger.LogWarning(ex, "Failed to send email to {Recipient}. Attempt {Attempt} of {MaxRetries}. Retrying in {Delay}s...",
+                    mailMessage.To.FirstOrDefault()?.Address, i + 1, maxRetries, delay.TotalSeconds);
+
+                await Task.Delay(delay);
+                delay *= 2;
+            }
+        }
     }
 
     public async Task SendVerificationEmailAsync(string email, string verificationCode, string firstName)
@@ -52,7 +97,7 @@ public class EmailService : IEmailService
 
         mailMessage.To.Add(email);
 
-        await client.SendMailAsync(mailMessage);
+        await SendWithRetryAsync(mailMessage);
     }
 
     public async Task SendPasswordResetEmailAsync(string email, string resetCode, string firstName)
@@ -92,7 +137,7 @@ public class EmailService : IEmailService
 
         mailMessage.To.Add(email);
 
-        await client.SendMailAsync(mailMessage);
+        await SendWithRetryAsync(mailMessage);
     }
 
     public async Task SendNotificationEmailAsync(string email, string title, string message)
@@ -120,6 +165,6 @@ public class EmailService : IEmailService
         };
         mailMessage.To.Add(email);
 
-        await client.SendMailAsync(mailMessage);
+        await SendWithRetryAsync(mailMessage);
     }
 }

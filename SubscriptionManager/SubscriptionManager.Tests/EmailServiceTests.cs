@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging.Abstractions;
 using SubscriptionManager.Auth.Infrastructure.Services;
 using SubscriptionManager.Core.Options;
 using System.Net.Mail;
@@ -18,7 +19,7 @@ namespace SubscriptionManager.Tests
                 SenderName = "Test Sender"
             };
 
-            var service = new EmailService(Options.Create(settings));
+            var service = new EmailService(Options.Create(settings), NullLogger<EmailService>.Instance);
 
             Assert.NotNull(service);
         }
@@ -37,7 +38,7 @@ namespace SubscriptionManager.Tests
                 Password = "testpassword"
             };
 
-            var service = new EmailService(Options.Create(settings));
+            var service = new EmailService(Options.Create(settings), NullLogger<EmailService>.Instance);
 
             Assert.NotNull(service);
         }
@@ -54,7 +55,7 @@ namespace SubscriptionManager.Tests
                 UseAuthentication = false
             };
 
-            var service = new EmailService(Options.Create(settings));
+            var service = new EmailService(Options.Create(settings), NullLogger<EmailService>.Instance);
 
             Assert.NotNull(service);
         }
@@ -71,7 +72,7 @@ namespace SubscriptionManager.Tests
                 UseAuthentication = false
             };
 
-            var service = new EmailService(Options.Create(settings));
+            var service = new EmailService(Options.Create(settings), NullLogger<EmailService>.Instance);
 
             await Assert.ThrowsAsync<SmtpException>(() =>
                 service.SendVerificationEmailAsync("test@example.com", "123456", "Ruslan"));

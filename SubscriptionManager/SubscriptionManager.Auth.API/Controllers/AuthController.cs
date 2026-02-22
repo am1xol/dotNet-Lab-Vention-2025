@@ -36,7 +36,7 @@ public class AuthController : ControllerBase
 
         var result = await _authService.RegisterAsync(request);
 
-        if (!result.Success)
+        if (!string.IsNullOrEmpty(result.Error))
         {
             return Problem(
                 title: result.Error,
@@ -56,7 +56,7 @@ public class AuthController : ControllerBase
     {
         var result = await _authService.VerifyEmailAsync(request);
 
-        if (!result.Success)
+        if (!string.IsNullOrEmpty(result.Error))
         {
             var statusCode = result.Error switch
             {
@@ -92,7 +92,7 @@ public class AuthController : ControllerBase
 
         var result = await _authService.LoginAsync(request);
 
-        if (!result.Success)
+        if (!string.IsNullOrEmpty(result.Error))
         {
             return Problem(
                 title: result.Error,
@@ -110,7 +110,7 @@ public class AuthController : ControllerBase
     {
         var result = await _authService.RefreshTokenAsync(request);
 
-        if (!result.Success)
+        if (!string.IsNullOrEmpty(result.Error))
         {
             return Problem(
                 title: result.Error,
@@ -134,7 +134,7 @@ public class AuthController : ControllerBase
 
         var result = await _authService.ForgotPasswordAsync(request);
 
-        if (!result.Success)
+        if (!string.IsNullOrEmpty(result.Error))
         {
             return Problem(
                 title: result.Error,
@@ -158,7 +158,7 @@ public class AuthController : ControllerBase
 
         var result = await _authService.ResetPasswordAsync(request);
 
-        if (!result.Success)
+        if (!string.IsNullOrEmpty(result.Error))
         {
             return Problem(
                 title: result.Error,
@@ -175,12 +175,12 @@ public class AuthController : ControllerBase
     {
         if (!ModelState.IsValid)
         {
-            return BadRequest(new AuthResult { Success = false, Error = "Invalid request data. Check email format." });
+            return BadRequest(new AuthResult { Error = "Invalid request data. Check email format." });
         }
 
         var result = await _authService.ResendVerificationCodeAsync(request);
 
-        if (!result.Success && !string.IsNullOrEmpty(result.Error))
+        if (!string.IsNullOrEmpty(result.Error))
         {
             return BadRequest(result);
         }

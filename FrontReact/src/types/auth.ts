@@ -12,13 +12,11 @@ export interface LoginRequest {
 }
 
 export interface AuthResult {
-  success: boolean;
   userId?: string;
   error?: string;
 }
 
 export interface LoginResponse {
-  success: boolean;
   accessToken?: string;
   refreshToken?: string;
   accessTokenExpiresAt?: string;
@@ -26,7 +24,6 @@ export interface LoginResponse {
 }
 
 export interface RefreshTokenResponse {
-  success: boolean;
   accessToken?: string;
   refreshToken?: string;
   accessTokenExpiresAt?: string;
@@ -59,7 +56,6 @@ export interface ResetPasswordRequest {
 }
 
 export interface ForgotPasswordResponse {
-  success: boolean;
   message?: string;
   error?: string;
 }

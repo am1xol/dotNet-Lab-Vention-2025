@@ -61,14 +61,14 @@ public class AuthService : IAuthService
     {
         if (await _userRepository.ExistsByEmailAsync(request.Email))
         {
-            return new AuthResult { Success = false, Error = "Email already exists" };
+            return new AuthResult { Error = "Email already exists" };
         }
 
         if (!string.IsNullOrEmpty(request.Role) &&
             request.Role != RoleConstants.User &&
             request.Role != RoleConstants.Admin)
         {
-            return new AuthResult { Success = false, Error = $"Invalid role. Allowed values: '{RoleConstants.User}' or '{RoleConstants.Admin}'" };
+            return new AuthResult { Error = $"Invalid role. Allowed values: '{RoleConstants.User}' or '{RoleConstants.Admin}'" };
         }
 
         var verificationCode = _verificationCodeService.GenerateCode();
@@ -102,7 +102,7 @@ public class AuthService : IAuthService
 
         }
 
-        return new AuthResult { Success = true, UserId = user.Id.ToString() };
+        return new AuthResult { UserId = user.Id.ToString() };
     }
 
     public async Task<AuthResult> VerifyEmailAsync(VerifyEmailRequest request)
@@ -110,23 +110,23 @@ public class AuthService : IAuthService
         var user = await _userRepository.GetByEmailAsync(request.Email);
         if (user == null)
         {
-            return new AuthResult { Success = false, Error = "User not found" };
+            return new AuthResult { Error = "User not found" };
         }
 
         if (user.IsEmailVerified)
         {
-            return new AuthResult { Success = false, Error = "Email is already verified" };
+            return new AuthResult { Error = "Email is already verified" };
         }
 
         if (user.EmailVerificationCode != request.VerificationCode)
         {
-            return new AuthResult { Success = false, Error = "Invalid verification code" };
+            return new AuthResult { Error = "Invalid verification code" };
         }
 
         var now = DateTime.UtcNow;
         if (user.EmailVerificationCodeExpiresAt < now)
         {
-            return new AuthResult { Success = false, Error = "Verification code has expired" };
+            return new AuthResult { Error = "Verification code has expired" };
         }
 
         user.IsEmailVerified = true;
@@ -136,30 +136,30 @@ public class AuthService : IAuthService
 
         await _userRepository.SaveChangesAsync();
 
-        return new AuthResult { Success = true, UserId = user.Id.ToString() };
+        return new AuthResult { UserId = user.Id.ToString() };
     }
 
     public async Task<LoginResponse> LoginAsync(LoginRequest request)
     {
         if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
         {
-            return new LoginResponse { Success = false, Error = "Email and password are required" };
+            return new LoginResponse { Error = "Email and password are required" };
         }
 
         var user = await _userRepository.GetByEmailAsync(request.Email);
         if (user == null)
         {
-            return new LoginResponse { Success = false, Error = "Invalid email or password" };
+            return new LoginResponse { Error = "Invalid email or password" };
         }
 
         if (!user.IsEmailVerified)
         {
-            return new LoginResponse { Success = false, Error = "Please verify your email before logging in" };
+            return new LoginResponse { Error = "Please verify your email before logging in" };
         }
 
         if (!_passwordHasher.VerifyPassword(request.Password, user.PasswordHash))
         {
-            return new LoginResponse { Success = false, Error = "Invalid email or password" };
+            return new LoginResponse { Error = "Invalid email or password" };
         }
 
         var accessToken = _tokenService.GenerateAccessToken(user);
@@ -182,7 +182,6 @@ public class AuthService : IAuthService
 
         return new LoginResponse
         {
-            Success = true,
             AccessToken = accessToken,
             RefreshToken = refreshToken,
             AccessTokenExpiresAt = now.AddMinutes(10)
@@ -194,18 +193,18 @@ public class AuthService : IAuthService
         var refreshTokenEntity = await _refreshTokenRepository.GetByTokenAsync(request.RefreshToken);
         if (refreshTokenEntity == null)
         {
-            return new RefreshTokenResponse { Success = false, Error = "Invalid refresh token" };
+            return new RefreshTokenResponse { Error = "Invalid refresh token" };
         }
 
         var now = DateTime.UtcNow;
         if (refreshTokenEntity.ExpiresAt < now)
         {
-            return new RefreshTokenResponse { Success = false, Error = "Refresh token has expired" };
+            return new RefreshTokenResponse { Error = "Refresh token has expired" };
         }
 
         if (refreshTokenEntity.IsRevoked)
         {
-            return new RefreshTokenResponse { Success = false, Error = "Refresh token has been revoked" };
+            return new RefreshTokenResponse { Error = "Refresh token has been revoked" };
         }
 
         var user = refreshTokenEntity.User;
@@ -231,7 +230,6 @@ public class AuthService : IAuthService
 
         return new RefreshTokenResponse
         {
-            Success = true,
             AccessToken = newAccessToken,
             RefreshToken = newRefreshToken,
             AccessTokenExpiresAt = now.AddMinutes(10)
@@ -243,7 +241,7 @@ public class AuthService : IAuthService
         var user = await _userRepository.GetByEmailAsync(request.Email);
         if (user == null)
         {
-            return new ForgotPasswordResponse { Success = true, Message = "If the email exists, a reset code has been sent." };
+            return new ForgotPasswordResponse { Message = "If the email exists, a reset code has been sent." };
         }
 
         var resetCode = new Random().Next(100000, 999999).ToString();
@@ -265,7 +263,7 @@ public class AuthService : IAuthService
             _logger.LogError(ex, "Failed to send password reset email to {Email}", user.Email);
         }
 
-        return new ForgotPasswordResponse { Success = true, Message = "If the email exists, a reset code has been sent." };
+        return new ForgotPasswordResponse { Message = "If the email exists, a reset code has been sent." };
     }
 
     public async Task<ForgotPasswordResponse> ResetPasswordAsync(ResetPasswordRequest request)
@@ -273,13 +271,13 @@ public class AuthService : IAuthService
         var user = await _userRepository.GetByEmailAsync(request.Email);
         if (user == null)
         {
-            return new ForgotPasswordResponse { Success = false, Error = "Invalid reset token" };
+            return new ForgotPasswordResponse { Error = "Invalid reset token" };
         }
 
         if (user.PasswordResetCode != request.ResetToken ||
             user.PasswordResetExpiresAt < DateTime.UtcNow)
         {
-            return new ForgotPasswordResponse { Success = false, Error = "Invalid or expired reset code" };
+            return new ForgotPasswordResponse { Error = "Invalid or expired reset code" };
         }
 
         user.PasswordHash = _passwordHasher.HashPassword(request.NewPassword);
@@ -290,7 +288,7 @@ public class AuthService : IAuthService
 
         await _userRepository.SaveChangesAsync();
 
-        return new ForgotPasswordResponse { Success = true, Message = "Password has been reset successfully" };
+        return new ForgotPasswordResponse { Message = "Password has been reset successfully" };
     }
 
     private const int RESEND_COOLDOWN_SECONDS = 60;
@@ -299,7 +297,7 @@ public class AuthService : IAuthService
     {
         if (string.IsNullOrEmpty(request.Email))
         {
-            return new AuthResult { Success = false, Error = "Email is required." };
+            return new AuthResult { Error = "Email is required." };
         }
 
         var user = await _userRepository.GetByEmailAsync(request.Email!);
@@ -307,18 +305,18 @@ public class AuthService : IAuthService
         if (user == null)
         {
             _logger.LogWarning("Attempt to resend code for non-existent email: {Email}", request.Email);
-            return new AuthResult { Success = true, UserId = null };
+            return new AuthResult { UserId = null };
         }
 
         if (user.IsEmailVerified)
         {
-            return new AuthResult { Success = false, Error = "Email is already verified." };
+            return new AuthResult { Error = "Email is already verified." };
         }
 
         if (user.UpdatedAt.AddSeconds(RESEND_COOLDOWN_SECONDS) > DateTime.UtcNow)
         {
             var waitTime = user.UpdatedAt.AddSeconds(RESEND_COOLDOWN_SECONDS).Subtract(DateTime.UtcNow);
-            return new AuthResult { Success = false, Error = $"You must wait {Math.Ceiling(waitTime.TotalSeconds)} seconds before trying again." };
+            return new AuthResult { Error = $"You must wait {Math.Ceiling(waitTime.TotalSeconds)} seconds before trying again." };
         }
 
         var newVerificationCode = _verificationCodeService.GenerateCode();
@@ -340,6 +338,6 @@ public class AuthService : IAuthService
             _logger.LogError(ex, "Failed to send verification email during resend for user {UserId}", user.Id);
         }
 
-        return new AuthResult { Success = true, UserId = user.Id.ToString() };
+        return new AuthResult { UserId = user.Id.ToString() };
     }
 }

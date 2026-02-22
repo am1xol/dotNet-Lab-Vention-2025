@@ -207,17 +207,17 @@ export const SignIn: React.FC = () => {
     setError('');
 
     try {
-      const result = await authService.login(formData);
+      await authService.login(formData);
 
-      if (result.success) {
-        enqueueSnackbar('Successfully signed in!', { variant: 'success' });
-        setTimeout(() => {
-          navigate('/dashboard');
-        }, 1000);
-        return;
-      }
+      enqueueSnackbar('Successfully signed in!', { variant: 'success' });
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 1000);
+    } catch (err: any) {
+      const serverError =
+        err.response?.data?.error || err.response?.data?.title;
 
-      if (result.error === 'Please verify your email before logging in') {
+      if (serverError === 'Please verify your email before logging in') {
         enqueueSnackbar(
           'Your email is not verified. Redirecting to verification.',
           { variant: 'warning' }
@@ -232,9 +232,7 @@ export const SignIn: React.FC = () => {
         return;
       }
 
-      setError(result.error || 'Login failed');
-    } catch (err: any) {
-      setError(err.response?.data?.title || 'Login failed');
+      setError(serverError || 'Login failed');
     } finally {
       setLoading(false);
     }

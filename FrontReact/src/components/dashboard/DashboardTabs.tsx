@@ -24,14 +24,8 @@ const TabPanel: React.FC<TabPanelProps> = ({
   ...other
 }) => {
   return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`dashboard-tabpanel-${index}`}
-      aria-labelledby={`dashboard-tab-${index}`}
-      {...other}
-    >
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+    <div role="tabpanel" id={`dashboard-tabpanel-${index}`} {...other}>
+      <Box sx={{ p: 3 }}>{children}</Box>
     </div>
   );
 };
@@ -119,36 +113,42 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
         </Box>
 
         {/* Available Subscriptions Tab */}
-        <TabPanel value={tabValue} index={0}>
-          <AvailableSubscriptionsTab
-            actionLoading={actionLoading}
-            unsubscribeData={unsubscribedData}
-            getUserSubscription={getUserSubscription}
-            handleSubscribe={handleSubscribe}
-            handleInitiatePayment={handleInitiatePayment}
-            handleUnsubscribe={handleUnsubscribe}
-          />
-        </TabPanel>
+        {tabValue === 0 && (
+          <TabPanel value={tabValue} index={0}>
+            <AvailableSubscriptionsTab
+              actionLoading={actionLoading}
+              unsubscribeData={unsubscribedData}
+              getUserSubscription={getUserSubscription}
+              handleSubscribe={handleSubscribe}
+              handleInitiatePayment={handleInitiatePayment}
+              handleUnsubscribe={handleUnsubscribe}
+            />
+          </TabPanel>
+        )}
 
         {/* My Subscriptions Tab */}
-        <TabPanel value={tabValue} index={1}>
-          <MySubscriptionsTab
-            mySubscriptions={mySubscriptions}
-            actionLoading={actionLoading}
-            unsubscribedData={unsubscribedData}
-            handleSubscribe={handleSubscribe}
-            handleInitiatePayment={handleInitiatePayment}
-            handleUnsubscribe={handleUnsubscribe}
-          />
-        </TabPanel>
+        {tabValue === 1 && (
+          <TabPanel value={tabValue} index={1}>
+            <MySubscriptionsTab
+              mySubscriptions={mySubscriptions}
+              actionLoading={actionLoading}
+              unsubscribedData={unsubscribedData}
+              handleSubscribe={handleSubscribe}
+              handleInitiatePayment={handleInitiatePayment}
+              handleUnsubscribe={handleUnsubscribe}
+            />
+          </TabPanel>
+        )}
 
         {/* Payment History Tab */}
-        <TabPanel value={tabValue} index={2}>
-          <PaymentHistoryTab />
-        </TabPanel>
+        {tabValue === 2 && (
+          <TabPanel value={tabValue} index={2}>
+            <PaymentHistoryTab />
+          </TabPanel>
+        )}
 
         {/* Admin Management Tab */}
-        {userRole === 'Admin' && (
+        {userRole === 'Admin' && tabValue === 3 && (
           <TabPanel value={tabValue} index={3}>
             <AdminSubscriptionPanel
               onSubscriptionCreated={loadData}

@@ -194,36 +194,22 @@ export const SignUp: React.FC = () => {
   }, [resendTimer]);
 
   const handleResendCode = async () => {
-    console.log('handleResendCode вызвана, resendTimer:', resendTimer);
-
-    if (resendTimer > 0) {
-      console.log('Таймер активен, кнопка должна быть disabled');
-      return;
-    }
+    if (resendTimer > 0) return;
 
     setResendLoading(true);
     setError('');
 
     try {
-      const result = await authService.resendVerificationCode(formData.email);
+      await authService.resendVerificationCode(formData.email);
 
-      if (result.success) {
-        console.log('Код отправлен, снова устанавливаем таймер');
-        setResendTimer(RESEND_INTERVAL);
-        enqueueSnackbar(
-          'A new verification code has been sent to your email.',
-          { variant: 'info' }
-        );
-      } else {
-        enqueueSnackbar(result.error || 'Failed to resend code.', {
-          variant: 'error',
-        });
-      }
+      setResendTimer(RESEND_INTERVAL);
+      enqueueSnackbar('A new verification code has been sent to your email.', {
+        variant: 'info',
+      });
     } catch (err: any) {
-      setError(
-        err.response?.data?.title ||
-          'Failed to resend code. Please try again later.'
-      );
+      const errorMsg = err.response?.data?.title || 'Failed to resend code.';
+      enqueueSnackbar(errorMsg, { variant: 'error' });
+      setError(errorMsg);
     } finally {
       setResendLoading(false);
     }
@@ -309,16 +295,16 @@ export const SignUp: React.FC = () => {
     setError('');
 
     try {
-      const result = await authService.register(formData);
+      await authService.register(formData);
 
-      if (result.success) {
-        setResendTimer(RESEND_INTERVAL);
-        setStep('verification');
-      } else {
-        setError(result.error || 'Registration failed');
-      }
+      setResendTimer(RESEND_INTERVAL);
+      setStep('verification');
     } catch (err: any) {
-      setError(err.response?.data?.title || 'Registration failed');
+      const errorMessage =
+        err.response?.data?.title ||
+        err.response?.data?.error ||
+        'Registration failed';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -334,20 +320,17 @@ export const SignUp: React.FC = () => {
     }
     setLoading(true);
     setError('');
+
     try {
-      const result = await authService.verifyEmail(
-        formData.email,
-        verificationCode
-      );
-      if (result.success) {
-        setSuccess(true);
-        enqueueSnackbar('Email verified successfully!', { variant: 'success' });
-        setTimeout(() => {
-          navigate('/auth/signin');
-        }, 2000);
-      } else {
-        setError(result.error || 'Verification failed');
-      }
+      await authService.verifyEmail(formData.email, verificationCode);
+
+      enqueueSnackbar('Email verified successfully!', { variant: 'success' });
+
+      setSuccess(true);
+
+      setTimeout(() => {
+        navigate('/auth/signin');
+      }, 2000);
     } catch (err: any) {
       setError(err.response?.data?.title || 'Verification failed');
     } finally {

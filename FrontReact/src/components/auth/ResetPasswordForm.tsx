@@ -17,6 +17,7 @@ import { ArrowBack, Lock, VpnKey, VerifiedUser } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { authService } from '../../services/auth-service';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { enqueueSnackbar } from 'notistack';
 
 const GlassCard = styled(Card)(({ theme }) => ({
   display: 'flex',
@@ -221,19 +222,24 @@ export const ResetPasswordForm: React.FC = () => {
     setError('');
 
     try {
-      const result = await authService.resetPassword({
+      await authService.resetPassword({
         email,
         resetToken,
-        newPassword,
+        newPassword: newPassword,
       });
 
-      if (result.success) {
-        setSuccess(true);
-      } else {
-        setError(result.error || 'Failed to reset password');
-      }
+      setSuccess(true);
+      enqueueSnackbar('Password reset successfully!', { variant: 'success' });
+
+      setTimeout(() => {
+        navigate('/auth/signin');
+      }, 2000);
     } catch (err: any) {
-      setError(err.response?.data?.title || 'Failed to reset password');
+      const errorMessage =
+        err.response?.data?.title ||
+        err.response?.data?.error ||
+        'Failed to reset password';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

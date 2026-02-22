@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -70,7 +70,7 @@ export const UserStatistics: React.FC<UserStatisticsProps> = ({
     color?: string;
     delay?: number;
   }) => {
-    const circles = generateRandomCircles(3);
+    const circles = useMemo(() => generateRandomCircles(3), []);
 
     return (
       <motion.div

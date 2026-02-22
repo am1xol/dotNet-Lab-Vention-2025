@@ -17,6 +17,7 @@ import { Email, ArrowBack, MarkEmailRead } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { authService } from '../../services/auth-service';
 import { Link, useNavigate } from 'react-router-dom';
+import { enqueueSnackbar } from 'notistack';
 
 const GlassCard = styled(Card)(({ theme }) => ({
   display: 'flex',
@@ -154,6 +155,9 @@ export const ForgotPasswordForm: React.FC = () => {
   };
 
   const validateEmail = (): boolean => {
+    setEmailError(false);
+    setEmailErrorMessage('');
+
     if (!email || !/\S+@\S+\.\S+/.test(email)) {
       setEmailError(true);
       setEmailErrorMessage('Please enter a valid email address.');
@@ -165,26 +169,27 @@ export const ForgotPasswordForm: React.FC = () => {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!validateEmail()) {
-      return;
-    }
+    if (!validateEmail()) return;
 
     setLoading(true);
     setError('');
 
     try {
-      const result = await authService.forgotPassword(email);
+      await authService.forgotPassword(email);
 
-      if (result.success) {
-        setSuccess(true);
-        setTimeout(() => {
-          navigate('/auth/reset-password', { state: { email } });
-        }, 2000);
-      } else {
-        setError(result.error || 'Failed to send reset code');
-      }
+      setSuccess(true);
+      enqueueSnackbar('Reset code sent to your email!', { variant: 'success' });
+
+      setTimeout(() => {
+        navigate('/auth/reset-password', { state: { email } });
+      }, 3000);
     } catch (err: any) {
-      setError(err.response?.data?.title || 'Failed to send reset code');
+      const errorMessage =
+        err.response?.data?.title ||
+        err.response?.data?.error ||
+        'Failed to send reset code';
+      setError(errorMessage);
+      enqueueSnackbar(errorMessage, { variant: 'error' });
     } finally {
       setLoading(false);
     }

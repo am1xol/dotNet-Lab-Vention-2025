@@ -21,7 +21,7 @@ export const authService = {
     const response = await api.post(`${API_BASE_URL}/Auth/login`, data);
     const result = response.data as LoginResponse;
 
-    if (result.success && result.accessToken && result.refreshToken) {
+    if (result.accessToken && result.refreshToken) {
       useAuthStore.getState().login({} as UserProfile, {
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,

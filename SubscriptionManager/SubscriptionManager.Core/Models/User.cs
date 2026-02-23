@@ -29,11 +29,6 @@ public class User
     [JsonIgnore]
     public DateTime? EmailVerificationCodeExpiresAt { get; set; }
 
-    [JsonIgnore]
-    public string? RefreshToken { get; set; }
-    [JsonIgnore]
-    public DateTime? RefreshTokenExpiresAt { get; set; }
-
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
@@ -41,7 +36,6 @@ public class User
     [StringLength(5)]
     public string Role { get; set; } = "User";
 
-    public string? PasswordResetToken { get; set; }
     public string? PasswordResetCode { get; set; }
     public DateTime? PasswordResetExpiresAt { get; set; }
 }

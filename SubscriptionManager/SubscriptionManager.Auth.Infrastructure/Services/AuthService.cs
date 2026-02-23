@@ -252,7 +252,6 @@ public class AuthService : IAuthService
         var resetCode = new Random().Next(100000, 999999).ToString();
         var expiresAt = DateTime.UtcNow.AddHours(1);
 
-        user.PasswordResetToken = resetCode;
         user.PasswordResetCode = resetCode;
         user.PasswordResetExpiresAt = expiresAt;
         user.UpdatedAt = DateTime.UtcNow;
@@ -291,7 +290,6 @@ public class AuthService : IAuthService
         }
 
         user.PasswordHash = _passwordHasher.HashPassword(request.NewPassword);
-        user.PasswordResetToken = null;
         user.PasswordResetCode = null;
         user.PasswordResetExpiresAt = null;
         user.UpdatedAt = DateTime.UtcNow;

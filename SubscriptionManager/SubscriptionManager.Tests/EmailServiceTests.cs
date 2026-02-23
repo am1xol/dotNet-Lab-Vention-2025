@@ -69,7 +69,7 @@ namespace SubscriptionManager.Tests
                 SmtpPort = 1025,
                 SenderEmail = "noreply@test.com",
                 SenderName = "Test Sender",
-                UseAuthentication = false
+                UseAuthentication = false,
             };
 
             var service = new EmailService(Options.Create(settings), NullLogger<EmailService>.Instance);

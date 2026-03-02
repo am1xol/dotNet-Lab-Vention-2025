@@ -9,6 +9,8 @@ public interface IUserRepository
     Task<User?> GetByIdAsync(Guid id);
     Task AddAsync(User user);
     Task SaveChangesAsync();
+    Task<IEnumerable<User>> GetAllUsersAsync();
     Task UpdateAsync(User user);
+    Task<(IEnumerable<User> Items, int TotalCount)> GetPagedUsersAsync(int pageNumber, int pageSize, string? searchTerm);
     Task<bool> IsEmailTakenAsync(string email, Guid excludeUserId);
 }

@@ -38,4 +38,6 @@ public class User
 
     public string? PasswordResetCode { get; set; }
     public DateTime? PasswordResetExpiresAt { get; set; }
+
+    public bool IsBlocked { get; set; } = false;
 }

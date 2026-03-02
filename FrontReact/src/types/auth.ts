@@ -36,6 +36,7 @@ export interface User {
   firstName: string;
   lastName: string;
   isEmailVerified: boolean;
+  isBlocked: boolean;
   role: string;
   createdAt: string;
 }

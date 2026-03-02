@@ -167,6 +167,11 @@ public class AuthService : IAuthService
             return new LoginResponse { Error = "Invalid email or password" };
         }
 
+        if (user.IsBlocked)
+        {
+            return new LoginResponse { Error = "Your account has been blocked." };
+        }
+
         var accessToken = _tokenService.GenerateAccessToken(user);
         var refreshToken = _tokenService.GenerateRefreshToken();
         var now = DateTime.UtcNow;
@@ -213,6 +218,12 @@ public class AuthService : IAuthService
         }
 
         var user = refreshTokenEntity.User;
+
+        if (user.IsBlocked)
+        {
+            return new RefreshTokenResponse { Error = "Your account has been blocked." };
+        }
+
         var newAccessToken = _tokenService.GenerateAccessToken(user);
         var newRefreshToken = _tokenService.GenerateRefreshToken();
 

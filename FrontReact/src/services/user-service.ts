@@ -23,4 +23,27 @@ export const userService = {
     const response = await api.put(`/change-password`, data);
     return response.data as ChangePasswordResponse;
   },
+
+  async getAllUsers(
+    page: number,
+    size: number,
+    search?: string
+  ): Promise<{ items: User[]; totalCount: number }> {
+    const response = await api.get('/all-users', {
+      params: {
+        pageNumber: page,
+        pageSize: size,
+        searchTerm: search,
+      },
+    });
+    return response.data as { items: User[]; totalCount: number };
+  },
+
+  async blockUser(id: string): Promise<void> {
+    await api.post(`/${id}/block`);
+  },
+
+  async unblockUser(id: string): Promise<void> {
+    await api.post(`/${id}/unblock`);
+  },
 };

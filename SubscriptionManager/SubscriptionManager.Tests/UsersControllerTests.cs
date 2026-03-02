@@ -140,6 +140,14 @@ namespace SubscriptionManager.Tests
             {
                 return Task.FromResult(false);
             }
+            public Task<IEnumerable<User>> GetAllUsersAsync()
+            {
+                return Task.FromResult(Enumerable.Empty<User>());
+            }
+            public Task<(IEnumerable<User> Items, int TotalCount)> GetPagedUsersAsync(int pageNumber, int pageSize, string? searchTerm)
+            {
+                return Task.FromResult((Enumerable.Empty<User>(), 0));
+            }
             public Task AddAsync(User user) => Task.CompletedTask;
             public Task UpdateAsync(User user) => Task.CompletedTask;
             public Task SaveChangesAsync() => Task.CompletedTask;

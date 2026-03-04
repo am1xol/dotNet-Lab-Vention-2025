@@ -16,6 +16,8 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         private readonly SubscriptionsDbContext _context;
         private readonly IFileStorageService _fileStorageService;
 
+        private static readonly decimal[] AllowedPrices = { 10m, 20m, 50m };
+
         public SubscriptionsController(SubscriptionsDbContext context, IFileStorageService fileStorageService)
         {
             _context = context;
@@ -209,6 +211,11 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 }
             }
 
+            if (!AllowedPrices.Contains(request.Price))
+            {
+                return BadRequest($"Invalid price. Allowed prices are: {string.Join(", ", AllowedPrices)}");
+            }
+
             var subscription = new Subscription
             {
                 Id = Guid.NewGuid(),
@@ -264,6 +271,11 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             if (existingSubscription == null)
             {
                 return NotFound();
+            }
+
+            if (!AllowedPrices.Contains(request.Price))
+            {
+                return BadRequest($"Invalid price. Allowed prices are: {string.Join(", ", AllowedPrices)}");
             }
 
             existingSubscription.Name = request.Name;

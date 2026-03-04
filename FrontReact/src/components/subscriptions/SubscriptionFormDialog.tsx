@@ -55,7 +55,7 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
   const [fileUploadError, setFileUploadError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  const periods = ['monthly', 'quarterly', 'yearly', 'lifetime'];
+  const periods = ['monthly', 'quarterly', 'yearly'];
   const categories = [
     'Streaming',
     'Software',
@@ -64,6 +64,7 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
     'Entertainment',
     'Other',
   ];
+  const ALLOWED_PRICES = [10, 20, 50];
 
   useEffect(() => {
     if (open) {
@@ -255,19 +256,24 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
             </Box>
           </Grid>
 
-          <Grid size={{ xs: 12, md: 6 }}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               fullWidth
+              select
               label="Price"
-              type="number"
-              value={formData.price}
+              value={formData.price || ''}
               onChange={(e) =>
-                handleInputChange('price', parseFloat(e.target.value) || 0)
+                handleInputChange('price', parseFloat(e.target.value))
               }
-              inputProps={{ min: 0, step: 0.01 }}
               required
-              helperText="BYN"
-            />
+              helperText="Please select a predefined price"
+            >
+              {ALLOWED_PRICES.map((price) => (
+                <MenuItem key={price} value={price}>
+                  {price} BYN
+                </MenuItem>
+              ))}
+            </TextField>
           </Grid>
 
           <Grid size={{ xs: 12, md: 6 }}>

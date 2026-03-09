@@ -116,13 +116,13 @@ END
 GO
 
 -- 5. Получение Refresh Token вместе с данными пользователя (JOIN)
-CREATE PROCEDURE [sp_RefreshTokens_GetByTokenWithUser]
+CREATE OR ALTER PROCEDURE [sp_RefreshTokens_GetByTokenWithUser]
     @Token NVARCHAR(450)
 AS
 BEGIN
     SELECT 
         rt.Id, rt.UserId, rt.Token, rt.DeviceName, rt.ExpiresAt, rt.CreatedAt, rt.IsRevoked,
-        u.Id AS UserId,
+        u.Id,
         u.Email,
         u.PasswordHash,
         u.FirstName,

@@ -32,7 +32,7 @@ public class RefreshTokenRepository : IRefreshTokenRepository
                 return refreshToken;
             },
             new { Token = token },
-            splitOn: "UserId",
+            splitOn: "Id",
             commandType: CommandType.StoredProcedure);
 
         return result.FirstOrDefault();

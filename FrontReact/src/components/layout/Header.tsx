@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   AppBar,
   Toolbar,
@@ -18,23 +18,29 @@ const Header: React.FC = () => {
   const { enqueueSnackbar } = useSnackbar();
   const [, setUnreadCount] = useState(0);
 
+  const updateCount = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      const data = await notificationService.getUserNotifications(1, 100);
+      const count = data.items.filter((n: any) => !n.isRead).length;
+
+      setUnreadCount(count);
+    } catch (err) {
+      console.error('Failed to fetch notification count');
+    }
+  }, [isAuthenticated]);
+
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const updateCount = async () => {
-      try {
-        const data = await notificationService.getUserNotifications(1, 100);
-        const count = data.items.filter((n: any) => !n.isRead).length;
-        setUnreadCount(count);
-      } catch (err) {
-        console.error('Failed to fetch notification count');
-      }
-    };
-
     updateCount();
-    const id = setInterval(updateCount, 10000);
-    return () => clearInterval(id);
-  }, [isAuthenticated]);
+
+    const id = setInterval(updateCount, 30000);
+
+    return () => {
+      clearInterval(id);
+    };
+  }, [isAuthenticated, updateCount]);
 
   const handleLogout = () => {
     logout();

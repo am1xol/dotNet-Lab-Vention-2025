@@ -151,6 +151,15 @@ namespace SubscriptionManager.Tests
             public Task AddAsync(User user) => Task.CompletedTask;
             public Task UpdateAsync(User user) => Task.CompletedTask;
             public Task SaveChangesAsync() => Task.CompletedTask;
+            public Task UpdateResetCodeAsync(Guid userId, string resetCode, DateTime expiresAt)
+            {
+                return Task.CompletedTask;
+            }
+
+            public Task UpdatePasswordAsync(Guid userId, string passwordHash)
+            {
+                return Task.CompletedTask;
+            }
         }
     }
 }

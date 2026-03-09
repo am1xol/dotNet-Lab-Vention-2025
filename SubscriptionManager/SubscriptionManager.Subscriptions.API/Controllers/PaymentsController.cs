@@ -1,11 +1,12 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Dapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 using SubscriptionManager.Core;
 using SubscriptionManager.Core.DTOs;
 using SubscriptionManager.Core.Models;
-using SubscriptionManager.Subscriptions.Infrastructure.Data;
 using SubscriptionManager.Subscriptions.Infrastructure.Services;
+using System.Data;
 
 namespace SubscriptionManager.Subscriptions.API.Controllers
 {
@@ -13,15 +14,17 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
     [ApiController]
     public class PaymentsController : ControllerBase
     {
-        private readonly SubscriptionsDbContext _context;
-        private readonly IConfiguration _configuration;
+        private readonly string _connectionString;
         private readonly INotificationService _notificationService;
         private readonly ILogger<PaymentsController> _logger;
 
-        public PaymentsController(SubscriptionsDbContext context, IConfiguration configuration, INotificationService notificationService, ILogger<PaymentsController> logger)
+        public PaymentsController(
+            IConfiguration configuration,
+            INotificationService notificationService,
+            ILogger<PaymentsController> logger)
         {
-            _context = context;
-            _configuration = configuration;
+            _connectionString = configuration.GetConnectionString("SubscriptionsConnection")
+                ?? throw new InvalidOperationException("Connection string 'SubscriptionsConnection' not found.");
             _notificationService = notificationService;
             _logger = logger;
         }
@@ -34,57 +37,102 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 webhookData.Transaction.Status, webhookData.Transaction.TrackingId);
 
             if (!Guid.TryParse(webhookData.Transaction.TrackingId, out var paymentId))
-            {
                 return BadRequest("Invalid TrackingId");
-            }
 
-            var payment = await _context.Payments
-                .Include(p => p.UserSubscription)
-                .FirstOrDefaultAsync(p => p.Id == paymentId);
+            using var connection = new SqlConnection(_connectionString);
+            await connection.OpenAsync();
+            using var transaction = await connection.BeginTransactionAsync();
 
-            if (payment == null)
+            try
             {
-                return NotFound("Payment not found");
-            }
+                const string getPaymentSql = "SELECT * FROM Payments WHERE Id = @Id";
+                var payment = await connection.QueryFirstOrDefaultAsync<Payment>(
+                    getPaymentSql,
+                    new { Id = paymentId },
+                    transaction);
 
-            payment.ExternalTransactionId = webhookData.Transaction.Id;
+                if (payment == null)
+                {
+                    _logger.LogWarning("Payment not found for Id: {PaymentId}", paymentId);
+                    return NotFound("Payment not found");
+                }
 
-            switch (webhookData.Transaction.Status)
-            {
-                case "successful":
-                    payment.Status = PaymentStatus.Completed;
-                    payment.CardLastFour = webhookData.Transaction.CreditCard?.Last4 ?? "";
-                    payment.CardBrand = webhookData.Transaction.CreditCard?.Brand ?? "";
+                const string updatePaymentSql = "sp_Payments_UpdateStatus";
+                var parameters = new DynamicParameters();
+                parameters.Add("@Id", paymentId);
+                parameters.Add("@ExternalTransactionId", webhookData.Transaction.Id);
 
-                    if (payment.UserSubscription != null)
-                    {
-                        payment.UserSubscription.IsActive = true;
-                        _logger.LogInformation("Subscription activated: {SubId}", payment.UserSubscription.Id);
-                        await _notificationService.CreateAsync(payment.UserId,
-                            "Подписка активна",
-                            "Оплата прошла успешно!",
-                            NotificationType.Info);
-                    }
-                    break;
+                switch (webhookData.Transaction.Status)
+                {
+                    case "successful":
+                        parameters.Add("@Status", PaymentStatus.Completed);
+                        parameters.Add("@CardLastFour", webhookData.Transaction.CreditCard?.Last4 ?? "");
+                        parameters.Add("@CardBrand", webhookData.Transaction.CreditCard?.Brand ?? "");
+                        break;
 
-                case "failed":
-                case "error":
-                case "expired":
-                    payment.Status = PaymentStatus.Failed;
-                    await _notificationService.CreateAsync(payment.UserId,
+                    case "failed":
+                    case "error":
+                    case "expired":
+                        parameters.Add("@Status", PaymentStatus.Failed);
+                        parameters.Add("@CardLastFour", (string?)null);
+                        parameters.Add("@CardBrand", (string?)null);
+                        break;
+
+                    default:
+                        _logger.LogInformation("Unhandled status: {Status}. Ignoring webhook.", webhookData.Transaction.Status);
+                        await transaction.CommitAsync();
+                        return Ok(new { message = "Webhook ignored (unhandled status)" });
+                }
+
+                await connection.ExecuteAsync(
+                    updatePaymentSql,
+                    parameters,
+                    transaction,
+                    commandType: CommandType.StoredProcedure);
+
+                if (webhookData.Transaction.Status == "successful")
+                {
+                    const string activateSubSql = @"
+                        UPDATE UserSubscriptions 
+                        SET IsActive = 1 
+                        WHERE Id = @UserSubscriptionId";
+                    await connection.ExecuteAsync(
+                        activateSubSql,
+                        new { payment.UserSubscriptionId },
+                        transaction);
+
+                    await _notificationService.CreateAsync(
+                        payment.UserId,
+                        "Подписка активна",
+                        "Оплата прошла успешно!",
+                        NotificationType.Info);
+
+                    _logger.LogInformation("Subscription {SubId} activated for user {UserId}",
+                        payment.UserSubscriptionId, payment.UserId);
+                }
+                else if (webhookData.Transaction.Status == "failed" ||
+                         webhookData.Transaction.Status == "error" ||
+                         webhookData.Transaction.Status == "expired")
+                {
+                    await _notificationService.CreateAsync(
+                        payment.UserId,
                         "Ошибка оплаты",
                         "Не удалось провести платеж. Проверьте данные карты.",
                         NotificationType.Error);
-                    _logger.LogWarning("Payment failed with status: {Status}", webhookData.Transaction.Status);
-                    break;
 
-                default:
-                    _logger.LogInformation("Unhandled status: {Status}", webhookData.Transaction.Status);
-                    break;
+                    _logger.LogWarning("Payment failed for user {UserId}, status: {Status}",
+                        payment.UserId, webhookData.Transaction.Status);
+                }
+
+                await transaction.CommitAsync();
+                return Ok(new { message = "Webhook processed successfully" });
             }
-
-            await _context.SaveChangesAsync();
-            return Ok(new { message = "Webhook processed" });
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing webhook for payment {PaymentId}", paymentId);
+                await transaction.RollbackAsync();
+                return StatusCode(500, "Internal server error");
+            }
         }
     }
 }

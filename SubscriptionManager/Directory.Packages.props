@@ -8,6 +8,7 @@
     <PackageVersion Include="AspNetCore.HealthChecks.UI.Client" Version="9.0.0" />
     <PackageVersion Include="AutoMapper" Version="16.0.0" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+    <PackageVersion Include="Dapper" Version="2.1.72" />
     <PackageVersion Include="DeviceDetector.NET" Version="6.4.7" />
     <PackageVersion Include="EmailValidation" Version="1.3.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.3" />
@@ -15,6 +16,7 @@
     <PackageVersion Include="Microsoft.AspNetCore.Http.Features" Version="5.0.17" />
     <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.3" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Data.SqlClient" Version="6.1.1" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.3" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.3" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.3" />
@@ -39,5 +41,14 @@
     <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.15.0" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageVersion Update="System.IdentityModel.Tokens.Jwt" Version="8.15.0" />
+    <PackageVersion Update="Microsoft.IdentityModel.Tokens" Version="8.15.0" />
+    <PackageVersion Update="Microsoft.IdentityModel.Logging" Version="8.15.0" />
+    <PackageVersion Update="Microsoft.IdentityModel.Protocols" Version="8.15.0" />
+    <PackageVersion Update="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.15.0" />
   </ItemGroup>
 </Project>

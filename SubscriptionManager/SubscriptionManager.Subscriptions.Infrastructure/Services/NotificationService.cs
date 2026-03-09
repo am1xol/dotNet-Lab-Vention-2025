@@ -1,10 +1,11 @@
-using Microsoft.EntityFrameworkCore;
+using Dapper;
+using Microsoft.Data.SqlClient;
+using System.Data;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using SubscriptionManager.Auth.Infrastructure.Data;
 using SubscriptionManager.Core.DTOs;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Models;
-using SubscriptionManager.Subscriptions.Infrastructure.Data;
 
 namespace SubscriptionManager.Subscriptions.Infrastructure.Services
 {
@@ -19,115 +20,98 @@ namespace SubscriptionManager.Subscriptions.Infrastructure.Services
 
     public class NotificationService : INotificationService
     {
-        private readonly SubscriptionsDbContext _context;
-        private readonly AuthDbContext _authContext;
+        private readonly string _subscriptionsConnectionString;
+        private readonly string _authConnectionString;
+        private readonly IUserRepository _userRepository;
         private readonly IEmailService _emailService;
         private readonly ILogger<NotificationService> _logger;
 
-        public NotificationService(SubscriptionsDbContext context, AuthDbContext authContext, IEmailService emailService, ILogger<NotificationService> logger)
+        public NotificationService(
+            IConfiguration configuration,
+            IUserRepository userRepository,
+            IEmailService emailService,
+            ILogger<NotificationService> logger)
         {
-            _context = context;
-            _authContext = authContext;
+            _subscriptionsConnectionString = configuration.GetConnectionString("SubscriptionsConnection")
+                ?? throw new InvalidOperationException("Connection string 'SubscriptionsConnection' not found.");
+            _authConnectionString = configuration.GetConnectionString("AuthConnection")
+                ?? throw new InvalidOperationException("Connection string 'AuthDb' not found.");
+            _userRepository = userRepository;
             _emailService = emailService;
             _logger = logger;
         }
 
         public async Task CreateAsync(Guid userId, string title, string message, NotificationType type)
         {
-            var notification = new Notification
+            using var connection = new SqlConnection(_subscriptionsConnectionString);
+            const string sql = "sp_Notifications_Create";
+            await connection.ExecuteAsync(sql, new
             {
+                Id = Guid.NewGuid(),
                 UserId = userId,
                 Title = title,
                 Message = message,
-                Type = type,
+                Type = (int)type,
                 CreatedAt = DateTime.UtcNow
-            };
-
-            _context.Notifications.Add(notification);
-            await _context.SaveChangesAsync();
+            }, commandType: CommandType.StoredProcedure);
 
             try
             {
-                var userEmail = await _authContext.Users
-                    .Where(u => u.Id == userId)
-                    .Select(u => u.Email)
-                    .FirstOrDefaultAsync();
+                using var authConnection = new SqlConnection(_authConnectionString);
+                const string getEmailSql = "SELECT Email FROM Users WHERE Id = @UserId";
+                var email = await authConnection.QueryFirstOrDefaultAsync<string>(getEmailSql, new { UserId = userId });
 
-                if (!string.IsNullOrEmpty(userEmail))
+                if (!string.IsNullOrEmpty(email))
                 {
-                    await _emailService.SendNotificationEmailAsync(userEmail, title, message);
+                    await _emailService.SendNotificationEmailAsync(email, title, message);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to send email notification");
+                _logger.LogError(ex, "Failed to send email notification for user {UserId}", userId);
             }
         }
 
         public async Task<PagedNotificationsDto> GetPagedNotificationsAsync(Guid userId, int page, int pageSize)
         {
-            var query = _context.Notifications
-                .Where(n => n.UserId == userId)
-                .OrderByDescending(n => n.CreatedAt);
+            using var connection = new SqlConnection(_subscriptionsConnectionString);
+            const string sql = "sp_Notifications_GetPaged";
+            var parameters = new DynamicParameters();
+            parameters.Add("@UserId", userId);
+            parameters.Add("@PageNumber", page);
+            parameters.Add("@PageSize", pageSize);
+            parameters.Add("@TotalCount", dbType: DbType.Int32, direction: ParameterDirection.Output);
 
-            var totalCount = await query.CountAsync();
-
-            var items = await query
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .Select(n => new NotificationDto
-                {
-                    Id = n.Id,
-                    Title = n.Title,
-                    Message = n.Message,
-                    Type = n.Type.ToString(),
-                    IsRead = n.IsRead,
-                    CreatedAt = n.CreatedAt
-                })
-                .ToListAsync();
+            var items = await connection.QueryAsync<NotificationDto>(sql, parameters, commandType: CommandType.StoredProcedure);
+            var totalCount = parameters.Get<int>("@TotalCount");
 
             return new PagedNotificationsDto
             {
-                Items = items,
+                Items = items.ToList(),
                 TotalCount = totalCount
             };
         }
 
         public async Task MarkAllAsReadAsync(Guid userId)
         {
-            await _context.Notifications
-                .Where(n => n.UserId == userId && !n.IsRead)
-                .ExecuteUpdateAsync(setters => setters
-                    .SetProperty(n => n.IsRead, true));
+            using var connection = new SqlConnection(_subscriptionsConnectionString);
+            const string sql = "sp_Notifications_MarkAllRead";
+            await connection.ExecuteAsync(sql, new { UserId = userId }, commandType: CommandType.StoredProcedure);
         }
 
         public async Task<List<NotificationDto>> GetUserNotificationsAsync(Guid userId)
         {
-            return await _context.Notifications
-                .Where(n => n.UserId == userId)
-                .OrderByDescending(n => n.CreatedAt)
-                .Select(n => new NotificationDto
-                {
-                    Id = n.Id,
-                    Title = n.Title,
-                    Message = n.Message,
-                    Type = n.Type.ToString(),
-                    IsRead = n.IsRead,
-                    CreatedAt = n.CreatedAt
-                })
-                .ToListAsync();
+            using var connection = new SqlConnection(_subscriptionsConnectionString);
+            const string sql = "sp_Notifications_GetByUserId";
+            var notifications = await connection.QueryAsync<NotificationDto>(sql, new { UserId = userId }, commandType: CommandType.StoredProcedure);
+            return notifications.ToList();
         }
 
         public async Task MarkAsReadAsync(Guid notificationId, Guid userId)
         {
-            var notification = await _context.Notifications
-                .FirstOrDefaultAsync(n => n.Id == notificationId && n.UserId == userId);
-
-            if (notification != null)
-            {
-                notification.IsRead = true;
-                await _context.SaveChangesAsync();
-            }
+            using var connection = new SqlConnection(_subscriptionsConnectionString);
+            const string sql = "sp_Notifications_MarkAsRead";
+            await connection.ExecuteAsync(sql, new { Id = notificationId, UserId = userId }, commandType: CommandType.StoredProcedure);
         }
     }
 }

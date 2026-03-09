@@ -1,5 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
-using SubscriptionManager.Auth.Infrastructure.Data;
+using Dapper;
+using Microsoft.Data.SqlClient;
+using System.Data;
+using Microsoft.Extensions.Configuration;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Models;
 
@@ -7,78 +9,150 @@ namespace SubscriptionManager.Auth.Infrastructure.Repositories;
 
 public class UserRepository : IUserRepository
 {
-    private readonly AuthDbContext _context;
+    private readonly string _connectionString;
 
-    public UserRepository(AuthDbContext context)
+    public UserRepository(IConfiguration configuration)
     {
-        _context = context;
+        _connectionString = configuration.GetConnectionString("AuthConnection")
+            ?? throw new InvalidOperationException("Connection string 'AuthConnection' not found.");
     }
+
+    private IDbConnection CreateConnection() => new SqlConnection(_connectionString);
 
     public async Task<User?> GetByEmailAsync(string email)
     {
-        return await _context.Users
-            .FirstOrDefaultAsync(u => u.Email == email);
+        const string sql = "sp_Users_GetByEmail";
+        using var connection = CreateConnection();
+        return await connection.QueryFirstOrDefaultAsync<User>(
+            sql,
+            new { Email = email },
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<bool> ExistsByEmailAsync(string email)
     {
-        return await _context.Users
-            .AnyAsync(u => u.Email == email);
+        var user = await GetByEmailAsync(email);
+        return user != null;
     }
 
     public async Task AddAsync(User user)
     {
-        await _context.Users.AddAsync(user);
+        const string sql = "sp_Users_Insert";
+        using var connection = CreateConnection();
+        await connection.ExecuteAsync(sql, new
+        {
+            user.Id,
+            user.Email,
+            user.PasswordHash,
+            user.FirstName,
+            user.LastName,
+            user.Role,
+            user.CreatedAt,
+            user.UpdatedAt,
+            user.EmailVerificationCode,
+            user.EmailVerificationCodeExpiresAt
+        }, commandType: CommandType.StoredProcedure);
     }
 
-    public async Task SaveChangesAsync()
-    {
-        await _context.SaveChangesAsync();
-    }
+    public Task SaveChangesAsync() => Task.CompletedTask;
 
     public async Task<IEnumerable<User>> GetAllUsersAsync()
     {
-        return await _context.Users.ToListAsync();
+        const string sql = "sp_Users_GetPaged";
+        var parameters = new DynamicParameters();
+        parameters.Add("@PageNumber", 1);
+        parameters.Add("@PageSize", int.MaxValue);
+        parameters.Add("@SearchTerm", null);
+        parameters.Add("@TotalCount", dbType: DbType.Int32, direction: ParameterDirection.Output);
+
+        using var connection = CreateConnection();
+        var users = await connection.QueryAsync<User>(
+            sql,
+            parameters,
+            commandType: CommandType.StoredProcedure);
+
+        return users;
     }
 
-    public async Task<(IEnumerable<User> Items, int TotalCount)> GetPagedUsersAsync(int pageNumber, int pageSize, string? searchTerm)
+    public async Task<(IEnumerable<User> Items, int TotalCount)> GetPagedUsersAsync(
+        int pageNumber, int pageSize, string? searchTerm)
     {
-        var query = _context.Users.AsQueryable();
+        const string sql = "sp_Users_GetPaged";
+        var parameters = new DynamicParameters();
+        parameters.Add("@PageNumber", pageNumber);
+        parameters.Add("@PageSize", pageSize);
+        parameters.Add("@SearchTerm", searchTerm);
+        parameters.Add("@TotalCount", dbType: DbType.Int32, direction: ParameterDirection.Output);
 
-        if (!string.IsNullOrWhiteSpace(searchTerm))
-        {
-            searchTerm = searchTerm.ToLower();
-            query = query.Where(u =>
-                u.Email.ToLower().Contains(searchTerm) ||
-                u.FirstName.ToLower().Contains(searchTerm) ||
-                u.LastName.ToLower().Contains(searchTerm) ||
-                u.Id.ToString().Contains(searchTerm));
-        }
+        using var connection = CreateConnection();
+        var items = await connection.QueryAsync<User>(
+            sql,
+            parameters,
+            commandType: CommandType.StoredProcedure);
 
-        var totalCount = await query.CountAsync();
-        var items = await query
-            .OrderByDescending(u => u.CreatedAt)
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
-
+        var totalCount = parameters.Get<int>("@TotalCount");
         return (items, totalCount);
     }
 
     public async Task UpdateAsync(User user)
     {
-        _context.Users.Update(user);
-        await _context.SaveChangesAsync();
+        const string sql = "sp_Users_Update";
+        using var connection = CreateConnection();
+        await connection.ExecuteAsync(
+            sql,
+            new
+            {
+                user.Id,
+                user.FirstName,
+                user.LastName,
+                user.Email,
+                user.PasswordHash,
+                user.Role,
+                user.IsBlocked
+            },
+            commandType: CommandType.StoredProcedure);
     }
+
     public async Task<bool> IsEmailTakenAsync(string email, Guid excludeUserId)
     {
-        return await _context.Users
-            .AnyAsync(u => u.Email == email && u.Id != excludeUserId);
+        const string sql = "sp_Users_IsEmailTaken";
+        using var connection = CreateConnection();
+        return await connection.ExecuteScalarAsync<bool>(
+            sql,
+            new { Email = email, ExcludeUserId = excludeUserId },
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<User?> GetByIdAsync(Guid id)
     {
-        return await _context.Users
-            .FirstOrDefaultAsync(u => u.Id == id);
+        const string sql = "sp_Users_GetById";
+        using var connection = CreateConnection();
+        return await connection.QueryFirstOrDefaultAsync<User>(
+            sql,
+            new { Id = id },
+            commandType: CommandType.StoredProcedure);
+    }
+
+    public async Task UpdateResetCodeAsync(Guid userId, string resetCode, DateTime expiresAt)
+    {
+        const string sql = "sp_Users_UpdateResetCode";
+        using var connection = CreateConnection();
+        await connection.ExecuteAsync(sql, new
+        {
+            Id = userId,
+            PasswordResetCode = resetCode,
+            PasswordResetExpiresAt = expiresAt
+        }, commandType: CommandType.StoredProcedure);
+    }
+
+    public async Task UpdatePasswordAsync(Guid userId, string passwordHash)
+    {
+        const string sql = "sp_Users_UpdatePassword";
+        using var connection = CreateConnection();
+        await connection.ExecuteAsync(sql, new
+        {
+            Id = userId,
+            PasswordHash = passwordHash
+        }, commandType: CommandType.StoredProcedure);
     }
 }

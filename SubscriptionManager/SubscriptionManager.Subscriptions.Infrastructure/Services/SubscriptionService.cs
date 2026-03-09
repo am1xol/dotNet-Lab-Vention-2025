@@ -1,7 +1,10 @@
 ﻿using AutoMapper;
-using Microsoft.EntityFrameworkCore;
+using Dapper;
+using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
+using SubscriptionManager.Core;
 using SubscriptionManager.Core.DTOs;
-using SubscriptionManager.Subscriptions.Infrastructure.Data;
+using System.Data;
 
 namespace SubscriptionManager.Subscriptions.Infrastructure.Services
 {
@@ -11,80 +14,56 @@ namespace SubscriptionManager.Subscriptions.Infrastructure.Services
     }
     public class SubscriptionService : ISubscriptionService
     {
-        private readonly SubscriptionsDbContext _context;
+        private readonly string _connectionString;
         private readonly IMapper _mapper;
         private readonly IFileStorageService _fileStorageService;
 
-        public SubscriptionService(SubscriptionsDbContext context, IMapper mapper, IFileStorageService fileStorageService)
+        public SubscriptionService(
+            IConfiguration configuration,
+            IMapper mapper,
+            IFileStorageService fileStorageService)
         {
-            _context = context;
+            _connectionString = configuration.GetConnectionString("SubscriptionsConnection")
+                ?? throw new InvalidOperationException("Connection string 'SubscriptionsConnection' not found.");
             _mapper = mapper;
             _fileStorageService = fileStorageService;
         }
 
         public async Task ProcessExpiredSubscriptionsAsync()
         {
-            var now = DateTime.UtcNow;
-
-            var expiredSubscriptions = await _context.UserSubscriptions
-                .Where(us => us.IsActive &&
-                       ((us.CancelledAt.HasValue && us.ValidUntil.HasValue && us.ValidUntil <= now) ||
-                        (!us.CancelledAt.HasValue && us.NextBillingDate <= now)))
-                .ToListAsync();
-
-            foreach (var subscription in expiredSubscriptions)
-            {
-                if (subscription.CancelledAt.HasValue)
-                {
-                    subscription.IsActive = false;
-                }
-                else
-                {
-                    subscription.NextBillingDate = CalculateNextBillingDate(
-                        subscription.Subscription?.Period ?? "monthly");
-                }
-            }
-
-            await _context.SaveChangesAsync();
+            using var connection = new SqlConnection(_connectionString);
+            const string sql = "sp_Subscriptions_ProcessExpired";
+            await connection.ExecuteAsync(sql, commandType: CommandType.StoredProcedure);
         }
 
-        private DateTime CalculateNextBillingDate(string period)
+        public async Task<PagedResult<SubscriptionDto>> GetSubscriptionsAsync(
+            PaginationParams pq,
+            string? category = null,
+            string? search = null,
+            string? period = null,
+            decimal? minPrice = null,
+            decimal? maxPrice = null,
+            string? orderBy = null,
+            bool? descending = null)
         {
-            return period.ToLower() switch
-            {
-                "monthly" => DateTime.UtcNow.AddMonths(1),
-                "quarterly" => DateTime.UtcNow.AddMonths(3),
-                "yearly" => DateTime.UtcNow.AddYears(1),
-                "lifetime" => DateTime.UtcNow.AddYears(100),
-                _ => DateTime.UtcNow.AddMonths(1)
-            };
-        }
+            using var connection = new SqlConnection(_connectionString);
+            const string sql = "sp_Subscriptions_GetPagedExtended";
+            var parameters = new DynamicParameters();
+            parameters.Add("@PageNumber", pq.PageNumber);
+            parameters.Add("@PageSize", pq.PageSize);
+            parameters.Add("@Category", category);
+            parameters.Add("@SearchTerm", search);
+            parameters.Add("@Period", period);
+            parameters.Add("@MinPrice", minPrice);
+            parameters.Add("@MaxPrice", maxPrice);
+            parameters.Add("@OrderBy", orderBy ?? "date");
+            parameters.Add("@Descending", descending ?? true);
+            parameters.Add("@TotalCount", dbType: DbType.Int32, direction: ParameterDirection.Output);
 
-        public async Task<PagedResult<SubscriptionDto>> GetSubscriptionsAsync(PaginationParams pq, string? category = null)
-        {
-            var query = _context.Subscriptions
-                .Where(s => s.IsActive)
-                .AsQueryable();
+            var subscriptions = await connection.QueryAsync<Subscription>(sql, parameters, commandType: CommandType.StoredProcedure);
+            var totalCount = parameters.Get<int>("@TotalCount");
 
-            if (!string.IsNullOrEmpty(category))
-            {
-                query = query.Where(s => s.Category == category);
-            }
-
-            query = pq.OrderBy?.ToLower() switch
-            {
-                "name" => query.OrderBy(s => s.Name),
-                "price" => query.OrderBy(s => s.Price),
-                _ => query.OrderByDescending(s => s.CreatedAt)
-            };
-
-            var totalCount = await query.CountAsync();
-            var items = await query
-                .Skip((pq.PageNumber - 1) * pq.PageSize)
-                .Take(pq.PageSize)
-                .ToListAsync();
-
-            var dtos = _mapper.Map<IEnumerable<SubscriptionDto>>(items);
+            var dtos = _mapper.Map<IEnumerable<SubscriptionDto>>(subscriptions);
 
             foreach (var dto in dtos)
             {

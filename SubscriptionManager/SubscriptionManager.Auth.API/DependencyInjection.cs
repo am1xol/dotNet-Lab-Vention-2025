@@ -1,6 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
-using SubscriptionManager.Auth.Infrastructure.Data;
-using SubscriptionManager.Auth.Infrastructure.Repositories;
+﻿using SubscriptionManager.Auth.Infrastructure.Repositories;
 using SubscriptionManager.Auth.Infrastructure.Services;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Options;
@@ -20,9 +18,7 @@ namespace SubscriptionManager.Auth.API
             services.AddControllers();
             services.AddEndpointsApiExplorer();
             services.AddSharedSwagger("Auth API");
-
             services.AddSharedHealthChecks(configuration);
-
             services.AddSharedObservability(configuration, "Auth.API");
 
             return services;
@@ -41,9 +37,7 @@ namespace SubscriptionManager.Auth.API
 
         private static IServiceCollection AddAuthDatabase(this IServiceCollection services, IConfiguration configuration)
         {
-            services.AddDbContext<AuthDbContext>(options =>
-                options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
-
+            services.AddSingleton<IConfiguration>(configuration);
             return services;
         }
 

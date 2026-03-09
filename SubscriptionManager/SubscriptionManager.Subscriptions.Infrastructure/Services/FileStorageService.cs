@@ -1,10 +1,13 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Dapper;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Minio;
 using Minio.DataModel.Args;
 using SubscriptionManager.Core.Models;
 using SubscriptionManager.Core.Options;
-using SubscriptionManager.Subscriptions.Infrastructure.Data;
 
 namespace SubscriptionManager.Subscriptions.Infrastructure.Services
 {
@@ -33,21 +36,25 @@ namespace SubscriptionManager.Subscriptions.Infrastructure.Services
 
     public class FileStorageService : IFileStorageService
     {
+        private readonly string _connectionString;
         private readonly MinIOOptions _minioOptions;
         private readonly IMinioClient _minioClient;
-        private readonly SubscriptionsDbContext _context;
         private readonly IMinioClient _externalMinioClient;
+        private readonly ILogger<FileStorageService> _logger;
 
         private const long MaxFileSize = 5 * 1024 * 1024;
         private readonly string[] _allowedExtensions = { ".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp" };
         private readonly string[] _allowedContentTypes = { "image/jpeg", "image/png", "image/gif", "image/svg+xml", "image/webp" };
 
         public FileStorageService(
+            IConfiguration configuration,
             IOptions<MinIOOptions> minioOptions,
-            SubscriptionsDbContext context)
+            ILogger<FileStorageService> logger)
         {
+            _connectionString = configuration.GetConnectionString("SubscriptionsConnection")
+                ?? throw new InvalidOperationException("Connection string 'SubscriptionsConnection' not found.");
             _minioOptions = minioOptions.Value;
-            _context = context;
+            _logger = logger;
 
             var internalEndpoint = _minioOptions.Endpoint.Replace("http://", "").Replace("https://", "");
             var internalClientBuilder = new MinioClient()
@@ -124,7 +131,9 @@ namespace SubscriptionManager.Subscriptions.Infrastructure.Services
 
                 await _minioClient.PutObjectAsync(putObjectArgs);
 
-                var storedFile = new StoredFile
+                using var connection = new SqlConnection(_connectionString);
+                const string sql = "sp_StoredFiles_Insert";
+                await connection.ExecuteAsync(sql, new
                 {
                     Id = fileId,
                     FileName = file.FileName,
@@ -132,12 +141,8 @@ namespace SubscriptionManager.Subscriptions.Infrastructure.Services
                     ObjectName = objectName,
                     ContentType = file.ContentType,
                     Size = file.Length,
-                    UserId = userId,
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                _context.StoredFiles.Add(storedFile);
-                await _context.SaveChangesAsync();
+                    UserId = userId
+                }, commandType: System.Data.CommandType.StoredProcedure);
 
                 var presignedUrl = await GeneratePresignedUrlAsync(objectName);
 
@@ -150,7 +155,7 @@ namespace SubscriptionManager.Subscriptions.Infrastructure.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Upload error: {ex}");
+                _logger.LogError(ex, "Upload error");
                 return new FileUploadResult
                 {
                     Success = false,
@@ -163,7 +168,7 @@ namespace SubscriptionManager.Subscriptions.Infrastructure.Services
         {
             try
             {
-                var storedFile = await _context.StoredFiles.FindAsync(fileId);
+                var storedFile = await GetFileInfoAsync(fileId);
                 if (storedFile == null)
                     return false;
 
@@ -173,21 +178,22 @@ namespace SubscriptionManager.Subscriptions.Infrastructure.Services
 
                 await _minioClient.RemoveObjectAsync(removeObjectArgs);
 
-                _context.StoredFiles.Remove(storedFile);
-                await _context.SaveChangesAsync();
+                using var connection = new SqlConnection(_connectionString);
+                const string sql = "sp_StoredFiles_Delete";
+                await connection.ExecuteAsync(sql, new { Id = fileId }, commandType: System.Data.CommandType.StoredProcedure);
 
                 return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Delete error: {ex}");
+                _logger.LogError(ex, "Delete error");
                 return false;
             }
         }
 
         public async Task<string> GetPresignedUrlAsync(Guid fileId, int expiryInSeconds = 3600)
         {
-            var storedFile = await _context.StoredFiles.FindAsync(fileId);
+            var storedFile = await GetFileInfoAsync(fileId);
             if (storedFile == null)
                 throw new FileNotFoundException("File not found");
 
@@ -196,7 +202,9 @@ namespace SubscriptionManager.Subscriptions.Infrastructure.Services
 
         public async Task<StoredFile?> GetFileInfoAsync(Guid fileId)
         {
-            return await _context.StoredFiles.FindAsync(fileId);
+            using var connection = new SqlConnection(_connectionString);
+            const string sql = "sp_StoredFiles_GetById";
+            return await connection.QueryFirstOrDefaultAsync<StoredFile>(sql, new { Id = fileId }, commandType: System.Data.CommandType.StoredProcedure);
         }
 
         private async Task EnsureBucketExistsAsync()
@@ -210,12 +218,12 @@ namespace SubscriptionManager.Subscriptions.Infrastructure.Services
                 {
                     var makeBucketArgs = new MakeBucketArgs().WithBucket(_minioOptions.BucketName);
                     await _minioClient.MakeBucketAsync(makeBucketArgs);
-                    Console.WriteLine($"Bucket '{_minioOptions.BucketName}' created successfully");
+                    _logger.LogInformation("Bucket '{BucketName}' created successfully", _minioOptions.BucketName);
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Bucket check/creation error: {ex}");
+                _logger.LogError(ex, "Bucket check/creation error");
                 throw;
             }
         }
@@ -233,7 +241,7 @@ namespace SubscriptionManager.Subscriptions.Infrastructure.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Presigned URL generation error: {ex}");
+                _logger.LogError(ex, "Presigned URL generation error");
                 throw;
             }
         }

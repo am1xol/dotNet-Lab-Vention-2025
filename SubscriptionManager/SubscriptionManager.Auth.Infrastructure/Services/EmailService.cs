@@ -21,7 +21,7 @@ public class EmailService : IEmailService
     private async Task SendWithRetryAsync(MailMessage mailMessage)
     {
         int maxRetries = 3;
-        TimeSpan delay = TimeSpan.FromSeconds(2); 
+        TimeSpan delay = TimeSpan.FromSeconds(2);
 
         for (int i = 0; i <= maxRetries; i++)
         {

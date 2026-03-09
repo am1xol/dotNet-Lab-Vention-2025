@@ -263,11 +263,7 @@ public class AuthService : IAuthService
         var resetCode = new Random().Next(100000, 999999).ToString();
         var expiresAt = DateTime.UtcNow.AddHours(1);
 
-        user.PasswordResetCode = resetCode;
-        user.PasswordResetExpiresAt = expiresAt;
-        user.UpdatedAt = DateTime.UtcNow;
-
-        await _userRepository.SaveChangesAsync();
+        await _userRepository.UpdateResetCodeAsync(user.Id, resetCode, expiresAt);
 
         try
         {
@@ -300,12 +296,8 @@ public class AuthService : IAuthService
             return new ForgotPasswordResponse { Error = "Invalid or expired reset code" };
         }
 
-        user.PasswordHash = _passwordHasher.HashPassword(request.NewPassword);
-        user.PasswordResetCode = null;
-        user.PasswordResetExpiresAt = null;
-        user.UpdatedAt = DateTime.UtcNow;
-
-        await _userRepository.SaveChangesAsync();
+        var newPasswordHash = _passwordHasher.HashPassword(request.NewPassword);
+        await _userRepository.UpdatePasswordAsync(user.Id, newPasswordHash);
 
         return new ForgotPasswordResponse { Message = "Password has been reset successfully" };
     }
@@ -356,9 +348,9 @@ public class AuthService : IAuthService
         {
             _logger.LogError(ex, "Failed to send verification email during resend for user {UserId}", user.Id);
 
-            return new AuthResult 
-            { 
-                Error = "Failed to send verification code. Please try again in a minute." 
+            return new AuthResult
+            {
+                Error = "Failed to send verification code. Please try again in a minute."
             };
         }
 

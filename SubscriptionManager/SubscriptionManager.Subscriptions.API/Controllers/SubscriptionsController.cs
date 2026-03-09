@@ -1,10 +1,11 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Dapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 using SubscriptionManager.Core;
 using SubscriptionManager.Core.DTOs;
-using SubscriptionManager.Subscriptions.Infrastructure.Data;
 using SubscriptionManager.Subscriptions.Infrastructure.Services;
+using System.Data;
 
 namespace SubscriptionManager.Subscriptions.API.Controllers
 {
@@ -13,27 +14,27 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
     [Authorize]
     public class SubscriptionsController : ControllerBase
     {
-        private readonly SubscriptionsDbContext _context;
+        private readonly string _connectionString;
         private readonly IFileStorageService _fileStorageService;
 
         private static readonly decimal[] AllowedPrices = { 10m, 20m, 50m };
 
-        public SubscriptionsController(SubscriptionsDbContext context, IFileStorageService fileStorageService)
+        public SubscriptionsController(
+            IConfiguration configuration,
+            IFileStorageService fileStorageService)
         {
-            _context = context;
+            _connectionString = configuration.GetConnectionString("SubscriptionsConnection")
+                ?? throw new InvalidOperationException("Connection string 'SubscriptionsConnection' not found.");
             _fileStorageService = fileStorageService;
         }
 
         [HttpGet("categories")]
         public async Task<ActionResult<List<string>>> GetCategories()
         {
-            var categories = await _context.Subscriptions
-                .Where(s => s.IsActive)
-                .Select(s => s.Category)
-                .Distinct()
-                .ToListAsync();
-
-            return Ok(categories);
+            using var connection = new SqlConnection(_connectionString);
+            const string sql = "sp_Subscriptions_GetCategories";
+            var categories = await connection.QueryAsync<string>(sql, commandType: CommandType.StoredProcedure);
+            return Ok(categories.ToList());
         }
 
         [HttpGet]
@@ -48,68 +49,24 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             [FromQuery] string? orderBy = null,
             [FromQuery] bool? descending = null)
         {
-            var query = _context.Subscriptions
-                .Where(s => s.IsActive)
-                .AsQueryable();
+            using var connection = new SqlConnection(_connectionString);
+            const string sql = "sp_Subscriptions_GetPagedExtended";
+            var parameters = new DynamicParameters();
+            parameters.Add("@PageNumber", pq.PageNumber);
+            parameters.Add("@PageSize", pq.PageSize);
+            parameters.Add("@Category", category);
+            parameters.Add("@SearchTerm", search);
+            parameters.Add("@Period", period);
+            parameters.Add("@MinPrice", minPrice);
+            parameters.Add("@MaxPrice", maxPrice);
+            parameters.Add("@OrderBy", orderBy ?? "date");
+            parameters.Add("@Descending", descending ?? true);
+            parameters.Add("@TotalCount", dbType: DbType.Int32, direction: ParameterDirection.Output);
 
-            if (!string.IsNullOrEmpty(category))
-            {
-                query = query.Where(s => s.Category == category);
-            }
+            var subscriptions = await connection.QueryAsync<Subscription>(sql, parameters, commandType: CommandType.StoredProcedure);
+            var totalCount = parameters.Get<int>("@TotalCount");
 
-            if (!string.IsNullOrEmpty(search))
-            {
-                query = query.Where(s =>
-                    s.Name.Contains(search) ||
-                    s.Description.Contains(search));
-            }
-
-            if (!string.IsNullOrEmpty(period))
-            {
-                var periods = period.Split(',', StringSplitOptions.RemoveEmptyEntries);
-                query = query.Where(s => periods.Contains(s.Period));
-            }
-
-            if (minPrice.HasValue)
-            {
-                query = query.Where(s => s.Price >= minPrice.Value);
-            }
-
-            if (maxPrice.HasValue)
-            {
-                query = query.Where(s => s.Price <= maxPrice.Value);
-            }
-
-            if (!string.IsNullOrEmpty(orderBy))
-            {
-                query = orderBy.ToLower() switch
-                {
-                    "name" => descending.HasValue && descending.Value ?
-                        query.OrderByDescending(s => s.Name) :
-                        query.OrderBy(s => s.Name),
-                    "price" => descending.HasValue && descending.Value ?
-                        query.OrderByDescending(s => s.Price) :
-                        query.OrderBy(s => s.Price),
-                    "createdat" => descending.HasValue && descending.Value ?
-                        query.OrderByDescending(s => s.CreatedAt) :
-                        query.OrderBy(s => s.CreatedAt),
-                    _ => descending.HasValue && descending.Value ?
-                        query.OrderByDescending(s => s.CreatedAt) :
-                        query.OrderBy(s => s.CreatedAt)
-                };
-            }
-            else
-            {
-                query = query.OrderByDescending(s => s.CreatedAt);
-            }
-
-            var totalCount = await query.CountAsync();
-            var items = await query
-                .Skip((pq.PageNumber - 1) * pq.PageSize)
-                .Take(pq.PageSize)
-                .ToListAsync();
-
-            var dtos = items.Select(s => MapToDto(s)).ToList();
+            var dtos = subscriptions.Select(MapToDto).ToList();
 
             foreach (var dto in dtos)
             {
@@ -140,13 +97,15 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<SubscriptionDto>> GetSubscription(Guid id)
         {
-            var subscription = await _context.Subscriptions
-                .FirstOrDefaultAsync(s => s.Id == id && s.IsActive);
+            using var connection = new SqlConnection(_connectionString);
+            const string sql = "sp_Subscriptions_GetById";
+            var subscription = await connection.QueryFirstOrDefaultAsync<Subscription>(
+                sql,
+                new { Id = id },
+                commandType: CommandType.StoredProcedure);
 
-            if (subscription == null)
-            {
+            if (subscription == null || !subscription.IsActive)
                 return NotFound();
-            }
 
             var subscriptionDto = MapToDto(subscription);
 
@@ -170,26 +129,28 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         [ProducesResponseType(typeof(Dictionary<string, List<SubscriptionDto>>), StatusCodes.Status200OK)]
         public async Task<ActionResult<Dictionary<string, List<SubscriptionDto>>>> GetAllSubscriptionsForAdmin()
         {
-            var subscriptions = await _context.Subscriptions
-                .Select(s => MapToDto(s))
-                .ToListAsync();
+            using var connection = new SqlConnection(_connectionString);
+            const string sql = "SELECT * FROM Subscriptions";
+            var subscriptions = await connection.QueryAsync<Subscription>(sql);
 
-            foreach (var subscription in subscriptions)
+            var dtos = subscriptions.Select(MapToDto).ToList();
+
+            foreach (var dto in dtos)
             {
-                if (subscription.IconFileId.HasValue)
+                if (dto.IconFileId.HasValue)
                 {
                     try
                     {
-                        subscription.IconUrl = await _fileStorageService.GetPresignedUrlAsync(subscription.IconFileId.Value);
+                        dto.IconUrl = await _fileStorageService.GetPresignedUrlAsync(dto.IconFileId.Value);
                     }
                     catch
                     {
-                        subscription.IconUrl = null;
+                        dto.IconUrl = null;
                     }
                 }
             }
 
-            var groupedSubscriptions = subscriptions
+            var groupedSubscriptions = dtos
                 .GroupBy(s => s.Category)
                 .ToDictionary(g => g.Key, g => g.ToList());
 
@@ -204,17 +165,15 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         {
             if (request.IconFileId.HasValue)
             {
-                var fileExists = await _context.StoredFiles.AnyAsync(f => f.Id == request.IconFileId.Value);
+                using var connection = new SqlConnection(_connectionString);
+                const string checkFileSql = "SELECT COUNT(1) FROM StoredFiles WHERE Id = @Id";
+                var fileExists = await connection.ExecuteScalarAsync<int>(checkFileSql, new { Id = request.IconFileId.Value }) > 0;
                 if (!fileExists)
-                {
                     return BadRequest("Icon file not found");
-                }
             }
 
             if (!AllowedPrices.Contains(request.Price))
-            {
                 return BadRequest($"Invalid price. Allowed prices are: {string.Join(", ", AllowedPrices)}");
-            }
 
             var subscription = new Subscription
             {
@@ -231,8 +190,20 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 UpdatedAt = DateTime.UtcNow
             };
 
-            _context.Subscriptions.Add(subscription);
-            await _context.SaveChangesAsync();
+            using var connection2 = new SqlConnection(_connectionString);
+            const string sql = "sp_Subscriptions_Insert";
+            await connection2.ExecuteAsync(sql, new
+            {
+                subscription.Id,
+                subscription.Name,
+                subscription.Description,
+                subscription.DescriptionMarkdown,
+                subscription.Price,
+                subscription.Period,
+                subscription.Category,
+                subscription.IconFileId,
+                subscription.IsActive
+            }, commandType: CommandType.StoredProcedure);
 
             var subscriptionDto = MapToDto(subscription);
 
@@ -260,34 +231,35 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         {
             if (request.IconFileId.HasValue)
             {
-                var fileExists = await _context.StoredFiles.AnyAsync(f => f.Id == request.IconFileId.Value);
+                using var connection = new SqlConnection(_connectionString);
+                const string checkFileSql = "SELECT COUNT(1) FROM StoredFiles WHERE Id = @Id";
+                var fileExists = await connection.ExecuteScalarAsync<int>(checkFileSql, new { Id = request.IconFileId.Value }) > 0;
                 if (!fileExists)
-                {
                     return BadRequest("Icon file not found");
-                }
             }
 
-            var existingSubscription = await _context.Subscriptions.FindAsync(id);
-            if (existingSubscription == null)
-            {
+            using var connection2 = new SqlConnection(_connectionString);
+            const string checkSubSql = "SELECT COUNT(1) FROM Subscriptions WHERE Id = @Id";
+            var subExists = await connection2.ExecuteScalarAsync<int>(checkSubSql, new { Id = id }) > 0;
+            if (!subExists)
                 return NotFound();
-            }
 
             if (!AllowedPrices.Contains(request.Price))
-            {
                 return BadRequest($"Invalid price. Allowed prices are: {string.Join(", ", AllowedPrices)}");
-            }
 
-            existingSubscription.Name = request.Name;
-            existingSubscription.Description = request.Description;
-            existingSubscription.DescriptionMarkdown = request.DescriptionMarkdown;
-            existingSubscription.Price = request.Price;
-            existingSubscription.Period = request.Period;
-            existingSubscription.Category = request.Category;
-            existingSubscription.IconFileId = request.IconFileId;
-            existingSubscription.UpdatedAt = DateTime.UtcNow;
-
-            await _context.SaveChangesAsync();
+            const string sql = "sp_Subscriptions_Update";
+            await connection2.ExecuteAsync(sql, new
+            {
+                Id = id,
+                request.Name,
+                request.Description,
+                request.DescriptionMarkdown,
+                request.Price,
+                request.Period,
+                request.Category,
+                request.IconFileId,
+                IsActive = true
+            }, commandType: CommandType.StoredProcedure);
 
             return NoContent();
         }
@@ -296,48 +268,78 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteSubscription(Guid id)
         {
-            var subscription = await _context.Subscriptions.FindAsync(id);
-            if (subscription == null)
-            {
-                return NotFound();
-            }
+            using var connection = new SqlConnection(_connectionString);
+            await connection.OpenAsync();
+            using var transaction = await connection.BeginTransactionAsync();
 
-            var activeUserSubscriptions = await _context.UserSubscriptions
-                .Where(us => us.SubscriptionId == id && us.IsActive)
-                .ToListAsync();
-
-            if (activeUserSubscriptions.Any())
+            try
             {
-                return BadRequest(new
+                const string getSubSql = "SELECT * FROM Subscriptions WHERE Id = @Id";
+                var subscription = await connection.QueryFirstOrDefaultAsync<Subscription>(
+                    getSubSql,
+                    new { Id = id },
+                    transaction);
+
+                if (subscription == null)
                 {
-                    message = "Cannot delete subscription with active users. Cancel all user subscriptions first or deactivate instead.",
-                    activeUsersCount = activeUserSubscriptions.Count
-                });
-            }
+                    await transaction.RollbackAsync();
+                    return NotFound();
+                }
 
-            var anyUserSubscriptions = await _context.UserSubscriptions
-                .AnyAsync(us => us.SubscriptionId == id);
+                const string checkActiveSql = @"
+                    SELECT COUNT(1) FROM UserSubscriptions 
+                    WHERE SubscriptionId = @Id AND IsActive = 1";
+                var activeCount = await connection.ExecuteScalarAsync<int>(
+                    checkActiveSql,
+                    new { Id = id },
+                    transaction);
 
-            if (anyUserSubscriptions)
-            {
-
-                subscription.IsActive = false;
-                subscription.UpdatedAt = DateTime.UtcNow;
-
-                await _context.SaveChangesAsync();
-
-                return Ok(new
+                if (activeCount > 0)
                 {
-                    message = "Subscription deactivated because it has historical user data. It cannot be fully deleted.",
-                    subscriptionId = subscription.Id
-                });
-            }
-            else
-            {
-                _context.Subscriptions.Remove(subscription);
-                await _context.SaveChangesAsync();
+                    await transaction.RollbackAsync();
+                    return BadRequest(new
+                    {
+                        message = "Cannot delete subscription with active users. Cancel all user subscriptions first or deactivate instead.",
+                        activeUsersCount = activeCount
+                    });
+                }
 
-                return NoContent();
+                const string checkHistorySql = "SELECT COUNT(1) FROM UserSubscriptions WHERE SubscriptionId = @Id";
+                var historyCount = await connection.ExecuteScalarAsync<int>(
+                    checkHistorySql,
+                    new { Id = id },
+                    transaction);
+
+                if (historyCount > 0)
+                {
+                    const string deactivateSql = "sp_Subscriptions_UpdateActive";
+                    await connection.ExecuteAsync(
+                        deactivateSql,
+                        new { Id = id, IsActive = false },
+                        transaction,
+                        commandType: CommandType.StoredProcedure);
+
+                    await transaction.CommitAsync();
+
+                    return Ok(new
+                    {
+                        message = "Subscription deactivated because it has historical user data. It cannot be fully deleted.",
+                        subscriptionId = id
+                    });
+                }
+                else
+                {
+                    const string deleteSql = "DELETE FROM Subscriptions WHERE Id = @Id";
+                    await connection.ExecuteAsync(deleteSql, new { Id = id }, transaction);
+
+                    await transaction.CommitAsync();
+                    return NoContent();
+                }
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
             }
         }
 
@@ -345,27 +347,40 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateSubscriptionActive(Guid id, [FromBody] UpdateActiveRequest request)
         {
-            var subscription = await _context.Subscriptions.FindAsync(id);
-            if (subscription == null)
+            using var connection = new SqlConnection(_connectionString);
+            await connection.OpenAsync();
+            using var transaction = await connection.BeginTransactionAsync();
+
+            try
             {
-                return NotFound();
-            }
+                const string checkSubSql = "SELECT COUNT(1) FROM Subscriptions WHERE Id = @Id";
+                var subExists = await connection.ExecuteScalarAsync<int>(checkSubSql, new { Id = id }, transaction) > 0;
+                if (!subExists)
+                {
+                    await transaction.RollbackAsync();
+                    return NotFound();
+                }
 
-            if (!request.IsActive && subscription.IsActive)
+                if (!request.IsActive)
+                {
+                    const string cancelUserSubsSql = @"
+                        UPDATE UserSubscriptions 
+                        SET CancelledAt = @Now, ValidUntil = NextBillingDate
+                        WHERE SubscriptionId = @Id AND IsActive = 1";
+                    await connection.ExecuteAsync(cancelUserSubsSql, new { Id = id, Now = DateTime.UtcNow }, transaction);
+                }
+
+                const string sql = "sp_Subscriptions_UpdateActive";
+                await connection.ExecuteAsync(sql, new { Id = id, request.IsActive }, transaction, commandType: CommandType.StoredProcedure);
+
+                await transaction.CommitAsync();
+                return NoContent();
+            }
+            catch
             {
-                await _context.UserSubscriptions
-                    .Where(us => us.SubscriptionId == id && us.IsActive)
-                    .ExecuteUpdateAsync(setters => setters
-                        .SetProperty(us => us.CancelledAt, DateTime.UtcNow)
-                        .SetProperty(us => us.ValidUntil, us => us.NextBillingDate));
+                await transaction.RollbackAsync();
+                throw;
             }
-
-            subscription.IsActive = request.IsActive;
-            subscription.UpdatedAt = DateTime.UtcNow;
-
-            await _context.SaveChangesAsync();
-
-            return NoContent();
         }
 
         public class UpdateActiveRequest

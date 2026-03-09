@@ -13,4 +13,6 @@ public interface IUserRepository
     Task UpdateAsync(User user);
     Task<(IEnumerable<User> Items, int TotalCount)> GetPagedUsersAsync(int pageNumber, int pageSize, string? searchTerm);
     Task<bool> IsEmailTakenAsync(string email, Guid excludeUserId);
+    Task UpdateResetCodeAsync(Guid userId, string resetCode, DateTime expiresAt);
+    Task UpdatePasswordAsync(Guid userId, string passwordHash);
 }

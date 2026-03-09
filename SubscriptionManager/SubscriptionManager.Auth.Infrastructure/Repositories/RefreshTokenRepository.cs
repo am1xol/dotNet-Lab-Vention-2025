@@ -1,47 +1,83 @@
-﻿using Microsoft.EntityFrameworkCore;
-using SubscriptionManager.Auth.Infrastructure.Data;
+using Dapper;
+using System.Data;
+using Microsoft.Extensions.Configuration;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Models;
+using Microsoft.Data.SqlClient;
 
 namespace SubscriptionManager.Auth.Infrastructure.Repositories;
 
 public class RefreshTokenRepository : IRefreshTokenRepository
 {
-    private readonly AuthDbContext _context;
+    private readonly string _connectionString;
 
-    public RefreshTokenRepository(AuthDbContext context)
+    public RefreshTokenRepository(IConfiguration configuration)
     {
-        _context = context;
+        _connectionString = configuration.GetConnectionString("AuthConnection")
+            ?? throw new InvalidOperationException("Connection string 'AuthConnection' not found.");
     }
+
+    private IDbConnection CreateConnection() => new SqlConnection(_connectionString);
 
     public async Task<RefreshToken?> GetByTokenAsync(string token)
     {
-        return await _context.RefreshTokens
-            .Include(rt => rt.User)
-            .FirstOrDefaultAsync(rt => rt.Token == token && !rt.IsRevoked);
+        const string sql = "sp_RefreshTokens_GetByTokenWithUser";
+        using var connection = CreateConnection();
+
+        var result = await connection.QueryAsync<RefreshToken, User, RefreshToken>(
+            sql,
+            (refreshToken, user) =>
+            {
+                refreshToken.User = user;
+                return refreshToken;
+            },
+            new { Token = token },
+            splitOn: "UserId",
+            commandType: CommandType.StoredProcedure);
+
+        return result.FirstOrDefault();
     }
 
     public async Task AddAsync(RefreshToken refreshToken)
     {
-        await _context.RefreshTokens.AddAsync(refreshToken);
+        const string sql = "sp_RefreshTokens_Insert";
+        using var connection = CreateConnection();
+
+        await connection.ExecuteAsync(
+            sql,
+            new
+            {
+                Id = refreshToken.Id == Guid.Empty ? Guid.NewGuid() : refreshToken.Id,
+                refreshToken.UserId,
+                refreshToken.Token,
+                refreshToken.DeviceName,
+                refreshToken.ExpiresAt,
+                CreatedAt = DateTime.UtcNow
+            },
+            commandType: CommandType.StoredProcedure);
     }
 
     public Task UpdateAsync(RefreshToken refreshToken)
     {
-        _context.RefreshTokens.Update(refreshToken);
-        return Task.CompletedTask;
+        const string sql = "sp_RefreshTokens_Update";
+        using var connection = CreateConnection();
+
+        return connection.ExecuteAsync(
+            sql,
+            new { refreshToken.Id, refreshToken.IsRevoked },
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task RevokeAllUserTokensAsync(Guid userId)
     {
-        await _context.RefreshTokens
-            .Where(rt => rt.UserId == userId && !rt.IsRevoked)
-            .ExecuteUpdateAsync(setters => setters
-                .SetProperty(rt => rt.IsRevoked, true));
+        const string sql = "sp_RefreshTokens_RevokeAllUserTokens";
+        using var connection = CreateConnection();
+
+        await connection.ExecuteAsync(
+            sql,
+            new { UserId = userId },
+            commandType: CommandType.StoredProcedure);
     }
 
-    public async Task SaveChangesAsync()
-    {
-        await _context.SaveChangesAsync();
-    }
+    public Task SaveChangesAsync() => Task.CompletedTask;
 }

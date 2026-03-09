@@ -1,5 +1,5 @@
-﻿using Microsoft.Extensions.Options;
-using Microsoft.Extensions.Logging.Abstractions;
+﻿using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using SubscriptionManager.Auth.Infrastructure.Services;
 using SubscriptionManager.Core.Options;
 using System.Net.Mail;

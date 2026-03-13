@@ -8,6 +8,7 @@ import {
   UserSubscription,
   SubscriptionsByCategory,
 } from '../../types/subscription';
+
 interface UnsubscribeInfo {
   validUntil: string;
 }
@@ -121,14 +122,11 @@ export const AvailableSubscriptionsTab: React.FC<
                       >
                         <SubscriptionCard
                           subscription={subscription}
+                          prices={subscription.prices}
                           isSubscribed={!!userSub?.isActive}
                           isCancelled={!!userSub?.cancelledAt}
                           validUntil={userSub?.validUntil}
-                          unsubscribeInfo={
-                            unsubscribeData
-                              ? unsubscribeData[subscription.id]
-                              : undefined
-                          }
+                          unsubscribeInfo={unsubscribeData?.[subscription.id]}
                           onSubscribe={handleSubscribe}
                           onInitiatePayment={handleInitiatePayment}
                           onUnsubscribe={handleUnsubscribe}

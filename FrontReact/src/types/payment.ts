@@ -31,8 +31,8 @@ export interface Payment {
     id: string;
     name: string;
     price: number;
-    period: string;
   };
+  periodName?: string;
 }
 
 export interface UserStatistics {

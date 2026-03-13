@@ -16,16 +16,19 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
     {
         private readonly string _connectionString;
         private readonly IFileStorageService _fileStorageService;
+        private readonly ILogger<SubscriptionsController> _logger;
 
         private static readonly decimal[] AllowedPrices = { 10m, 20m, 50m };
 
         public SubscriptionsController(
             IConfiguration configuration,
-            IFileStorageService fileStorageService)
+            IFileStorageService fileStorageService,
+            ILogger<SubscriptionsController> logger)
         {
             _connectionString = configuration.GetConnectionString("SubscriptionsConnection")
                 ?? throw new InvalidOperationException("Connection string 'SubscriptionsConnection' not found.");
             _fileStorageService = fileStorageService;
+            _logger = logger;
         }
 
         [HttpGet("categories")]
@@ -40,14 +43,13 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         [HttpGet]
         [ProducesResponseType(typeof(PagedResult<SubscriptionDto>), StatusCodes.Status200OK)]
         public async Task<ActionResult<PagedResult<SubscriptionDto>>> GetSubscriptions(
-            [FromQuery] PaginationParams pq,
-            [FromQuery] string? category = null,
-            [FromQuery] string? search = null,
-            [FromQuery] string? period = null,
-            [FromQuery] decimal? minPrice = null,
-            [FromQuery] decimal? maxPrice = null,
-            [FromQuery] string? orderBy = null,
-            [FromQuery] bool? descending = null)
+    [FromQuery] PaginationParams pq,
+    [FromQuery] string? category = null,
+    [FromQuery] string? search = null,
+    [FromQuery] decimal? minPrice = null,
+    [FromQuery] decimal? maxPrice = null,
+    [FromQuery] string? orderBy = null,
+    [FromQuery] bool? descending = null)
         {
             using var connection = new SqlConnection(_connectionString);
             const string sql = "sp_Subscriptions_GetPagedExtended";
@@ -56,7 +58,6 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             parameters.Add("@PageSize", pq.PageSize);
             parameters.Add("@Category", category);
             parameters.Add("@SearchTerm", search);
-            parameters.Add("@Period", period);
             parameters.Add("@MinPrice", minPrice);
             parameters.Add("@MaxPrice", maxPrice);
             parameters.Add("@OrderBy", orderBy ?? "date");
@@ -67,6 +68,33 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             var totalCount = parameters.Get<int>("@TotalCount");
 
             var dtos = subscriptions.Select(MapToDto).ToList();
+
+            if (dtos.Any())
+            {
+                var subscriptionIds = dtos.Select(s => s.Id).ToList();
+                const string pricesSql = @"
+            SELECT sp.*, p.Name AS PeriodName, p.MonthsCount
+            FROM SubscriptionPrices sp
+            INNER JOIN Periods p ON sp.PeriodId = p.Id
+            WHERE sp.SubscriptionId IN @SubscriptionIds";
+
+                var allPrices = await connection.QueryAsync<SubscriptionPriceDto>(pricesSql, new { SubscriptionIds = subscriptionIds });
+
+                var pricesBySubscription = allPrices.GroupBy(p => p.SubscriptionId)
+                                                    .ToDictionary(g => g.Key, g => g.ToList());
+
+                foreach (var dto in dtos)
+                {
+                    if (pricesBySubscription.TryGetValue(dto.Id, out var prices))
+                    {
+                        dto.Prices = prices;
+                    }
+                    else
+                    {
+                        dto.Prices = new List<SubscriptionPriceDto>();
+                    }
+                }
+            }
 
             foreach (var dto in dtos)
             {
@@ -182,7 +210,6 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 Description = request.Description,
                 DescriptionMarkdown = request.DescriptionMarkdown,
                 Price = request.Price,
-                Period = request.Period,
                 Category = request.Category,
                 IconFileId = request.IconFileId,
                 IsActive = true,
@@ -199,7 +226,6 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 subscription.Description,
                 subscription.DescriptionMarkdown,
                 subscription.Price,
-                subscription.Period,
                 subscription.Category,
                 subscription.IconFileId,
                 subscription.IsActive
@@ -220,6 +246,131 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             }
 
             return CreatedAtAction(nameof(GetSubscription), new { id = subscription.Id }, subscriptionDto);
+        }
+
+        [HttpPost("with-price")]
+        [Authorize(Roles = "Admin")]
+        [ProducesResponseType(typeof(SubscriptionDto), StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<SubscriptionDto>> CreateSubscriptionWithPrice(CreateSubscriptionWithPriceRequest request)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            await connection.OpenAsync();
+            using var transaction = await connection.BeginTransactionAsync();
+
+            try
+            {
+                const string checkPeriodSql = "SELECT COUNT(1) FROM Periods WHERE Id = @PeriodId";
+                var periodExists = await connection.ExecuteScalarAsync<int>(
+                    checkPeriodSql,
+                    new { request.PeriodId },
+                    transaction) > 0;
+
+                if (!periodExists)
+                {
+                    await transaction.RollbackAsync();
+                    return BadRequest("Selected period does not exist");
+                }
+
+                if (request.IconFileId.HasValue)
+                {
+                    const string checkFileSql = "SELECT COUNT(1) FROM StoredFiles WHERE Id = @Id";
+                    var fileExists = await connection.ExecuteScalarAsync<int>(
+                        checkFileSql,
+                        new { Id = request.IconFileId.Value },
+                        transaction) > 0;
+
+                    if (!fileExists)
+                    {
+                        await transaction.RollbackAsync();
+                        return BadRequest("Icon file not found");
+                    }
+                }
+
+                var allowedPrices = new[] { 10m, 20m, 50m };
+                if (!allowedPrices.Contains(request.Price))
+                {
+                    await transaction.RollbackAsync();
+                    return BadRequest($"Invalid base price. Allowed prices: {string.Join(", ", allowedPrices)}");
+                }
+
+                var subscriptionId = Guid.NewGuid();
+                const string insertSubSql = "sp_Subscriptions_Insert";
+                await connection.ExecuteAsync(
+                    insertSubSql,
+                    new
+                    {
+                        Id = subscriptionId,
+                        request.Name,
+                        request.Description,
+                        request.DescriptionMarkdown,
+                        request.Price,
+                        request.Category,
+                        request.IconFileId,
+                        IsActive = true
+                    },
+                    transaction,
+                    commandType: CommandType.StoredProcedure);
+
+                const string insertPriceSql = @"
+            INSERT INTO SubscriptionPrices (Id, SubscriptionId, PeriodId, FinalPrice)
+            VALUES (@Id, @SubscriptionId, @PeriodId, @FinalPrice)";
+
+                await connection.ExecuteAsync(
+                    insertPriceSql,
+                    new
+                    {
+                        Id = Guid.NewGuid(),
+                        SubscriptionId = subscriptionId,
+                        request.PeriodId,
+                        request.FinalPrice
+                    },
+                    transaction);
+
+                await transaction.CommitAsync();
+
+                const string getSubSql = "sp_Subscriptions_GetById";
+                var subscription = await connection.QueryFirstOrDefaultAsync<Subscription>(
+                    getSubSql,
+                    new { Id = subscriptionId },
+                    commandType: CommandType.StoredProcedure);
+
+                if (subscription == null)
+                {
+                    _logger.LogError("Subscription was not found immediately after creation. Id: {SubscriptionId}", subscriptionId);
+                    return StatusCode(500, "Subscription created but failed to retrieve");
+                }
+
+                var dto = MapToDto(subscription);
+
+                if (dto.IconFileId.HasValue)
+                {
+                    try
+                    {
+                        dto.IconUrl = await _fileStorageService.GetPresignedUrlAsync(dto.IconFileId.Value);
+                    }
+                    catch
+                    {
+                        dto.IconUrl = null;
+                    }
+                }
+
+                const string pricesSql = @"
+            SELECT sp.*, p.Name AS PeriodName, p.MonthsCount
+            FROM SubscriptionPrices sp
+            INNER JOIN Periods p ON sp.PeriodId = p.Id
+            WHERE sp.SubscriptionId = @SubscriptionId";
+                var prices = await connection.QueryAsync<SubscriptionPriceDto>(pricesSql, new { SubscriptionId = subscriptionId });
+                dto.Prices = prices.ToList();
+
+                return CreatedAtAction(nameof(GetSubscription), new { id = subscriptionId }, dto);
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Error creating subscription with price");
+                return StatusCode(500, "Internal server error");
+            }
         }
 
         [HttpPut("{id}")]
@@ -255,7 +406,6 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 request.Description,
                 request.DescriptionMarkdown,
                 request.Price,
-                request.Period,
                 request.Category,
                 request.IconFileId,
                 IsActive = true
@@ -397,13 +547,13 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 Description = subscription.Description,
                 DescriptionMarkdown = subscription.DescriptionMarkdown,
                 Price = subscription.Price,
-                Period = subscription.Period,
                 Category = subscription.Category,
                 IconFileId = subscription.IconFileId,
                 IconUrl = null,
                 IsActive = subscription.IsActive,
                 CreatedAt = subscription.CreatedAt,
-                UpdatedAt = subscription.UpdatedAt
+                UpdatedAt = subscription.UpdatedAt,
+                Prices = new List<SubscriptionPriceDto>()
             };
         }
     }

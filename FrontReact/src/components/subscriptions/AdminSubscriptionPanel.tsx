@@ -20,6 +20,7 @@ import { AdminSubscriptionStats } from './AdminSubscriptionStats';
 import { SubscriptionFormDialog } from './SubscriptionFormDialog';
 import { AdminSubscriptionDeleteDialog } from './AdminSubscriptionDeleteDialog';
 import { AdminSubscriptionCard } from './AdminSubscriptionCard';
+import { ManagePricesDialog } from './ManagePricesDialog';
 
 interface AdminSubscriptionPanelProps {
   onSubscriptionCreated: () => void;
@@ -36,6 +37,9 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
   const [showOnlyActive, setShowOnlyActive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pricesDialogOpen, setPricesDialogOpen] = useState(false);
+  const [selectedForPrices, setSelectedForPrices] =
+    useState<Subscription | null>(null);
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -61,6 +65,7 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
     loadSubscriptions();
   }, [loadSubscriptions]);
 
+  // Изменённый handleCreate – теперь только создаёт подписку без цены
   const handleCreate = async (formData: CreateSubscriptionRequest) => {
     try {
       await subscriptionService.createSubscription(formData);
@@ -71,6 +76,11 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to create subscription');
     }
+  };
+
+  const handleManagePrices = (subscription: Subscription) => {
+    setSelectedForPrices(subscription);
+    setPricesDialogOpen(true);
   };
 
   const handleUpdate = async (formData: UpdateSubscriptionRequest) => {
@@ -272,6 +282,7 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
                 onEdit={openEditDialog}
                 onDelete={openDeleteDialog}
                 onToggleActive={handleToggleActive}
+                onManagePrices={handleManagePrices}
               />
             </Grid>
           ))}
@@ -303,6 +314,14 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
         onClose={() => setDeleteDialogOpen(false)}
         subscription={selectedSubscription}
         onConfirmDelete={handleDelete}
+      />
+
+      {/* Manage Prices Dialog */}
+      <ManagePricesDialog
+        open={pricesDialogOpen}
+        onClose={() => setPricesDialogOpen(false)}
+        subscription={selectedForPrices}
+        onSuccess={loadSubscriptions}
       />
     </Box>
   );

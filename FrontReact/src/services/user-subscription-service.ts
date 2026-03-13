@@ -33,14 +33,17 @@ export const userSubscriptionService = {
 
     const items = response.data.items || [];
 
-    const grouped = items.reduce((acc: GroupedUserSubscriptions, us: any) => {
-      const category = us.subscription?.category || 'Other';
-      if (!acc[category]) {
-        acc[category] = [];
-      }
-      acc[category].push(us);
-      return acc;
-    }, {} as GroupedUserSubscriptions);
+    const grouped = items.reduce(
+      (acc: GroupedUserSubscriptions, us: UserSubscription) => {
+        const category = us.subscription?.category || 'Other';
+        if (!acc[category]) {
+          acc[category] = [];
+        }
+        acc[category].push(us);
+        return acc;
+      },
+      {} as GroupedUserSubscriptions
+    );
 
     return grouped;
   },

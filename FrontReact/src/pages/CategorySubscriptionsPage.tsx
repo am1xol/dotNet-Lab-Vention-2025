@@ -173,6 +173,7 @@ export const CategorySubscriptionsPage: React.FC = () => {
       }
 
       try {
+        // Убрали параметр period
         const result = await subscriptionService.getSubscriptionsWithFilters(
           currentPage,
           pageSize,
@@ -181,8 +182,7 @@ export const CategorySubscriptionsPage: React.FC = () => {
           sortBy,
           sortDesc,
           priceRange[0] > 0 ? priceRange[0] : undefined,
-          priceRange[1] < 1000 ? priceRange[1] : undefined,
-          selectedPeriods.length > 0 ? selectedPeriods.join(',') : undefined
+          priceRange[1] < 1000 ? priceRange[1] : undefined
         );
 
         if (resetPage) {
@@ -202,7 +202,7 @@ export const CategorySubscriptionsPage: React.FC = () => {
         setLoadingMore(false);
       }
     },
-    [category, searchQuery, selectedPeriods, priceRange, sortBy, sortDesc, page]
+    [category, searchQuery, priceRange, sortBy, sortDesc, page]
   );
 
   // Load on category or auth change
@@ -224,14 +224,15 @@ export const CategorySubscriptionsPage: React.FC = () => {
 
       return () => clearTimeout(timer);
     }
-  }, [searchQuery, selectedPeriods, priceRange, sortBy, sortDesc]);
+  }, [searchQuery, priceRange, sortBy, sortDesc]);
 
   const getUserSubscription = (
     subscriptionId: string
   ): UserSubscription | undefined => {
     if (!isAuthenticated || !mySubscriptions) return undefined;
+    // Исправлено: us.subscription.id вместо us.subscriptionId
     return mySubscriptions.find(
-      (us) => us?.subscriptionId === subscriptionId && us?.isActive
+      (us) => us.subscription.id === subscriptionId && us.isActive
     );
   };
 

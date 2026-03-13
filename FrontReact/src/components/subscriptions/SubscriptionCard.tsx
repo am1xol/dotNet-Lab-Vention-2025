@@ -11,19 +11,24 @@ import {
   LinearProgress,
   Tooltip,
   Collapse,
+  Stack,
 } from '@mui/material';
 import { ExpandMore, ExpandLess } from '@mui/icons-material';
 import DOMPurify from 'dompurify';
-import { Subscription } from '../../types/subscription';
+import { Subscription, SubscriptionPrice } from '../../types/subscription';
 
 interface SubscriptionCardProps {
   subscription: Subscription;
+  subscriptionPriceId?: string;
+  periodName?: string;
+  finalPrice?: number;
+  prices?: SubscriptionPrice[];
   isSubscribed?: boolean;
   isCancelled?: boolean;
   validUntil?: string;
   unsubscribeInfo?: { validUntil: string };
-  onSubscribe: (subscriptionId: string) => void;
-  onInitiatePayment: (subscriptionId: string) => Promise<void>;
+  onSubscribe: (id: string) => void;
+  onInitiatePayment: (id: string) => Promise<void>;
   onUnsubscribe: (subscriptionId: string) => void;
   userRole?: string;
   loading?: boolean;
@@ -31,6 +36,10 @@ interface SubscriptionCardProps {
 
 export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   subscription,
+  subscriptionPriceId,
+  periodName,
+  finalPrice,
+  prices,
   isSubscribed = false,
   isCancelled = false,
   validUntil,
@@ -44,28 +53,10 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
-  const formatPrice = (price: number) => {
-    return `${price} BYN`;
-  };
-
-  const getPeriodColor = (period: string) => {
-    switch (period.toLowerCase()) {
-      case 'monthly':
-        return 'primary';
-      case 'yearly':
-        return 'secondary';
-      case 'lifetime':
-        return 'success';
-      case 'quarterly':
-        return 'warning';
-      default:
-        return 'default';
-    }
-  };
+  const formatPrice = (price: number) => `${price} BYN`;
 
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return 'Unknown date';
-
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
@@ -75,12 +66,8 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   };
 
   const getSubscriptionStatus = () => {
-    if (isCancelled) {
-      return 'Cancelled';
-    }
-    if (isSubscribed) {
-      return 'Active';
-    }
+    if (isCancelled) return 'Cancelled';
+    if (isSubscribed) return 'Active';
     return 'Available';
   };
 
@@ -100,60 +87,17 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
     const status = getSubscriptionStatus();
     if (status === 'Cancelled') {
       const untilDate = unsubscribeInfo?.validUntil || validUntil;
-      if (untilDate) {
-        return `Cancelled (until ${formatDate(untilDate)})`;
-      }
-      return 'Cancelled';
+      return untilDate
+        ? `Cancelled (until ${formatDate(untilDate)})`
+        : 'Cancelled';
     }
     return status;
   };
 
-  const getButtonText = () => {
-    if (isCancelled) {
-      const untilDate = unsubscribeInfo?.validUntil || validUntil;
-      if (untilDate) {
-        return `Cancels on ${formatDate(untilDate)}`;
-      }
-      return 'Cancelled';
-    }
-    if (isSubscribed) {
-      return 'Unsubscribe';
-    }
-    return 'Subscribe Now';
-  };
-
-  const getButtonState = () => {
-    if (isCancelled) {
-      const untilDate = unsubscribeInfo?.validUntil || validUntil;
-      return {
-        disabled: true,
-        variant: 'outlined' as const,
-        color: 'inherit' as const,
-        tooltip: untilDate
-          ? `Your subscription will be active until ${formatDate(untilDate)}`
-          : 'Your subscription has been cancelled',
-      };
-    }
-    if (isSubscribed) {
-      return {
-        disabled: false,
-        variant: 'outlined' as const,
-        color: 'error' as const,
-        tooltip: 'Cancel your subscription',
-      };
-    }
-    return {
-      disabled: false,
-      variant: 'contained' as const,
-      color: 'primary' as const,
-      tooltip: 'Subscribe to this service',
-    };
-  };
-
-  const handleInitiatePayment = async () => {
+  const handleInitiatePayment = async (priceId: string) => {
     setPaymentLoading(true);
     try {
-      await onInitiatePayment(subscription.id);
+      await onInitiatePayment(priceId);
     } catch (e) {
       console.error(e);
     } finally {
@@ -161,191 +105,169 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
     }
   };
 
-  const handleButtonClick = () => {
-    if (isSubscribed) {
-      onUnsubscribe(subscription.id);
-    } else if (subscription.price > 0) {
-      handleInitiatePayment();
-    } else {
-      onSubscribe(subscription.id);
-    }
+  const handleSubscribe = (id: string) => {
+    onSubscribe(id);
+  };
+
+  const handleUnsubscribeClick = () => {
+    onUnsubscribe(subscription.id);
   };
 
   const finalLoadingState = loading || paymentLoading;
-  const buttonState = getButtonState();
   const status = getSubscriptionStatus();
   const statusText = getStatusText();
   const statusColor = getStatusColor();
 
   const hasMarkdownContent =
-    subscription.descriptionMarkdown &&
-    subscription.descriptionMarkdown.trim().length > 0;
+    subscription.descriptionMarkdown?.trim().length > 0;
 
-  const createMarkup = (htmlContent: string) => {
-    return { __html: DOMPurify.sanitize(htmlContent) };
-  };
+  const createMarkup = (htmlContent: string) => ({
+    __html: DOMPurify.sanitize(htmlContent),
+  });
+
+  const hasMultiplePrices = prices && prices.length > 0;
+  const displayPrice = hasMultiplePrices
+    ? null
+    : (finalPrice ?? subscription.price);
+  const displayPeriod = hasMultiplePrices ? null : periodName;
 
   return (
-    <>
-      <Card
-        sx={{
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          transition: 'all 0.3s ease',
-          background: 'rgba(255, 255, 255, 0.8)',
-          backdropFilter: 'blur(10px)',
+    <Card
+      sx={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        transition: 'all 0.3s ease',
+        background: 'rgba(255, 255, 255, 0.8)',
+        backdropFilter: 'blur(10px)',
+        border: isCancelled
+          ? '2px solid #ffd54f'
+          : '1px solid rgba(255, 255, 255, 0.3)',
+        borderRadius: 3,
+        boxShadow: '0 4px 20px rgba(126, 87, 194, 0.1)',
+        '&:hover': {
+          transform: 'translateY(-8px)',
+          boxShadow: '0 16px 40px rgba(126, 87, 194, 0.15)',
           border: isCancelled
             ? '2px solid #ffd54f'
-            : '1px solid rgba(255, 255, 255, 0.3)',
-          borderRadius: 3,
-          boxShadow: '0 4px 20px rgba(126, 87, 194, 0.1)',
-          '&:hover': {
-            transform: 'translateY(-8px)',
-            boxShadow: '0 16px 40px rgba(126, 87, 194, 0.15)',
-            border: isCancelled
-              ? '2px solid #ffd54f'
-              : '1px solid rgba(126, 87, 194, 0.2)',
-          },
-        }}
-      >
-        {loading && <LinearProgress />}
+            : '1px solid rgba(126, 87, 194, 0.2)',
+        },
+      }}
+    >
+      {loading && <LinearProgress />}
 
-        <CardContent sx={{ flexGrow: 1, p: 3 }}>
-          <Box display="flex" alignItems="flex-start" mb={3}>
-            {subscription.iconUrl ? (
-              <Avatar
-                src={subscription.iconUrl}
-                sx={{ width: 60, height: 60, mr: 2 }}
-                variant="rounded"
+      <CardContent sx={{ flexGrow: 1, p: 3 }}>
+        <Box display="flex" alignItems="flex-start" mb={3}>
+          {subscription.iconUrl ? (
+            <Avatar
+              src={subscription.iconUrl}
+              sx={{ width: 60, height: 60, mr: 2 }}
+              variant="rounded"
+            />
+          ) : (
+            <Avatar
+              sx={{
+                width: 60,
+                height: 60,
+                mr: 2,
+                bgcolor: 'primary.main',
+                fontSize: '1.5rem',
+              }}
+              variant="rounded"
+            >
+              {subscription.name.charAt(0)}
+            </Avatar>
+          )}
+          <Box sx={{ flexGrow: 1 }}>
+            <Typography
+              variant="h5"
+              component="h3"
+              fontWeight="600"
+              gutterBottom
+            >
+              {subscription.name}
+            </Typography>
+            <Box display="flex" gap={1} flexWrap="wrap">
+              <Chip
+                label={subscription.category}
+                size="small"
+                color="primary"
+                variant="outlined"
               />
-            ) : (
-              <Avatar
-                sx={{
-                  width: 60,
-                  height: 60,
-                  mr: 2,
-                  bgcolor: 'primary.main',
-                  fontSize: '1.5rem',
-                }}
-                variant="rounded"
-              >
-                {subscription.name.charAt(0)}
-              </Avatar>
-            )}
-            <Box sx={{ flexGrow: 1 }}>
-              <Typography
-                variant="h5"
-                component="h3"
-                fontWeight="600"
-                gutterBottom
-              >
-                {subscription.name}
-              </Typography>
-              <Box display="flex" gap={1} flexWrap="wrap">
-                <Chip
-                  label={subscription.category}
-                  size="small"
-                  color="primary"
-                  variant="outlined"
-                />
-                <Chip
-                  label={subscription.period}
-                  size="small"
-                  color={getPeriodColor(subscription.period)}
-                  variant="filled"
-                />
-                <Chip
-                  label={statusText}
-                  size="small"
-                  color={statusColor}
-                  variant={status === 'Active' ? 'filled' : 'outlined'}
-                />
-              </Box>
+              <Chip
+                label={statusText}
+                size="small"
+                color={statusColor}
+                variant={status === 'Active' ? 'filled' : 'outlined'}
+              />
             </Box>
           </Box>
+        </Box>
 
-          <Typography
-            color="text.secondary"
-            sx={{
-              mb: 2,
-              lineHeight: 1.6,
-            }}
-          >
-            {subscription.description}
-          </Typography>
+        <Typography color="text.secondary" sx={{ mb: 2, lineHeight: 1.6 }}>
+          {subscription.description}
+        </Typography>
 
-          {hasMarkdownContent && (
-            <>
-              <Collapse in={expanded} timeout="auto" unmountOnExit>
-                <Box
-                  sx={{
-                    mt: 2,
-                    mb: 2,
-                    p: 2,
-                    backgroundColor: 'rgba(0, 0, 0, 0.02)',
-                    borderRadius: 1,
-                    border: '1px solid rgba(0, 0, 0, 0.05)',
-                    maxHeight: expanded ? 'none' : '200px',
-                    overflow: 'hidden',
-                    '& h1': {
-                      fontSize: '1.25rem',
-                      fontWeight: 600,
-                      mt: 1,
-                      mb: 1,
-                    },
-                    '& h2': {
-                      fontSize: '1.1rem',
-                      fontWeight: 600,
-                      mt: 1,
-                      mb: 1,
-                    },
-                    '& h3': {
-                      fontSize: '1rem',
-                      fontWeight: 600,
-                      mt: 1,
-                      mb: 0.5,
-                    },
-                    '& p': { mb: 1, fontSize: '0.95rem' },
-                    '& ul, & ol': { pl: 2.5, mb: 1 },
-                    '& li': { mb: 0.5 },
-                    '& a': {
-                      color: '#7E57C2',
-                      textDecoration: 'none',
-                      '&:hover': { textDecoration: 'underline' },
-                    },
-                    '& blockquote': {
-                      borderLeft: '3px solid #ccc',
-                      pl: 2,
-                      color: 'text.secondary',
-                      my: 1,
-                    },
-                  }}
-                >
-                  <div
-                    dangerouslySetInnerHTML={createMarkup(
-                      subscription.descriptionMarkdown || ''
-                    )}
-                  />
-                </Box>
-              </Collapse>
-
-              <Button
-                size="small"
-                onClick={() => setExpanded(!expanded)}
-                endIcon={expanded ? <ExpandLess /> : <ExpandMore />}
+        {hasMarkdownContent && (
+          <>
+            <Collapse in={expanded} timeout="auto" unmountOnExit>
+              <Box
                 sx={{
-                  color: 'primary.main',
-                  textTransform: 'none',
-                  fontWeight: 500,
+                  mt: 2,
                   mb: 2,
+                  p: 2,
+                  backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                  borderRadius: 1,
+                  border: '1px solid rgba(0, 0, 0, 0.05)',
+                  '& h1': {
+                    fontSize: '1.25rem',
+                    fontWeight: 600,
+                    mt: 1,
+                    mb: 1,
+                  },
+                  '& h2': { fontSize: '1.1rem', fontWeight: 600, mt: 1, mb: 1 },
+                  '& h3': { fontSize: '1rem', fontWeight: 600, mt: 1, mb: 0.5 },
+                  '& p': { mb: 1, fontSize: '0.95rem' },
+                  '& ul, & ol': { pl: 2.5, mb: 1 },
+                  '& li': { mb: 0.5 },
+                  '& a': {
+                    color: '#7E57C2',
+                    textDecoration: 'none',
+                    '&:hover': { textDecoration: 'underline' },
+                  },
+                  '& blockquote': {
+                    borderLeft: '3px solid #ccc',
+                    pl: 2,
+                    color: 'text.secondary',
+                    my: 1,
+                  },
                 }}
               >
-                {expanded ? 'Show less details' : 'Show more details'}
-              </Button>
-            </>
-          )}
+                <div
+                  dangerouslySetInnerHTML={createMarkup(
+                    subscription.descriptionMarkdown || ''
+                  )}
+                />
+              </Box>
+            </Collapse>
 
+            <Button
+              size="small"
+              onClick={() => setExpanded(!expanded)}
+              endIcon={expanded ? <ExpandLess /> : <ExpandMore />}
+              sx={{
+                color: 'primary.main',
+                textTransform: 'none',
+                fontWeight: 500,
+                mb: 2,
+              }}
+            >
+              {expanded ? 'Show less details' : 'Show more details'}
+            </Button>
+          </>
+        )}
+
+        {!hasMultiplePrices && displayPrice !== null && (
           <Box
             display="flex"
             justifyContent="space-between"
@@ -353,89 +275,193 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
             mt="auto"
           >
             <Typography variant="h4" color="primary.main" fontWeight="bold">
-              {formatPrice(subscription.price)}
+              {formatPrice(displayPrice)}
             </Typography>
-            <Typography variant="body2" color="text.secondary" fontWeight="500">
-              per {subscription.period.toLowerCase()}
-            </Typography>
-          </Box>
-
-          {status === 'Cancelled' &&
-            (unsubscribeInfo?.validUntil || validUntil) && (
-              <Box
-                sx={{
-                  mt: 2,
-                  p: 1.5,
-                  bgcolor: 'warning.light',
-                  borderRadius: 1,
-                  border: '1px solid',
-                  borderColor: 'warning.main',
-                }}
+            {displayPeriod && (
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                fontWeight="500"
               >
-                <Typography variant="body2" color="warning.dark" align="center">
-                  <strong>Active until:</strong>{' '}
-                  {formatDate(unsubscribeInfo?.validUntil || validUntil || '')}
-                  <br />
-                  <Typography variant="caption">
-                    You will lose access after this date
-                  </Typography>
-                </Typography>
-              </Box>
+                {displayPeriod}
+              </Typography>
             )}
-        </CardContent>
+          </Box>
+        )}
 
-        <CardActions sx={{ p: 3, pt: 0 }}>
-          {userRole === 'Admin' ? (
-            <Box display="flex" gap={1} width="100%">
-              <Button
-                size="large"
-                color="primary"
-                variant="outlined"
-                fullWidth
-                disabled={loading}
-              >
-                Edit
-              </Button>
-              <Button
-                size="large"
-                color="error"
-                variant="outlined"
-                fullWidth
-                disabled={loading}
-              >
-                Delete
-              </Button>
+        {hasMultiplePrices && (
+          <Box mt="auto">
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              Available plans:
+            </Typography>
+            <Stack spacing={1}>
+              {prices.map((price) => (
+                <Box
+                  key={price.id}
+                  display="flex"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  sx={{
+                    p: 1,
+                    borderRadius: 1,
+                    bgcolor: 'rgba(126, 87, 194, 0.05)',
+                  }}
+                >
+                  <Typography variant="body2" fontWeight="500">
+                    {price.periodName}
+                  </Typography>
+                  <Typography
+                    variant="h6"
+                    color="primary.main"
+                    fontWeight="bold"
+                  >
+                    {formatPrice(price.finalPrice)}
+                  </Typography>
+                </Box>
+              ))}
+            </Stack>
+          </Box>
+        )}
+
+        {status === 'Cancelled' &&
+          (unsubscribeInfo?.validUntil || validUntil) && (
+            <Box
+              sx={{
+                mt: 2,
+                p: 1.5,
+                bgcolor: 'warning.light',
+                borderRadius: 1,
+                border: '1px solid',
+                borderColor: 'warning.main',
+              }}
+            >
+              <Typography variant="body2" color="warning.dark" align="center">
+                <strong>Active until:</strong>{' '}
+                {formatDate(unsubscribeInfo?.validUntil || validUntil || '')}
+                <br />
+                <Typography variant="caption">
+                  You will lose access after this date
+                </Typography>
+              </Typography>
             </Box>
-          ) : (
-            <Tooltip title={buttonState.tooltip} arrow>
-              <span style={{ width: '100%' }}>
-                <Button
-                  size="large"
-                  variant={buttonState.variant}
-                  color={buttonState.color}
-                  fullWidth
-                  onClick={handleButtonClick}
-                  disabled={buttonState.disabled || finalLoadingState}
-                  sx={
-                    !isSubscribed
-                      ? {
+          )}
+      </CardContent>
+
+      <CardActions sx={{ p: 3, pt: 0 }}>
+        {userRole === 'Admin' ? (
+          <Box display="flex" gap={1} width="100%">
+            <Button
+              size="large"
+              color="primary"
+              variant="outlined"
+              fullWidth
+              disabled={loading}
+            >
+              Edit
+            </Button>
+            <Button
+              size="large"
+              color="error"
+              variant="outlined"
+              fullWidth
+              disabled={loading}
+            >
+              Delete
+            </Button>
+          </Box>
+        ) : (
+          <>
+            {isCancelled ? (
+              <Tooltip title="Your subscription has been cancelled" arrow>
+                <span style={{ width: '100%' }}>
+                  <Button
+                    size="large"
+                    variant="outlined"
+                    color="inherit"
+                    fullWidth
+                    disabled
+                  >
+                    Cancelled
+                  </Button>
+                </span>
+              </Tooltip>
+            ) : isSubscribed ? (
+              <Tooltip title="Cancel your subscription" arrow>
+                <span style={{ width: '100%' }}>
+                  <Button
+                    size="large"
+                    variant="outlined"
+                    color="error"
+                    fullWidth
+                    onClick={handleUnsubscribeClick}
+                    disabled={finalLoadingState}
+                  >
+                    Unsubscribe
+                  </Button>
+                </span>
+              </Tooltip>
+            ) : (
+              <>
+                {hasMultiplePrices ? (
+                  <Stack direction="row" spacing={1} width="100%">
+                    {prices.map((price) => (
+                      <Button
+                        key={price.id}
+                        size="large"
+                        variant="contained"
+                        color="primary"
+                        fullWidth
+                        onClick={() => handleInitiatePayment(price.id)}
+                        disabled={finalLoadingState}
+                        sx={{
                           background:
                             'linear-gradient(135deg, #7E57C2 0%, #5C6BC0 100%)',
                           '&:hover': {
                             background:
                               'linear-gradient(135deg, #6A45B8 0%, #4A5ABD 100%)',
                           },
-                        }
-                      : {}
-                  }
-                >
-                  {loading ? 'Processing...' : getButtonText()}
-                </Button>
-              </span>
-            </Tooltip>
-          )}
-        </CardActions>
-      </Card>
-    </>
+                        }}
+                      >
+                        {price.periodName}
+                      </Button>
+                    ))}
+                  </Stack>
+                ) : (
+                  <Tooltip title="Subscribe to this service" arrow>
+                    <span style={{ width: '100%' }}>
+                      <Button
+                        size="large"
+                        variant="contained"
+                        color="primary"
+                        fullWidth
+                        onClick={() => {
+                          const id = subscriptionPriceId || subscription.id;
+                          if (subscription.price > 0) {
+                            handleInitiatePayment(id);
+                          } else {
+                            handleSubscribe(id);
+                          }
+                        }}
+                        disabled={finalLoadingState}
+                        sx={{
+                          background:
+                            'linear-gradient(135deg, #7E57C2 0%, #5C6BC0 100%)',
+                          '&:hover': {
+                            background:
+                              'linear-gradient(135deg, #6A45B8 0%, #4A5ABD 100%)',
+                          },
+                        }}
+                      >
+                        Subscribe Now
+                      </Button>
+                    </span>
+                  </Tooltip>
+                )}
+              </>
+            )}
+          </>
+        )}
+      </CardActions>
+    </Card>
   );
 };

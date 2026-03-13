@@ -1,0 +1,256 @@
+import React, { useEffect, useState } from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  List,
+  ListItem,
+  ListItemText,
+  IconButton,
+  TextField,
+  Box,
+  Typography,
+  CircularProgress,
+  Alert,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Grid,
+} from '@mui/material';
+import { Delete, Add } from '@mui/icons-material';
+import {
+  subscriptionPriceService,
+  CreateSubscriptionPriceRequest,
+} from '../../services/subscription-price-service';
+import {
+  Period,
+  Subscription,
+  SubscriptionPrice,
+} from '../../types/subscription';
+
+interface ManagePricesDialogProps {
+  open: boolean;
+  onClose: () => void;
+  subscription: Subscription | null;
+  onSuccess: () => void;
+}
+
+export const ManagePricesDialog: React.FC<ManagePricesDialogProps> = ({
+  open,
+  onClose,
+  subscription,
+}) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [periods, setPeriods] = useState<Period[]>([]);
+  const [prices, setPrices] = useState<SubscriptionPrice[]>([]);
+  const [selectedPeriodId, setSelectedPeriodId] = useState('');
+  const [newPrice, setNewPrice] = useState<number>(0);
+
+  // Загрузка периодов и существующих цен
+  useEffect(() => {
+    if (!open || !subscription) return;
+
+    const loadData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [periodsData, pricesData] = await Promise.all([
+          subscriptionPriceService.getPeriods(),
+          subscriptionPriceService.getPrices(subscription.id),
+        ]);
+        setPeriods(periodsData);
+        setPrices(pricesData);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [open, subscription]);
+
+  // Вычисление предлагаемой цены при выборе периода
+  useEffect(() => {
+    if (!selectedPeriodId || !subscription) return;
+    const period = periods.find((p) => p.id === selectedPeriodId);
+    if (period) {
+      // Базовая цена * количество месяцев (можно применить коэффициент)
+      // Коэффициент можно добавить позже, пока 1.0
+      const suggestedPrice = subscription.price * period.monthsCount;
+      setNewPrice(suggestedPrice);
+    }
+  }, [selectedPeriodId, periods, subscription]);
+
+  const handleAddPrice = async () => {
+    if (!subscription || !selectedPeriodId || newPrice <= 0) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      const request: CreateSubscriptionPriceRequest = {
+        subscriptionId: subscription.id,
+        periodId: selectedPeriodId,
+        finalPrice: newPrice,
+      };
+      await subscriptionPriceService.createPrice(request);
+      // Перезагружаем цены
+      const updatedPrices = await subscriptionPriceService.getPrices(
+        subscription.id
+      );
+      setPrices(updatedPrices);
+      setSelectedPeriodId('');
+      setNewPrice(0);
+    } catch (err: any) {
+      setError(err.message || 'Failed to add price');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeletePrice = async (priceId: string) => {
+    if (!subscription) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      await subscriptionPriceService.deletePrice(priceId);
+      const updatedPrices = await subscriptionPriceService.getPrices(
+        subscription.id
+      );
+      setPrices(updatedPrices);
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete price');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const availablePeriods = periods.filter(
+    (period) => !prices.some((p) => p.periodId === period.id)
+  );
+
+  if (!subscription) return null;
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle>
+        Manage Prices for "{subscription.name}"
+        <Typography variant="subtitle2" color="text.secondary">
+          Base price: {subscription.price} BYN/month
+        </Typography>
+      </DialogTitle>
+      <DialogContent>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+            {error}
+          </Alert>
+        )}
+
+        {loading && prices.length === 0 && (
+          <Box display="flex" justifyContent="center" py={4}>
+            <CircularProgress />
+          </Box>
+        )}
+
+        {/* Список существующих цен */}
+        {prices.length > 0 && (
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="h6" gutterBottom>
+              Existing Prices
+            </Typography>
+            <List>
+              {prices.map((price) => {
+                const period = periods.find((p) => p.id === price.periodId);
+                return (
+                  <ListItem
+                    key={price.id}
+                    secondaryAction={
+                      <IconButton
+                        edge="end"
+                        aria-label="delete"
+                        onClick={() => handleDeletePrice(price.id)}
+                        disabled={loading}
+                      >
+                        <Delete />
+                      </IconButton>
+                    }
+                  >
+                    <ListItemText
+                      primary={period?.name || price.periodName}
+                      secondary={`${price.finalPrice} BYN`}
+                    />
+                  </ListItem>
+                );
+              })}
+            </List>
+          </Box>
+        )}
+
+        {/* Форма добавления новой цены */}
+        {availablePeriods.length > 0 && (
+          <Box>
+            <Typography variant="h6" gutterBottom>
+              Add New Price
+            </Typography>
+            <Grid container spacing={2} alignItems="center">
+              <Grid size={{ xs: 12, sm: 5 }}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Period</InputLabel>
+                  <Select
+                    value={selectedPeriodId}
+                    onChange={(e) => setSelectedPeriodId(e.target.value)}
+                    label="Period"
+                  >
+                    {availablePeriods.map((period) => (
+                      <MenuItem key={period.id} value={period.id}>
+                        {period.name} ({period.monthsCount} months)
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Final Price"
+                  type="number"
+                  value={newPrice}
+                  onChange={(e) => setNewPrice(Number(e.target.value))}
+                  InputProps={{ inputProps: { min: 0, step: 0.01 } }}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 3 }}>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  startIcon={<Add />}
+                  onClick={handleAddPrice}
+                  disabled={loading || !selectedPeriodId || newPrice <= 0}
+                >
+                  Add
+                </Button>
+              </Grid>
+            </Grid>
+          </Box>
+        )}
+
+        {availablePeriods.length === 0 && prices.length > 0 && (
+          <Typography color="text.secondary" align="center" sx={{ mt: 2 }}>
+            All periods have prices configured.
+          </Typography>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={loading}>
+          Close
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};

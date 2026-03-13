@@ -21,9 +21,6 @@ namespace SubscriptionManager.Core
         public decimal Price { get; set; }
 
         [Required]
-        public string Period { get; set; } = string.Empty;
-
-        [Required]
         public string Category { get; set; } = string.Empty;
 
         public Guid? IconFileId { get; set; }
@@ -36,5 +33,6 @@ namespace SubscriptionManager.Core
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
         public virtual StoredFile? IconFile { get; set; }
+        public virtual ICollection<SubscriptionPrice> Prices { get; set; } = new List<SubscriptionPrice>();
     }
 }

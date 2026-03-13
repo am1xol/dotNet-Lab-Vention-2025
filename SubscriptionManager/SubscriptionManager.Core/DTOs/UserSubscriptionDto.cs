@@ -4,7 +4,8 @@
     {
         public Guid Id { get; set; }
         public Guid UserId { get; set; }
-        public Guid SubscriptionId { get; set; }
+		public Guid SubscriptionPriceId { get; set; }
+		public Guid SubscriptionId { get; set; }
         public DateTime StartDate { get; set; }
         public DateTime NextBillingDate { get; set; }
         public DateTime? CancelledAt { get; set; }
@@ -13,7 +14,9 @@
         public bool IsValid { get; set; }
         public string? Status { get; set; }
         public SubscriptionDto Subscription { get; set; } = null!;
-    }
+		public string PeriodName { get; set; } = string.Empty;
+		public decimal FinalPrice { get; set; }
+	}
 
     public class SubscribeRequest
     {

@@ -9,6 +9,12 @@ import {
 
 const API_BASE_URL = import.meta.env.VITE_SUBSCRIPTIONS_API_URL + '/api';
 
+export interface CreateSubscriptionWithPriceRequest
+  extends CreateSubscriptionRequest {
+  periodId: string;
+  finalPrice: number;
+}
+
 export const subscriptionService = {
   async getSubscriptions(): Promise<GroupedSubscriptions> {
     const response = await api.get(`${API_BASE_URL}/Subscriptions`);
@@ -82,6 +88,16 @@ export const subscriptionService = {
     return response.data;
   },
 
+  async createSubscriptionWithPrice(
+    data: CreateSubscriptionWithPriceRequest
+  ): Promise<Subscription> {
+    const response = await api.post<Subscription>(
+      `${API_BASE_URL}/Subscriptions/with-price`,
+      data
+    );
+    return response.data;
+  },
+
   async getSubscriptionsWithFilters(
     page: number,
     pageSize: number,
@@ -90,8 +106,7 @@ export const subscriptionService = {
     orderBy?: string,
     descending?: boolean,
     minPrice?: number,
-    maxPrice?: number,
-    period?: string
+    maxPrice?: number
   ): Promise<PagedResult<Subscription>> {
     const params: any = {
       pageNumber: page,
@@ -104,7 +119,6 @@ export const subscriptionService = {
     if (descending !== undefined) params.descending = descending;
     if (minPrice !== undefined) params.minPrice = minPrice;
     if (maxPrice !== undefined) params.maxPrice = maxPrice;
-    if (period) params.period = period;
 
     const response = await api.get<PagedResult<Subscription>>(
       `${API_BASE_URL}/Subscriptions`,

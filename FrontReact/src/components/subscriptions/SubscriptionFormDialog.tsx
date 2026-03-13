@@ -47,7 +47,6 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
     description: '',
     descriptionMarkdown: '',
     price: 0,
-    period: 'monthly',
     category: '',
     iconFileId: undefined,
   });
@@ -55,7 +54,6 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
   const [fileUploadError, setFileUploadError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  const periods = ['monthly', 'quarterly', 'yearly'];
   const categories = [
     'Streaming',
     'Software',
@@ -74,7 +72,6 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
           description: initialData.description,
           descriptionMarkdown: initialData.descriptionMarkdown || '',
           price: initialData.price,
-          period: initialData.period,
           category: initialData.category,
           iconFileId: initialData.iconFileId,
         });
@@ -85,7 +82,6 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
           description: '',
           descriptionMarkdown: '',
           price: 0,
-          period: 'monthly',
           category: '',
           iconFileId: undefined,
         });
@@ -162,6 +158,7 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
     };
 
     onSave(finalData);
+    onClose();
   };
 
   const isFormValid =
@@ -224,12 +221,7 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
               </label>
               {(selectedFile || initialData?.iconUrl) && (
                 <Box
-                  sx={{
-                    mt: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                  }}
+                  sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}
                 >
                   <Typography variant="body2" noWrap>
                     {selectedFile?.name || 'Current icon'}
@@ -260,34 +252,17 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
             <TextField
               fullWidth
               select
-              label="Price"
+              label="Base Price (per month)"
               value={formData.price || ''}
               onChange={(e) =>
                 handleInputChange('price', parseFloat(e.target.value))
               }
               required
-              helperText="Please select a predefined price"
+              helperText="Select base monthly price"
             >
               {ALLOWED_PRICES.map((price) => (
                 <MenuItem key={price} value={price}>
                   {price} BYN
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-
-          <Grid size={{ xs: 12, md: 6 }}>
-            <TextField
-              fullWidth
-              select
-              label="Billing Period"
-              value={formData.period}
-              onChange={(e) => handleInputChange('period', e.target.value)}
-              required
-            >
-              {periods.map((period) => (
-                <MenuItem key={period} value={period}>
-                  {period.charAt(0).toUpperCase() + period.slice(1)}
                 </MenuItem>
               ))}
             </TextField>

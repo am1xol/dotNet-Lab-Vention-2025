@@ -21,7 +21,6 @@ CREATE TABLE [Subscriptions] (
     [Description] NVARCHAR(500) NOT NULL,
     [DescriptionMarkdown] NVARCHAR(4000) NOT NULL,
     [Price] DECIMAL(18, 2) NOT NULL,
-    [Period] NVARCHAR(MAX) NOT NULL,
     [Category] NVARCHAR(MAX) NOT NULL,
     [IconFileId] UNIQUEIDENTIFIER NULL,
     [IconUrl] NVARCHAR(MAX) NULL,
@@ -37,14 +36,13 @@ GO
 CREATE TABLE [UserSubscriptions] (
     [Id] UNIQUEIDENTIFIER PRIMARY KEY,
     [UserId] UNIQUEIDENTIFIER NOT NULL,
-    [SubscriptionId] UNIQUEIDENTIFIER NOT NULL,
     [StartDate] DATETIME2 NOT NULL,
     [NextBillingDate] DATETIME2 NOT NULL,
     [CancelledAt] DATETIME2 NULL,
     [ValidUntil] DATETIME2 NULL,
     [IsActive] BIT NOT NULL DEFAULT 1,
-    CONSTRAINT [FK_UserSubscriptions_Subscriptions] FOREIGN KEY ([SubscriptionId]) 
-        REFERENCES [Subscriptions] ([Id]) ON DELETE CASCADE
+    [CreatedAt] DATETIME2 NOT NULL,
+    [UpdatedAt] DATETIME2 NOT NULL
 );
 GO
 CREATE INDEX [IX_UserSubscriptions_UserId] ON [UserSubscriptions] ([UserId]);
@@ -91,22 +89,56 @@ CREATE TABLE [Notifications] (
 );
 GO
 
+-- Таблица Periods
+CREATE TABLE [Periods] (
+    [Id] UNIQUEIDENTIFIER PRIMARY KEY,
+    [Name] NVARCHAR(25) NOT NULL,
+    [MonthsCount] INT NOT NULL
+);
+GO
+
+-- Таблицу "Итоговая стоимость подписки"
+CREATE TABLE [SubscriptionPrices] (
+    [Id] UNIQUEIDENTIFIER PRIMARY KEY,
+    [SubscriptionId] UNIQUEIDENTIFIER NOT NULL,
+    [PeriodId] UNIQUEIDENTIFIER NOT NULL,
+    [FinalPrice] DECIMAL(18, 2) NOT NULL,
+    CONSTRAINT [FK_SubscriptionPrices_Subscriptions] FOREIGN KEY ([SubscriptionId]) 
+        REFERENCES [Subscriptions] ([Id]) ON DELETE CASCADE,
+    CONSTRAINT [FK_SubscriptionPrices_Periods] FOREIGN KEY ([PeriodId]) 
+        REFERENCES [Periods] ([Id])
+);
+GO
+
+USE [SubscriptionsDb];
+GO
+
 USE [SubscriptionsDb];
 GO
 
 -- 1. Получение активных подписок пользователя (с данными о самой подписке)
-CREATE PROCEDURE [sp_UserSubscriptions_GetActiveByUserId]
+CREATE OR ALTER PROCEDURE [sp_UserSubscriptions_GetActiveByUserId]
     @UserId UNIQUEIDENTIFIER
 AS
 BEGIN
-    SELECT us.*, s.* FROM [UserSubscriptions] us
-    INNER JOIN [Subscriptions] s ON us.[SubscriptionId] = s.[Id]
+    SELECT 
+        us.*, 
+        sp.FinalPrice, 
+        p.Name AS PeriodName, 
+        p.MonthsCount,
+        s.Name AS SubscriptionName, 
+        s.Category, 
+        s.IconUrl
+    FROM [UserSubscriptions] us
+    INNER JOIN [SubscriptionPrices] sp ON us.[SubscriptionPriceId] = sp.[Id]
+    INNER JOIN [Subscriptions] s ON sp.[SubscriptionId] = s.[Id]
+    INNER JOIN [Periods] p ON sp.[PeriodId] = p.[Id]
     WHERE us.[UserId] = @UserId AND us.[IsActive] = 1;
 END
 GO
 
 -- 2. Поиск и фильтрация всех доступных подписок (базовая пагинация)
-CREATE PROCEDURE [sp_Subscriptions_GetPaged]
+CREATE OR ALTER PROCEDURE [sp_Subscriptions_GetPaged]
     @PageNumber INT,
     @PageSize INT,
     @Category NVARCHAR(MAX) = NULL,
@@ -183,23 +215,26 @@ END
 GO
 
 -- 5. JOB: Поиск зависших платежей (старше 35 минут)
-CREATE PROCEDURE [sp_Jobs_GetStuckPayments]
+CREATE OR ALTER PROCEDURE [sp_Jobs_GetStuckPayments]
 AS
 BEGIN
-    SELECT p.*, us.* FROM [Payments] p
+    SELECT p.*, us.*, s.*
+    FROM [Payments] p
     INNER JOIN [UserSubscriptions] us ON p.[UserSubscriptionId] = us.[Id]
+    INNER JOIN [SubscriptionPrices] sp ON us.[SubscriptionPriceId] = sp.[Id]
+    INNER JOIN [Subscriptions] s ON sp.[SubscriptionId] = s.[Id]
     WHERE p.[Status] = 0
       AND p.[PaymentDate] < DATEADD(MINUTE, -35, GETUTCDATE());
 END
 GO
 
 -- 6. JOB: Обработка истекших подписок
-CREATE PROCEDURE [sp_Jobs_ProcessExpiredSubscriptions]
+CREATE OR ALTER PROCEDURE [sp_Jobs_ProcessExpiredSubscriptions]
 AS
 BEGIN
     UPDATE [UserSubscriptions]
     SET [IsActive] = 0
-    OUTPUT inserted.[Id], inserted.[UserId], inserted.[SubscriptionId]
+    OUTPUT inserted.[Id], inserted.[UserId], inserted.[SubscriptionPriceId]
     WHERE [IsActive] = 1 
       AND (
           ([CancelledAt] IS NOT NULL AND [ValidUntil] <= GETUTCDATE())
@@ -210,21 +245,27 @@ END
 GO
 
 -- 7. Получение истории платежей пользователя
-CREATE PROCEDURE [sp_Payments_GetHistory]
+CREATE OR ALTER PROCEDURE [sp_Payments_GetHistory]
     @UserId UNIQUEIDENTIFIER
 AS
 BEGIN
-    SELECT p.*, s.[Name] as SubscriptionName
+    SELECT 
+        p.*, 
+        s.[Name] as SubscriptionName,
+        sp.[FinalPrice],
+        per.[Name] as PeriodName
     FROM [Payments] p
     INNER JOIN [UserSubscriptions] us ON p.[UserSubscriptionId] = us.[Id]
-    INNER JOIN [Subscriptions] s ON us.[SubscriptionId] = s.[Id]
+    INNER JOIN [SubscriptionPrices] sp ON us.[SubscriptionPriceId] = sp.[Id]
+    INNER JOIN [Subscriptions] s ON sp.[SubscriptionId] = s.[Id]
+    INNER JOIN [Periods] per ON sp.[PeriodId] = per.[Id]
     WHERE p.[UserId] = @UserId
     ORDER BY p.[PaymentDate] DESC;
 END
 GO
 
 -- 8. Создание уведомления
-CREATE PROCEDURE [sp_Notifications_Create]
+CREATE OR ALTER PROCEDURE [sp_Notifications_Create]
     @Id UNIQUEIDENTIFIER,
     @UserId UNIQUEIDENTIFIER,
     @Title NVARCHAR(MAX),
@@ -239,7 +280,7 @@ END
 GO
 
 -- 9. Получение уведомлений пользователя (пагинация)
-CREATE PROCEDURE [sp_Notifications_GetPaged]
+CREATE OR ALTER PROCEDURE [sp_Notifications_GetPaged]
     @UserId UNIQUEIDENTIFIER,
     @PageNumber INT,
     @PageSize INT,
@@ -257,7 +298,7 @@ END
 GO
 
 -- 10. Пометить все уведомления пользователя как прочитанные
-CREATE PROCEDURE [sp_Notifications_MarkAllRead]
+CREATE OR ALTER PROCEDURE [sp_Notifications_MarkAllRead]
     @UserId UNIQUEIDENTIFIER
 AS
 BEGIN
@@ -268,7 +309,7 @@ END
 GO
 
 -- 11. Регистрация нового файла (после загрузки в MinIO)
-CREATE PROCEDURE [sp_StoredFiles_Insert]
+CREATE OR ALTER PROCEDURE [sp_StoredFiles_Insert]
     @Id UNIQUEIDENTIFIER,
     @FileName NVARCHAR(255),
     @BucketName NVARCHAR(50),
@@ -284,7 +325,7 @@ END
 GO
 
 -- 12. Удаление файла (из базы)
-CREATE PROCEDURE [sp_StoredFiles_Delete]
+CREATE OR ALTER PROCEDURE [sp_StoredFiles_Delete]
     @Id UNIQUEIDENTIFIER
 AS
 BEGIN
@@ -301,7 +342,7 @@ END
 GO
 
 -- 13. Получение подписки по Id
-CREATE PROCEDURE [sp_Subscriptions_GetById]
+CREATE OR ALTER PROCEDURE [sp_Subscriptions_GetById]
     @Id UNIQUEIDENTIFIER
 AS
 BEGIN
@@ -310,31 +351,29 @@ END
 GO
 
 -- 14. Вставка новой подписки (админка)
-CREATE PROCEDURE [sp_Subscriptions_Insert]
+CREATE OR ALTER PROCEDURE [sp_Subscriptions_Insert]
     @Id UNIQUEIDENTIFIER,
     @Name NVARCHAR(100),
     @Description NVARCHAR(500),
     @DescriptionMarkdown NVARCHAR(4000),
     @Price DECIMAL(18,2),
-    @Period NVARCHAR(MAX),
     @Category NVARCHAR(MAX),
     @IconFileId UNIQUEIDENTIFIER = NULL,
     @IsActive BIT = 1
 AS
 BEGIN
-    INSERT INTO [Subscriptions] (Id, Name, Description, DescriptionMarkdown, Price, Period, Category, IconFileId, IsActive, CreatedAt, UpdatedAt)
-    VALUES (@Id, @Name, @Description, @DescriptionMarkdown, @Price, @Period, @Category, @IconFileId, @IsActive, GETUTCDATE(), GETUTCDATE());
+    INSERT INTO [Subscriptions] (Id, Name, Description, DescriptionMarkdown, Price, Category, IconFileId, IsActive, CreatedAt, UpdatedAt)
+    VALUES (@Id, @Name, @Description, @DescriptionMarkdown, @Price, @Category, @IconFileId, @IsActive, GETUTCDATE(), GETUTCDATE());
 END
 GO
 
 -- 15. Обновление подписки (админка)
-CREATE PROCEDURE [sp_Subscriptions_Update]
+CREATE OR ALTER PROCEDURE [sp_Subscriptions_Update]
     @Id UNIQUEIDENTIFIER,
     @Name NVARCHAR(100),
     @Description NVARCHAR(500),
     @DescriptionMarkdown NVARCHAR(4000),
     @Price DECIMAL(18,2),
-    @Period NVARCHAR(MAX),
     @Category NVARCHAR(MAX),
     @IconFileId UNIQUEIDENTIFIER = NULL,
     @IsActive BIT
@@ -345,7 +384,6 @@ BEGIN
         [Description] = @Description,
         [DescriptionMarkdown] = @DescriptionMarkdown,
         [Price] = @Price,
-        [Period] = @Period,
         [Category] = @Category,
         [IconFileId] = @IconFileId,
         [IsActive] = @IsActive,
@@ -355,7 +393,7 @@ END
 GO
 
 -- 16. Частичное обновление активности подписки
-CREATE PROCEDURE [sp_Subscriptions_UpdateActive]
+CREATE OR ALTER PROCEDURE [sp_Subscriptions_UpdateActive]
     @Id UNIQUEIDENTIFIER,
     @IsActive BIT
 AS
@@ -368,7 +406,7 @@ END
 GO
 
 -- 17. Получение уникальных категорий активных подписок
-CREATE PROCEDURE [sp_Subscriptions_GetCategories]
+CREATE OR ALTER PROCEDURE [sp_Subscriptions_GetCategories]
 AS
 BEGIN
     SELECT DISTINCT [Category] FROM [Subscriptions] WHERE [IsActive] = 1 ORDER BY [Category];
@@ -381,7 +419,6 @@ CREATE OR ALTER PROCEDURE [sp_Subscriptions_GetPagedExtended]
     @PageSize INT,
     @Category NVARCHAR(MAX) = NULL,
     @SearchTerm NVARCHAR(MAX) = NULL,
-    @Period NVARCHAR(MAX) = NULL,
     @MinPrice DECIMAL(18,2) = NULL,
     @MaxPrice DECIMAL(18,2) = NULL,
     @OrderBy NVARCHAR(50) = 'date',
@@ -391,24 +428,19 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Таблица для хранения ID отфильтрованных подписок
     DECLARE @FilteredIds TABLE (Id UNIQUEIDENTIFIER);
 
-    -- Вставка ID подходящих подписок
     INSERT INTO @FilteredIds (Id)
     SELECT Id
     FROM Subscriptions
     WHERE IsActive = 1
       AND (@Category IS NULL OR Category = @Category)
       AND (@SearchTerm IS NULL OR Name LIKE '%' + @SearchTerm + '%' OR Description LIKE '%' + @SearchTerm + '%')
-      AND (@Period IS NULL OR Period IN (SELECT value FROM STRING_SPLIT(@Period, ',')))
       AND (@MinPrice IS NULL OR Price >= @MinPrice)
       AND (@MaxPrice IS NULL OR Price <= @MaxPrice);
 
-    -- Получаем общее количество
     SELECT @TotalCount = COUNT(*) FROM @FilteredIds;
 
-    -- Основная выборка с пагинацией
     SELECT s.*
     FROM Subscriptions s
     INNER JOIN @FilteredIds f ON s.Id = f.Id
@@ -425,22 +457,22 @@ END
 GO
 
 -- 19. Вставка пользовательской подписки (при инициализации платежа)
-CREATE PROCEDURE [sp_UserSubscriptions_Insert]
+CREATE OR ALTER PROCEDURE [sp_UserSubscriptions_Insert]
     @Id UNIQUEIDENTIFIER,
     @UserId UNIQUEIDENTIFIER,
-    @SubscriptionId UNIQUEIDENTIFIER,
+    @SubscriptionPriceId UNIQUEIDENTIFIER,
     @StartDate DATETIME2,
     @NextBillingDate DATETIME2,
     @IsActive BIT = 0
 AS
 BEGIN
-    INSERT INTO [UserSubscriptions] (Id, UserId, SubscriptionId, StartDate, NextBillingDate, IsActive)
-    VALUES (@Id, @UserId, @SubscriptionId, @StartDate, @NextBillingDate, @IsActive);
+    INSERT INTO [UserSubscriptions] (Id, UserId, SubscriptionPriceId, StartDate, NextBillingDate, IsActive, CreatedAt, UpdatedAt)
+    VALUES (@Id, @UserId, @SubscriptionPriceId, @StartDate, @NextBillingDate, @IsActive, GETUTCDATE(), GETUTCDATE());
 END
 GO
 
 -- 20. Обновление пользовательской подписки (отмена, продление)
-CREATE PROCEDURE [sp_UserSubscriptions_Update]
+CREATE OR ALTER PROCEDURE [sp_UserSubscriptions_Update]
     @Id UNIQUEIDENTIFIER,
     @CancelledAt DATETIME2 = NULL,
     @ValidUntil DATETIME2 = NULL,
@@ -458,8 +490,10 @@ BEGIN
 END
 GO
 
+USE [SubscriptionsDb];
+GO
 -- 21. Пагинация активных подписок пользователя с фильтром по категории
-CREATE PROCEDURE [sp_UserSubscriptions_GetActiveByUserIdPaged]
+CREATE OR ALTER PROCEDURE [sp_UserSubscriptions_GetActiveByUserIdPaged]
     @UserId UNIQUEIDENTIFIER,
     @PageNumber INT,
     @PageSize INT,
@@ -467,17 +501,45 @@ CREATE PROCEDURE [sp_UserSubscriptions_GetActiveByUserIdPaged]
     @TotalCount INT OUTPUT
 AS
 BEGIN
+    SET NOCOUNT ON;
+
     SELECT @TotalCount = COUNT(*)
     FROM [UserSubscriptions] us
-    INNER JOIN [Subscriptions] s ON us.[SubscriptionId] = s.[Id]
+    INNER JOIN [SubscriptionPrices] sp ON us.[SubscriptionPriceId] = sp.[Id]
+    INNER JOIN [Subscriptions] s ON sp.[SubscriptionId] = s.[Id]
     WHERE us.[UserId] = @UserId
       AND us.[IsActive] = 1
       AND (us.[CancelledAt] IS NULL OR us.[ValidUntil] >= GETUTCDATE())
       AND (@Category IS NULL OR s.[Category] = @Category);
 
-    SELECT us.*, s.*
+    SELECT 
+        us.Id,
+        us.UserId,
+        us.SubscriptionPriceId,
+        us.StartDate,
+        us.NextBillingDate,
+        us.CancelledAt,
+        us.ValidUntil,
+        us.IsActive,
+        us.CreatedAt,
+        us.UpdatedAt,
+        sp.FinalPrice,
+        per.Name AS PeriodName,
+        s.Id AS SubscriptionId,
+        s.Name AS SubscriptionName,
+        s.Category,
+        s.Price,
+        s.IconFileId,
+        s.IconUrl,
+        s.Description,
+        s.DescriptionMarkdown,
+        s.IsActive AS SubscriptionIsActive,
+        s.CreatedAt AS SubscriptionCreatedAt,
+        s.UpdatedAt AS SubscriptionUpdatedAt
     FROM [UserSubscriptions] us
-    INNER JOIN [Subscriptions] s ON us.[SubscriptionId] = s.[Id]
+    INNER JOIN [SubscriptionPrices] sp ON us.[SubscriptionPriceId] = sp.[Id]
+    INNER JOIN [Subscriptions] s ON sp.[SubscriptionId] = s.[Id]
+    INNER JOIN [Periods] per ON sp.[PeriodId] = per.[Id]
     WHERE us.[UserId] = @UserId
       AND us.[IsActive] = 1
       AND (us.[CancelledAt] IS NULL OR us.[ValidUntil] >= GETUTCDATE())
@@ -489,7 +551,7 @@ END
 GO
 
 -- 22. Обновление статуса платежа (используется в вебхуках и джобах)
-CREATE PROCEDURE [sp_Payments_UpdateStatus]
+CREATE OR ALTER PROCEDURE [sp_Payments_UpdateStatus]
     @Id UNIQUEIDENTIFIER,
     @Status INT,
     @ExternalTransactionId NVARCHAR(100) = NULL,
@@ -507,7 +569,7 @@ END
 GO
 
 -- 23. Получение платежа по Id
-CREATE PROCEDURE [sp_Payments_GetById]
+CREATE OR ALTER PROCEDURE [sp_Payments_GetById]
     @Id UNIQUEIDENTIFIER
 AS
 BEGIN
@@ -516,7 +578,7 @@ END
 GO
 
 -- 24. Получение уведомлений пользователя без пагинации
-CREATE PROCEDURE [sp_Notifications_GetByUserId]
+CREATE OR ALTER PROCEDURE [sp_Notifications_GetByUserId]
     @UserId UNIQUEIDENTIFIER
 AS
 BEGIN
@@ -527,7 +589,7 @@ END
 GO
 
 -- 25. Пометка одного уведомления как прочитанного
-CREATE PROCEDURE [sp_Notifications_MarkAsRead]
+CREATE OR ALTER PROCEDURE [sp_Notifications_MarkAsRead]
     @Id UNIQUEIDENTIFIER,
     @UserId UNIQUEIDENTIFIER
 AS
@@ -539,7 +601,7 @@ END
 GO
 
 -- 26. Статистика пользователя (суммарные траты, количество подписок, ближайший платёж)
-CREATE PROCEDURE [sp_UserStatistics_Get]
+CREATE OR ALTER PROCEDURE [sp_UserStatistics_Get]
     @UserId UNIQUEIDENTIFIER
 AS
 BEGIN
@@ -575,7 +637,7 @@ END
 GO
 
 -- 27. Обработка истекших подписок (деактивация отменённых и продление активных)
-CREATE PROCEDURE [sp_Subscriptions_ProcessExpired]
+CREATE OR ALTER PROCEDURE [sp_Subscriptions_ProcessExpired]
 AS
 BEGIN
     UPDATE [UserSubscriptions]
@@ -585,16 +647,10 @@ BEGIN
       AND [ValidUntil] <= GETUTCDATE();
 
     UPDATE us
-    SET [NextBillingDate] = 
-        CASE s.[Period]
-            WHEN 'monthly' THEN DATEADD(MONTH, 1, GETUTCDATE())
-            WHEN 'quarterly' THEN DATEADD(MONTH, 3, GETUTCDATE())
-            WHEN 'yearly' THEN DATEADD(YEAR, 1, GETUTCDATE())
-            WHEN 'lifetime' THEN DATEADD(YEAR, 100, GETUTCDATE())
-            ELSE DATEADD(MONTH, 1, GETUTCDATE())
-        END
+    SET [NextBillingDate] = DATEADD(MONTH, p.[MonthsCount], GETUTCDATE())
     FROM [UserSubscriptions] us
-    INNER JOIN [Subscriptions] s ON us.[SubscriptionId] = s.[Id]
+    INNER JOIN [SubscriptionPrices] sp ON us.[SubscriptionPriceId] = sp.[Id]
+    INNER JOIN [Periods] p ON sp.[PeriodId] = p.[Id]
     WHERE us.[IsActive] = 1
       AND us.[CancelledAt] IS NULL
       AND us.[NextBillingDate] <= GETUTCDATE();
@@ -604,27 +660,41 @@ END
 GO
 
 -- 28. Получение последних 10 платежей пользователя с деталями подписки
-CREATE PROCEDURE [sp_GetRecentPayments]
+CREATE OR ALTER PROCEDURE [sp_GetRecentPayments]
     @UserId UNIQUEIDENTIFIER
 AS
 BEGIN
-    SELECT TOP 10 p.*, s.Id, s.Name, s.Price
+    SELECT TOP 10 
+        p.*, 
+        s.Id AS SubscriptionId, 
+        s.Name AS SubscriptionName, 
+        sp.FinalPrice AS Price,
+        per.Name AS PeriodName
     FROM Payments p
     INNER JOIN UserSubscriptions us ON p.UserSubscriptionId = us.Id
-    INNER JOIN Subscriptions s ON us.SubscriptionId = s.Id
+    INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id
+    INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id
+    INNER JOIN Periods per ON sp.PeriodId = per.Id
     WHERE p.UserId = @UserId
     ORDER BY p.PaymentDate DESC;
 END
 GO
 
 -- 29. Получение предстоящих платежей пользователя
-CREATE PROCEDURE [sp_GetUpcomingPayments]
+CREATE OR ALTER PROCEDURE [sp_GetUpcomingPayments]
     @UserId UNIQUEIDENTIFIER
 AS
 BEGIN
-    SELECT us.NextBillingDate, s.Id AS SubscriptionId, s.Name AS SubscriptionName, s.Price AS Amount
+    SELECT 
+        us.NextBillingDate, 
+        s.Id AS SubscriptionId, 
+        s.Name AS SubscriptionName, 
+        sp.FinalPrice AS Amount,
+        per.Name AS PeriodName
     FROM UserSubscriptions us
-    INNER JOIN Subscriptions s ON us.SubscriptionId = s.Id
+    INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id
+    INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id
+    INNER JOIN Periods per ON sp.PeriodId = per.Id
     WHERE us.UserId = @UserId 
       AND us.IsActive = 1 
       AND us.CancelledAt IS NULL 
@@ -634,7 +704,7 @@ END
 GO
 
 -- 30. Пагинированная история платежей с общим количеством
-CREATE PROCEDURE [sp_Payments_GetHistoryPaged]
+CREATE OR ALTER PROCEDURE [sp_Payments_GetHistoryPaged]
     @UserId UNIQUEIDENTIFIER,
     @PageNumber INT,
     @PageSize INT,
@@ -643,10 +713,17 @@ AS
 BEGIN
     SELECT @TotalCount = COUNT(*) FROM Payments WHERE UserId = @UserId;
 
-    SELECT p.*, s.Id, s.Name, s.Price, s.Period
+    SELECT 
+        p.*, 
+        s.Id AS SubscriptionId, 
+        s.Name, 
+        sp.FinalPrice AS Price, 
+        per.Name AS Period
     FROM Payments p
     INNER JOIN UserSubscriptions us ON p.UserSubscriptionId = us.Id
-    INNER JOIN Subscriptions s ON us.SubscriptionId = s.Id
+    INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id
+    INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id
+    INNER JOIN Periods per ON sp.PeriodId = per.Id
     WHERE p.UserId = @UserId
     ORDER BY p.PaymentDate DESC
     OFFSET ((@PageNumber - 1) * @PageSize) ROWS

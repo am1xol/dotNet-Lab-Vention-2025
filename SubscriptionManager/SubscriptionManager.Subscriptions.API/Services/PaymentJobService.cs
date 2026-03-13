@@ -79,6 +79,20 @@ namespace SubscriptionManager.Subscriptions.API.Services
                                 CardBrand = (string?)null
                             }, commandType: System.Data.CommandType.StoredProcedure);
 
+                            string subscriptionName = "Unknown";
+                            if (payment.UserSubscription != null)
+                            {
+                                const string getNameSql = @"
+                            SELECT s.Name 
+                            FROM UserSubscriptions us
+                            INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id
+                            INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id
+                            WHERE us.Id = @UserSubscriptionId";
+                                subscriptionName = await connection.QueryFirstOrDefaultAsync<string>(
+                                    getNameSql,
+                                    new { payment.UserSubscriptionId }) ?? "Unknown";
+                            }
+
                             if (remoteStatus.Value == PaymentStatus.Completed && payment.UserSubscription != null)
                             {
                                 const string activateSubSql = "UPDATE UserSubscriptions SET IsActive = 1 WHERE Id = @UserSubscriptionId";
@@ -89,7 +103,7 @@ namespace SubscriptionManager.Subscriptions.API.Services
                                 await _notificationService.CreateAsync(
                                     payment.UserId,
                                     "Ошибка оплаты",
-                                    $"Не удалось продлить подписку '{payment.UserSubscription?.Subscription?.Name}'. Платеж отклонен платежной системой.",
+                                    $"Не удалось продлить подписку '{subscriptionName}'. Платеж отклонен платежной системой.",
                                     NotificationType.Error
                                 );
                             }
@@ -109,10 +123,24 @@ namespace SubscriptionManager.Subscriptions.API.Services
                             CardBrand = (string?)null
                         }, commandType: System.Data.CommandType.StoredProcedure);
 
+                        string subscriptionName = "Unknown";
+                        if (payment.UserSubscription != null)
+                        {
+                            const string getNameSql = @"
+                        SELECT s.Name 
+                        FROM UserSubscriptions us
+                        INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id
+                        INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id
+                        WHERE us.Id = @UserSubscriptionId";
+                            subscriptionName = await connection.QueryFirstOrDefaultAsync<string>(
+                                getNameSql,
+                                new { payment.UserSubscriptionId }) ?? "Unknown";
+                        }
+
                         await _notificationService.CreateAsync(
                             payment.UserId,
                             "Время ожидания истекло",
-                            $"Платеж для подписки '{payment.UserSubscription?.Subscription?.Name}' был отменен из-за истечения времени ожидания.",
+                            $"Платеж для подписки '{subscriptionName}' был отменен из-за истечения времени ожидания.",
                             NotificationType.Error
                         );
 
@@ -140,19 +168,37 @@ namespace SubscriptionManager.Subscriptions.API.Services
             foreach (var item in expired)
             {
                 Guid userId = item.UserId;
-                Guid subscriptionId = item.SubscriptionId;
 
-                const string getNameSql = "SELECT Name FROM Subscriptions WHERE Id = @SubscriptionId";
-                var subscriptionName = await connection.QueryFirstOrDefaultAsync<string>(getNameSql, new { SubscriptionId = subscriptionId });
+                Guid? subscriptionPriceId = item.SubscriptionPriceId;
 
-                await _notificationService.CreateAsync(
-                    userId,
-                    "Подписка истекла",
-                    $"Срок действия вашей подписки '{subscriptionName}' истек. Пожалуйста, продлите её, чтобы продолжить пользоваться сервисом.",
-                    NotificationType.Warning
-                );
+                if (subscriptionPriceId == null)
+                {
+                    _logger.LogWarning("SubscriptionPriceId is null for expired subscription. UserId: {UserId}", userId);
+                    continue;
+                }
 
-                _logger.LogInformation("Subscription {SubscriptionId} marked as expired for User {UserId}", subscriptionId, userId);
+                const string getNameSql = @"
+            SELECT s.Name 
+            FROM SubscriptionPrices sp
+            INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id
+            WHERE sp.Id = @SubscriptionPriceId";
+
+                var subscriptionName = await connection.QueryFirstOrDefaultAsync<string>(
+                    getNameSql,
+                    new { SubscriptionPriceId = subscriptionPriceId.Value });
+
+                if (!string.IsNullOrEmpty(subscriptionName))
+                {
+                    await _notificationService.CreateAsync(
+                        userId,
+                        "Подписка истекла",
+                        $"Срок действия вашей подписки '{subscriptionName}' истек. Пожалуйста, продлите её, чтобы продолжить пользоваться сервисом.",
+                        NotificationType.Warning
+                    );
+                }
+
+                _logger.LogInformation("SubscriptionPrice {SubscriptionPriceId} marked as expired for User {UserId}",
+                    subscriptionPriceId.Value, userId);
             }
         }
     }

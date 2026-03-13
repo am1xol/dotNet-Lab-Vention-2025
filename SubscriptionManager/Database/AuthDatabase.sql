@@ -68,7 +68,7 @@ END
 GO
 
 -- 2. Получение пользователя по Email (для Login)
-CREATE PROCEDURE [sp_Users_GetByEmail]
+CREATE OR ALTER PROCEDURE [sp_Users_GetByEmail]
     @Email NVARCHAR(256)
 AS
 BEGIN
@@ -77,7 +77,7 @@ END
 GO
 
 -- 3. Проверка: занят ли email другим пользователем
-CREATE PROCEDURE [sp_Users_IsEmailTaken]
+CREATE OR ALTER PROCEDURE [sp_Users_IsEmailTaken]
     @Email NVARCHAR(256),
     @ExcludeUserId UNIQUEIDENTIFIER
 AS
@@ -89,7 +89,7 @@ END
 GO
 
 -- 4. Пагинация и поиск пользователей
-CREATE PROCEDURE [sp_Users_GetPaged]
+CREATE OR ALTER PROCEDURE [sp_Users_GetPaged]
     @PageNumber INT,
     @PageSize INT,
     @SearchTerm NVARCHAR(MAX) = NULL,
@@ -143,7 +143,7 @@ END
 GO
 
 -- 6. Обновление кодов верификации/сброса пароля
-CREATE PROCEDURE [sp_Users_UpdateAuthCodes]
+CREATE OR ALTER PROCEDURE [sp_Users_UpdateAuthCodes]
     @Id UNIQUEIDENTIFIER,
     @EmailVerificationCode NVARCHAR(MAX) = NULL,
     @EmailVerificationCodeExpiresAt DATETIME2 = NULL,
@@ -164,7 +164,7 @@ END
 GO
 
 -- 7. Добавление refresh токена
-CREATE PROCEDURE [sp_RefreshTokens_Insert]
+CREATE OR ALTER PROCEDURE [sp_RefreshTokens_Insert]
     @Id UNIQUEIDENTIFIER,
     @UserId UNIQUEIDENTIFIER,
     @Token NVARCHAR(450),
@@ -179,7 +179,7 @@ END
 GO
 
 -- 8. Обновление refresh токена (отзыв)
-CREATE PROCEDURE [sp_RefreshTokens_Update]
+CREATE OR ALTER PROCEDURE [sp_RefreshTokens_Update]
     @Id UNIQUEIDENTIFIER,
     @IsRevoked BIT
 AS
@@ -191,7 +191,7 @@ END
 GO
 
 -- 9. Отзыв всех refresh токенов пользователя
-CREATE PROCEDURE [sp_RefreshTokens_RevokeAllUserTokens]
+CREATE OR ALTER PROCEDURE [sp_RefreshTokens_RevokeAllUserTokens]
     @UserId UNIQUEIDENTIFIER
 AS
 BEGIN
@@ -226,7 +226,7 @@ END
 GO
 
 -- 11. Получение пользователя по Id
-CREATE PROCEDURE [sp_Users_GetById]
+CREATE OR ALTER PROCEDURE [sp_Users_GetById]
     @Id UNIQUEIDENTIFIER
 AS
 BEGIN
@@ -235,7 +235,7 @@ END
 GO
 
 -- 12. Обновление только кода сброса пароля (используется в ForgotPassword)
-CREATE PROCEDURE [sp_Users_UpdateResetCode]
+CREATE OR ALTER PROCEDURE [sp_Users_UpdateResetCode]
     @Id UNIQUEIDENTIFIER,
     @PasswordResetCode NVARCHAR(MAX),
     @PasswordResetExpiresAt DATETIME2
@@ -250,7 +250,7 @@ END
 GO
 
 -- 13. Обновление пароля пользователя (используется в ResetPassword)
-CREATE PROCEDURE [sp_Users_UpdatePassword]
+CREATE OR ALTER PROCEDURE [sp_Users_UpdatePassword]
     @Id UNIQUEIDENTIFIER,
     @PasswordHash NVARCHAR(88)
 AS

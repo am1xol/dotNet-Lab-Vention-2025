@@ -21,147 +21,172 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         private readonly IFileStorageService _fileStorageService;
         private readonly IPaymentGatewayService _paymentGateway;
         private readonly INotificationService _notificationService;
+		private readonly ILogger<UserSubscriptionsController> _logger;
 
-        public UserSubscriptionsController(
+		public UserSubscriptionsController(
             IConfiguration configuration,
             IFileStorageService fileStorageService,
             IPaymentGatewayService paymentGateway,
-            INotificationService notificationService)
+            INotificationService notificationService,
+			ILogger<UserSubscriptionsController> logger)
         {
             _connectionString = configuration.GetConnectionString("SubscriptionsConnection")
                 ?? throw new InvalidOperationException("Connection string 'SubscriptionsConnection' not found.");
             _fileStorageService = fileStorageService;
             _paymentGateway = paymentGateway;
             _notificationService = notificationService;
-        }
+			_logger = logger;
+		}
 
-        [HttpPost("initiate-payment/{subscriptionId}")]
-        [ProducesResponseType(typeof(PaymentInitiationResult), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<ActionResult<PaymentInitiationResult>> InitiateSubscriptionPayment([FromRoute] Guid subscriptionId)
-        {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
-            if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
-                return Unauthorized();
+		[HttpPost("initiate-payment/{subscriptionPriceId}")]
+		[ProducesResponseType(typeof(PaymentInitiationResult), StatusCodes.Status200OK)]
+		[ProducesResponseType(StatusCodes.Status400BadRequest)]
+		[ProducesResponseType(StatusCodes.Status404NotFound)]
+		[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+		public async Task<ActionResult<PaymentInitiationResult>> InitiateSubscriptionPayment([FromRoute] Guid subscriptionPriceId)
+		{
+			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+			if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+				return Unauthorized();
 
-            using var connection = new SqlConnection(_connectionString);
-            await connection.OpenAsync();
-            using var transaction = await connection.BeginTransactionAsync();
+			using var connection = new SqlConnection(_connectionString);
+			await connection.OpenAsync();
+			using var transaction = await connection.BeginTransactionAsync();
 
-            try
-            {
-                const string getSubSql = "sp_Subscriptions_GetById";
-                var subscription = await connection.QueryFirstOrDefaultAsync<Subscription>(
-                    getSubSql,
-                    new { Id = subscriptionId },
-                    transaction,
-                    commandType: CommandType.StoredProcedure);
+			try
+			{
+				const string getPriceSql = @"
+            SELECT sp.*, s.*, p.*
+            FROM SubscriptionPrices sp
+            INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id
+            INNER JOIN Periods p ON sp.PeriodId = p.Id
+            WHERE sp.Id = @Id";
 
-                if (subscription == null || !subscription.IsActive)
-                {
-                    await transaction.RollbackAsync();
-                    return NotFound("Subscription not found");
-                }
+				var priceData = await connection.QueryAsync<SubscriptionPrice, Subscription, Period, dynamic>(
+					getPriceSql,
+					(sp, s, p) => new { SubscriptionPrice = sp, Subscription = s, Period = p },
+					new { Id = subscriptionPriceId },
+					transaction,
+					splitOn: "Id,Id"
+				);
 
-                const string checkExistingSql = @"
-                    SELECT COUNT(1) FROM UserSubscriptions 
-                    WHERE UserId = @UserId AND SubscriptionId = @SubscriptionId AND IsActive = 1";
-                var existingCount = await connection.ExecuteScalarAsync<int>(
-                    checkExistingSql,
-                    new { UserId = userId, SubscriptionId = subscriptionId },
-                    transaction);
+				var item = priceData.FirstOrDefault();
+				if (item == null)
+				{
+					await transaction.RollbackAsync();
+					return NotFound("Subscription price not found");
+				}
 
-                if (existingCount > 0)
-                {
-                    await transaction.RollbackAsync();
-                    return BadRequest("User already subscribed");
-                }
+				var subscriptionPrice = item.SubscriptionPrice;
+				var subscription = item.Subscription;
+				var period = item.Period;
 
-                var userSubscription = new UserSubscription
-                {
-                    Id = Guid.NewGuid(),
-                    UserId = userId,
-                    SubscriptionId = subscriptionId,
-                    StartDate = DateTime.UtcNow,
-                    NextBillingDate = CalculateNextBillingDate(subscription.Period),
-                    IsActive = false
-                };
+				if (!subscription.IsActive)
+				{
+					await transaction.RollbackAsync();
+					return BadRequest("Subscription is not active");
+				}
 
-                const string insertUserSubSql = "sp_UserSubscriptions_Insert";
-                await connection.ExecuteAsync(
-                    insertUserSubSql,
-                    new
-                    {
-                        userSubscription.Id,
-                        userSubscription.UserId,
-                        userSubscription.SubscriptionId,
-                        userSubscription.StartDate,
-                        userSubscription.NextBillingDate,
-                        userSubscription.IsActive
-                    },
-                    transaction,
-                    commandType: CommandType.StoredProcedure);
+				const string checkExistingSql = @"
+            SELECT COUNT(1) 
+            FROM UserSubscriptions us
+            INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id
+            WHERE us.UserId = @UserId AND sp.SubscriptionId = @SubscriptionId AND us.IsActive = 1";
 
-                var payment = new Payment
-                {
-                    Id = Guid.NewGuid(),
-                    UserSubscriptionId = userSubscription.Id,
-                    UserId = userId,
-                    Amount = subscription.Price,
-                    Currency = "BYN",
-                    PaymentDate = DateTime.UtcNow,
-                    Status = PaymentStatus.Pending,
-                    PeriodStart = userSubscription.StartDate,
-                    PeriodEnd = userSubscription.NextBillingDate
-                };
+				var existingCount = await connection.ExecuteScalarAsync<int>(
+					checkExistingSql,
+					new { UserId = userId, SubscriptionId = subscription.Id },
+					transaction);
 
-                const string insertPaymentSql = "sp_Payments_Insert";
-                await connection.ExecuteAsync(
-                    insertPaymentSql,
-                    new
-                    {
-                        payment.Id,
-                        payment.UserSubscriptionId,
-                        payment.UserId,
-                        payment.Amount,
-                        payment.Currency,
-                        ExternalTransactionId = (string?)null,
-                        Status = (int)payment.Status,
-                        payment.PeriodStart,
-                        payment.PeriodEnd
-                    },
-                    transaction,
-                    commandType: CommandType.StoredProcedure);
+				if (existingCount > 0)
+				{
+					await transaction.RollbackAsync();
+					return BadRequest("User already subscribed to this service");
+				}
 
-                await transaction.CommitAsync();
+				var userSubscription = new UserSubscription
+				{
+					Id = Guid.NewGuid(),
+					UserId = userId,
+					SubscriptionPriceId = subscriptionPrice.Id,
+					StartDate = DateTime.UtcNow,
+					NextBillingDate = CalculateNextBillingDate(period.MonthsCount),
+					IsActive = false
+				};
 
-                var userEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? "customer@example.com";
-                var expirationDate = DateTime.UtcNow.AddMinutes(30);
+				const string insertUserSubSql = "sp_UserSubscriptions_Insert";
+				await connection.ExecuteAsync(
+					insertUserSubSql,
+					new
+					{
+						userSubscription.Id,
+						userSubscription.UserId,
+						userSubscription.SubscriptionPriceId,
+						userSubscription.StartDate,
+						userSubscription.NextBillingDate,
+						userSubscription.IsActive
+					},
+					transaction,
+					commandType: CommandType.StoredProcedure);
 
-                var paymentResult = await _paymentGateway.InitiatePaymentAsync(
-                    subscription.Price,
-                    "BYN",
-                    $"Subscription: {subscription.Name}",
-                    payment.Id.ToString(),
-                    userEmail,
-                    expirationDate
-                );
+				var payment = new Payment
+				{
+					Id = Guid.NewGuid(),
+					UserSubscriptionId = userSubscription.Id,
+					UserId = userId,
+					Amount = subscriptionPrice.FinalPrice,
+					Currency = "BYN",
+					PaymentDate = DateTime.UtcNow,
+					Status = PaymentStatus.Pending,
+					PeriodStart = userSubscription.StartDate,
+					PeriodEnd = userSubscription.NextBillingDate
+				};
 
-                return Ok(paymentResult);
-            }
-            catch (ArgumentException ex)
-            {
-                await transaction.RollbackAsync();
-                return BadRequest($"Payment initiation failed: {ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
-        }
+				const string insertPaymentSql = "sp_Payments_Insert";
+				await connection.ExecuteAsync(
+					insertPaymentSql,
+					new
+					{
+						payment.Id,
+						payment.UserSubscriptionId,
+						payment.UserId,
+						payment.Amount,
+						payment.Currency,
+						ExternalTransactionId = (string?)null,
+						Status = (int)payment.Status,
+						payment.PeriodStart,
+						payment.PeriodEnd
+					},
+					transaction,
+					commandType: CommandType.StoredProcedure);
+
+				await transaction.CommitAsync();
+
+				var userEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? "customer@example.com";
+				var expirationDate = DateTime.UtcNow.AddMinutes(30);
+
+				var paymentResult = await _paymentGateway.InitiatePaymentAsync(
+					subscriptionPrice.FinalPrice,
+					"BYN",
+					$"Subscription: {subscription.Name} ({period.Name})",
+					payment.Id.ToString(),
+					userEmail,
+					expirationDate
+				);
+
+				return Ok(paymentResult);
+			}
+			catch (ArgumentException ex)
+			{
+				await transaction.RollbackAsync();
+				return BadRequest($"Payment initiation failed: {ex.Message}");
+			}
+			catch (Exception ex)
+			{
+				await transaction.RollbackAsync();
+				return StatusCode(500, $"Internal server error: {ex.Message}");
+			}
+		}
 
         [HttpGet("statistics")]
         [ProducesResponseType(typeof(UserStatisticsDto), StatusCodes.Status200OK)]
@@ -180,30 +205,27 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 commandType: CommandType.StoredProcedure) ?? new UserStatisticsDto();
 
             const string recentProc = "sp_GetRecentPayments";
-            var recentPayments = await connection.QueryAsync<Payment, Subscription, PaymentDto>(
-                recentProc,
-                (p, sub) => new PaymentDto
+            var recentResults = await connection.QueryAsync<dynamic>(recentProc, new { UserId = userId }, commandType: CommandType.StoredProcedure);
+
+            var recentPayments = recentResults.Select(r => new PaymentDto
+            {
+                Id = r.Id,
+                UserSubscriptionId = r.UserSubscriptionId,
+                Amount = r.Amount,
+                Currency = r.Currency,
+                PaymentDate = r.PaymentDate,
+                PeriodStart = r.PeriodStart,
+                PeriodEnd = r.PeriodEnd,
+                Status = ((PaymentStatus)r.Status).ToString(),
+                CardLastFour = r.CardLastFour ?? "",
+                CardBrand = r.CardBrand ?? "",
+                Subscription = new SubscriptionDto
                 {
-                    Id = p.Id,
-                    UserSubscriptionId = p.UserSubscriptionId,
-                    Amount = p.Amount,
-                    Currency = p.Currency,
-                    PaymentDate = p.PaymentDate,
-                    PeriodStart = p.PeriodStart,
-                    PeriodEnd = p.PeriodEnd,
-                    Status = p.Status.ToString(),
-                    CardLastFour = p.CardLastFour,
-                    CardBrand = p.CardBrand,
-                    Subscription = new SubscriptionDto
-                    {
-                        Id = sub.Id,
-                        Name = sub.Name,
-                        Price = sub.Price
-                    }
-                },
-                new { UserId = userId },
-                splitOn: "Id",
-                commandType: CommandType.StoredProcedure);
+                    Id = r.SubscriptionId,
+                    Name = r.SubscriptionName,
+                    Price = r.Price
+                }
+            }).ToList();
 
             const string upcomingProc = "sp_GetUpcomingPayments";
             var upcomingPayments = await connection.QueryAsync<UpcomingPaymentDto>(
@@ -211,7 +233,7 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 new { UserId = userId },
                 commandType: CommandType.StoredProcedure);
 
-            stats.RecentPayments = recentPayments.ToList();
+            stats.RecentPayments = recentPayments;
             stats.UpcomingPayments = upcomingPayments.ToList();
             stats.NextBillingDate = upcomingPayments.FirstOrDefault()?.NextBillingDate;
 
@@ -219,142 +241,169 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         }
 
         [HttpGet("payment-history")]
-        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
-        public async Task<ActionResult> GetPaymentHistory([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 5)
-        {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
-            if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
-                return Unauthorized("Invalid user ID in token");
+		[ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+		public async Task<ActionResult> GetPaymentHistory([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 5)
+		{
+			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+			if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+				return Unauthorized("Invalid user ID in token");
 
-            using var connection = new SqlConnection(_connectionString);
+			using var connection = new SqlConnection(_connectionString);
 
-            const string historyProc = "sp_Payments_GetHistoryPaged";
-            var parameters = new DynamicParameters();
-            parameters.Add("@UserId", userId);
-            parameters.Add("@PageNumber", pageNumber);
-            parameters.Add("@PageSize", pageSize);
-            parameters.Add("@TotalCount", dbType: DbType.Int32, direction: ParameterDirection.Output);
+			const string historyProc = "sp_Payments_GetHistoryPaged";
+			var parameters = new DynamicParameters();
+			parameters.Add("@UserId", userId);
+			parameters.Add("@PageNumber", pageNumber);
+			parameters.Add("@PageSize", pageSize);
+			parameters.Add("@TotalCount", dbType: DbType.Int32, direction: ParameterDirection.Output);
 
-            var payments = await connection.QueryAsync<Payment, Subscription, PaymentDto>(
-                historyProc,
-                (p, sub) => new PaymentDto
-                {
-                    Id = p.Id,
-                    UserSubscriptionId = p.UserSubscriptionId,
-                    Amount = p.Amount,
-                    Currency = p.Currency,
-                    PaymentDate = p.PaymentDate,
-                    PeriodStart = p.PeriodStart,
-                    PeriodEnd = p.PeriodEnd,
-                    Status = p.Status.ToString(),
-                    CardLastFour = p.CardLastFour,
-                    CardBrand = p.CardBrand,
-                    Subscription = new SubscriptionDto
-                    {
-                        Id = sub.Id,
-                        Name = sub.Name,
-                        Price = sub.Price,
-                        Period = sub.Period
-                    }
-                },
-                parameters,
-                splitOn: "Id",
-                commandType: CommandType.StoredProcedure);
+			var results = await connection.QueryAsync<dynamic>(historyProc, parameters, commandType: CommandType.StoredProcedure);
+			var totalCount = parameters.Get<int>("@TotalCount");
 
-            var totalCount = parameters.Get<int>("@TotalCount");
+			var payments = results.Select(r => new PaymentDto
+			{
+				Id = r.Id,
+				UserSubscriptionId = r.UserSubscriptionId,
+				Amount = r.Amount,
+				Currency = r.Currency,
+				PaymentDate = r.PaymentDate,
+				PeriodStart = r.PeriodStart,
+				PeriodEnd = r.PeriodEnd,
+				Status = ((PaymentStatus)r.Status).ToString(),
+				CardLastFour = r.CardLastFour ?? "",
+				CardBrand = r.CardBrand ?? "",
+				Subscription = new SubscriptionDto
+				{
+					Id = r.SubscriptionId,
+					Name = r.Name,
+					Price = r.Price,
+					PeriodName = r.Period 
+				}
+			}).ToList();
 
-            return Ok(new
-            {
-                items = payments,
-                totalCount,
-                pageNumber,
-                pageSize
-            });
-        }
+			return Ok(new
+			{
+				items = payments,
+				totalCount,
+				pageNumber,
+				pageSize
+			});
+		}
 
-        [HttpPost("subscribe/{subscriptionId}")]
-        [ProducesResponseType(typeof(SubscribeResponse), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<SubscribeResponse>> Subscribe(Guid subscriptionId)
-        {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
-            if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
-                return Unauthorized("Invalid user ID in token");
+		[HttpPost("subscribe/{subscriptionPriceId}")]
+		[ProducesResponseType(typeof(SubscribeResponse), StatusCodes.Status200OK)]
+		[ProducesResponseType(StatusCodes.Status400BadRequest)]
+		[ProducesResponseType(StatusCodes.Status404NotFound)]
+		public async Task<ActionResult<SubscribeResponse>> Subscribe(Guid subscriptionPriceId)
+		{
+			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+			if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+				return Unauthorized("Invalid user ID in token");
 
-            using var connection = new SqlConnection(_connectionString);
-            await connection.OpenAsync();
-            using var transaction = await connection.BeginTransactionAsync();
+			using var connection = new SqlConnection(_connectionString);
+			await connection.OpenAsync();
+			using var transaction = await connection.BeginTransactionAsync();
 
-            const string getSubSql = "sp_Subscriptions_GetById";
-            var subscription = await connection.QueryFirstOrDefaultAsync<Subscription>(
-                getSubSql,
-                new { Id = subscriptionId },
-                transaction,
-                commandType: CommandType.StoredProcedure);
+			try
+			{
+				const string getPriceSql = @"
+            SELECT sp.*, s.*, p.*
+            FROM SubscriptionPrices sp
+            INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id
+            INNER JOIN Periods p ON sp.PeriodId = p.Id
+            WHERE sp.Id = @Id";
 
-            if (subscription == null || !subscription.IsActive)
-            {
-                await transaction.RollbackAsync();
-                return NotFound("Subscription not found");
-            }
+				var priceData = await connection.QueryAsync<SubscriptionPrice, Subscription, Period, dynamic>(
+					getPriceSql,
+					(sp, s, p) => new { SubscriptionPrice = sp, Subscription = s, Period = p },
+					new { Id = subscriptionPriceId },
+					transaction,
+					splitOn: "Id,Id"
+				);
 
-            const string checkExistingSql = @"
-                SELECT COUNT(1) FROM UserSubscriptions 
-                WHERE UserId = @UserId AND SubscriptionId = @SubscriptionId AND IsActive = 1";
-            var existing = await connection.ExecuteScalarAsync<int>(
-                checkExistingSql,
-                new { UserId = userId, SubscriptionId = subscriptionId },
-                transaction);
+				var item = priceData.FirstOrDefault();
+				if (item == null)
+				{
+					await transaction.RollbackAsync();
+					return NotFound("Subscription price not found");
+				}
 
-            if (existing > 0)
-            {
-                await transaction.RollbackAsync();
-                return BadRequest("User already subscribed to this service");
-            }
+				var subscriptionPrice = item.SubscriptionPrice;
+				var subscription = item.Subscription;
+				var period = item.Period;
 
-            var userSubscription = new UserSubscription
-            {
-                Id = Guid.NewGuid(),
-                UserId = userId,
-                SubscriptionId = subscriptionId,
-                StartDate = DateTime.UtcNow,
-                NextBillingDate = CalculateNextBillingDate(subscription.Period),
-                IsActive = true
-            };
+				if (!subscription.IsActive)
+				{
+					await transaction.RollbackAsync();
+					return BadRequest("Subscription is not active");
+				}
 
-            const string insertSql = "sp_UserSubscriptions_Insert";
-            await connection.ExecuteAsync(
-                insertSql,
-                new
-                {
-                    userSubscription.Id,
-                    userSubscription.UserId,
-                    userSubscription.SubscriptionId,
-                    userSubscription.StartDate,
-                    userSubscription.NextBillingDate,
-                    userSubscription.IsActive
-                },
-                transaction,
-                commandType: CommandType.StoredProcedure);
+				const string checkExistingSql = @"
+            SELECT COUNT(1) 
+            FROM UserSubscriptions us
+            INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id
+            WHERE us.UserId = @UserId AND sp.SubscriptionId = @SubscriptionId AND us.IsActive = 1";
 
-            await transaction.CommitAsync();
+				var existing = await connection.ExecuteScalarAsync<int>(
+					checkExistingSql,
+					new { UserId = userId, SubscriptionId = subscription.Id },
+					transaction);
 
-            return Ok(new SubscribeResponse
-            {
-                Id = userSubscription.Id,
-                UserId = userSubscription.UserId,
-                SubscriptionId = userSubscription.SubscriptionId,
-                StartDate = userSubscription.StartDate,
-                NextBillingDate = userSubscription.NextBillingDate,
-                IsActive = userSubscription.IsActive
-            });
-        }
+				if (existing > 0)
+				{
+					await transaction.RollbackAsync();
+					return BadRequest("User already subscribed to this service");
+				}
+
+				var userSubscription = new UserSubscription
+				{
+					Id = Guid.NewGuid(),
+					UserId = userId,
+					SubscriptionPriceId = subscriptionPrice.Id,
+					StartDate = DateTime.UtcNow,
+					NextBillingDate = CalculateNextBillingDate(period.MonthsCount),
+					IsActive = true
+				};
+
+				const string insertSql = "sp_UserSubscriptions_Insert";
+				await connection.ExecuteAsync(
+					insertSql,
+					new
+					{
+						userSubscription.Id,
+						userSubscription.UserId,
+						userSubscription.SubscriptionPriceId,
+						userSubscription.StartDate,
+						userSubscription.NextBillingDate,
+						userSubscription.IsActive
+					},
+					transaction,
+					commandType: CommandType.StoredProcedure);
+
+				await transaction.CommitAsync();
+
+				return Ok(new SubscribeResponse
+				{
+					Id = userSubscription.Id,
+					UserId = userSubscription.UserId,
+					SubscriptionId = subscription.Id,
+					StartDate = userSubscription.StartDate,
+					NextBillingDate = userSubscription.NextBillingDate,
+					IsActive = userSubscription.IsActive
+				});
+			}
+			catch (Exception ex)
+			{
+				await transaction.RollbackAsync();
+                _logger.LogError(ex, "Error subscribing user {UserId} to subscription price {SubscriptionPriceId}", userId, subscriptionPriceId);
+				return StatusCode(500, "Internal server error");
+			}
+		}
 
         [HttpGet("my-subscriptions")]
         public async Task<ActionResult<PagedResult<UserSubscriptionDto>>> GetMySubscriptions(
-            [FromQuery] PaginationParams pq,
-            [FromQuery] string? category = null)
+			[FromQuery] PaginationParams pq,
+			[FromQuery] string? category = null)
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
@@ -369,42 +418,49 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             parameters.Add("@Category", category);
             parameters.Add("@TotalCount", dbType: DbType.Int32, direction: ParameterDirection.Output);
 
-            var userSubscriptions = await connection.QueryAsync<UserSubscription, Subscription, UserSubscriptionDto>(
-                sql,
-                (us, sub) => new UserSubscriptionDto
-                {
-                    Id = us.Id,
-                    UserId = us.UserId,
-                    SubscriptionId = us.SubscriptionId,
-                    StartDate = us.StartDate,
-                    NextBillingDate = us.NextBillingDate,
-                    CancelledAt = us.CancelledAt,
-                    ValidUntil = us.ValidUntil,
-                    IsActive = us.IsActive,
-                    Subscription = new SubscriptionDto
-                    {
-                        Id = sub.Id,
-                        Name = sub.Name,
-                        Description = sub.Description,
-                        Price = sub.Price,
-                        Period = sub.Period,
-                        Category = sub.Category,
-                        IconFileId = sub.IconFileId,
-                        IsActive = sub.IsActive
-                    }
-                },
-                parameters,
-                splitOn: "Id",
-                commandType: CommandType.StoredProcedure);
-
+            var results = await connection.QueryAsync<dynamic>(sql, parameters, commandType: CommandType.StoredProcedure);
             var totalCount = parameters.Get<int>("@TotalCount");
-            var dtos = userSubscriptions.ToList();
+
+            var dtos = results.Select(r => new UserSubscriptionDto
+            {
+                Id = r.Id,
+                UserId = r.UserId,
+                SubscriptionPriceId = r.SubscriptionPriceId,
+                StartDate = r.StartDate,
+                NextBillingDate = r.NextBillingDate,
+                CancelledAt = r.CancelledAt,
+                ValidUntil = r.ValidUntil,
+                IsActive = r.IsActive,
+                PeriodName = r.PeriodName,
+                FinalPrice = r.FinalPrice,
+                Subscription = new SubscriptionDto
+                {
+                    Id = r.SubscriptionId != null ? (Guid)r.SubscriptionId : Guid.Empty,
+                    Name = r.SubscriptionName,
+                    Category = r.Category,
+                    Price = r.Price != null ? (decimal)r.Price : 0m,
+                    IconFileId = r.IconFileId != null ? (Guid?)r.IconFileId : null,
+                    IconUrl = r.IconUrl,
+                    IsActive = r.SubscriptionIsActive != null ? (bool)r.SubscriptionIsActive : false,
+                    CreatedAt = r.SubscriptionCreatedAt != null ? (DateTime)r.SubscriptionCreatedAt : DateTime.MinValue,
+                    UpdatedAt = r.SubscriptionUpdatedAt != null ? (DateTime)r.SubscriptionUpdatedAt : DateTime.MinValue,
+                    Description = r.Description,
+                    DescriptionMarkdown = r.DescriptionMarkdown
+                }
+            }).ToList();
 
             foreach (var dto in dtos)
             {
                 if (dto.Subscription.IconFileId.HasValue)
                 {
-                    dto.Subscription.IconUrl = await _fileStorageService.GetPresignedUrlAsync(dto.Subscription.IconFileId.Value);
+                    try
+                    {
+                        dto.Subscription.IconUrl = await _fileStorageService.GetPresignedUrlAsync(dto.Subscription.IconFileId.Value);
+                    }
+                    catch
+                    {
+                        dto.Subscription.IconUrl = null;
+                    }
                 }
             }
 
@@ -427,8 +483,11 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             using var connection = new SqlConnection(_connectionString);
 
             const string findSql = @"
-                SELECT Id, NextBillingDate FROM UserSubscriptions 
-                WHERE UserId = @UserId AND SubscriptionId = @SubscriptionId AND IsActive = 1";
+        SELECT us.Id, us.NextBillingDate 
+        FROM UserSubscriptions us
+        INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id
+        WHERE us.UserId = @UserId AND sp.SubscriptionId = @SubscriptionId AND us.IsActive = 1";
+
             var userSub = await connection.QueryFirstOrDefaultAsync(findSql, new { UserId = userId, SubscriptionId = subscriptionId });
 
             if (userSub == null)
@@ -460,12 +519,13 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         {
             using var connection = new SqlConnection(_connectionString);
 
-            const string findSql = @"
+			const string findSql = @"
                 SELECT us.*, s.Name AS SubscriptionName 
                 FROM UserSubscriptions us
-                INNER JOIN Subscriptions s ON us.SubscriptionId = s.Id
+                INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id
+                INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id
                 WHERE us.Id = @Id";
-            var userSub = await connection.QueryFirstOrDefaultAsync(findSql, new { Id = userSubscriptionId });
+			var userSub = await connection.QueryFirstOrDefaultAsync(findSql, new { Id = userSubscriptionId });
 
             if (userSub == null)
                 return NotFound("User subscription not found");
@@ -490,15 +550,9 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             return Ok(new { Message = $"Subscription {userSub.SubscriptionName} for user {userSub.UserId} has been expired and user notified." });
         }
 
-        private DateTime CalculateNextBillingDate(string period)
-        {
-            return period.ToLower() switch
-            {
-                "monthly" => DateTime.UtcNow.AddMonths(1),
-                "quarterly" => DateTime.UtcNow.AddMonths(3),
-                "yearly" => DateTime.UtcNow.AddYears(1),
-                _ => DateTime.UtcNow.AddMonths(1)
-            };
-        }
-    }
+		private DateTime CalculateNextBillingDate(int monthsCount)
+		{
+			return DateTime.UtcNow.AddMonths(monthsCount);
+		}
+	}
 }

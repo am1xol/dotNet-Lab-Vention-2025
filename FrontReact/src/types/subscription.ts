@@ -1,16 +1,32 @@
+export interface Period {
+  id: string;
+  name: string;
+  monthsCount: number;
+}
+
+export interface SubscriptionPrice {
+  id: string;
+  subscriptionId: string;
+  periodId: string;
+  finalPrice: number;
+  periodName: string;
+  monthsCount: number;
+}
+
 export interface Subscription {
   id: string;
   name: string;
   description: string;
   descriptionMarkdown: string;
   price: number;
-  period: string;
   category: string;
   iconFileId?: string;
   iconUrl?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  periodName?: string;
+  prices?: SubscriptionPrice[];
 }
 
 export interface CreateSubscriptionRequest {
@@ -18,7 +34,6 @@ export interface CreateSubscriptionRequest {
   description: string;
   descriptionMarkdown: string;
   price: number;
-  period: string;
   category: string;
   iconFileId?: string;
 }
@@ -28,7 +43,6 @@ export interface UpdateSubscriptionRequest {
   description: string;
   descriptionMarkdown: string;
   price: number;
-  period: string;
   category: string;
   iconFileId?: string;
 }
@@ -36,7 +50,7 @@ export interface UpdateSubscriptionRequest {
 export interface UserSubscription {
   id: string;
   userId: string;
-  subscriptionId: string;
+  subscriptionPriceId: string;
   startDate: string;
   nextBillingDate: string;
   cancelledAt?: string;
@@ -44,6 +58,8 @@ export interface UserSubscription {
   isActive: boolean;
   isValid: boolean;
   subscription: Subscription;
+  periodName: string;
+  finalPrice: number;
 }
 
 export interface SubscribeRequest {
@@ -88,7 +104,6 @@ export type SubscriptionsByCategory = Record<string, CategoryData>;
 
 export interface SubscriptionFilters {
   search?: string;
-  period?: string;
   minPrice?: number;
   maxPrice?: number;
   orderBy?: string;

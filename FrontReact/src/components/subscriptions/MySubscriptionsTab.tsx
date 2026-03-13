@@ -16,7 +16,7 @@ interface MySubscriptionsTabProps {
   actionLoading: string | null;
   unsubscribedData: { [key: string]: UnsubscribeInfo };
   handleSubscribe: (subscriptionId: string) => Promise<void>;
-  handleInitiatePayment: (subscriptionId: string) => Promise<void>;
+  handleInitiatePayment: (subscriptionPriceId: string) => Promise<void>;
   handleUnsubscribe: (subscriptionId: string) => Promise<void>;
 }
 
@@ -119,8 +119,13 @@ export const MySubscriptionsTab: React.FC<MySubscriptionsTabProps> = ({
                         >
                           <SubscriptionCard
                             subscription={userSubscription.subscription}
+                            subscriptionPriceId={
+                              userSubscription.subscriptionPriceId
+                            }
+                            periodName={userSubscription.periodName}
+                            finalPrice={userSubscription.finalPrice}
                             isSubscribed={userSubscription.isActive}
-                            isCancelled={userSubscription.cancelledAt != null}
+                            isCancelled={!!userSubscription.cancelledAt}
                             validUntil={userSubscription.validUntil}
                             unsubscribeInfo={
                               unsubscribedData[userSubscription.subscription.id]

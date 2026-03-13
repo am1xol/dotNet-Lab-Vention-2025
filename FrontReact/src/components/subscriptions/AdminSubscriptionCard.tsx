@@ -10,7 +10,13 @@ import {
   FormControlLabel,
   Switch,
 } from '@mui/material';
-import { Edit, Delete, Visibility, VisibilityOff } from '@mui/icons-material';
+import {
+  Edit,
+  Delete,
+  Visibility,
+  VisibilityOff,
+  PriceChange,
+} from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { Subscription } from '../../types/subscription';
 
@@ -20,6 +26,7 @@ interface AdminSubscriptionCardProps {
   onEdit: (subscription: Subscription) => void;
   onDelete: (subscription: Subscription) => void;
   onToggleActive: (subscription: Subscription) => void;
+  onManagePrices: (subscription: Subscription) => void;
 }
 
 export const AdminSubscriptionCard: React.FC<AdminSubscriptionCardProps> = ({
@@ -28,6 +35,7 @@ export const AdminSubscriptionCard: React.FC<AdminSubscriptionCardProps> = ({
   onEdit,
   onDelete,
   onToggleActive,
+  onManagePrices,
 }) => {
   return (
     <motion.div
@@ -135,11 +143,6 @@ export const AdminSubscriptionCard: React.FC<AdminSubscriptionCardProps> = ({
                     color="primary"
                     variant="outlined"
                   />
-                  <Chip
-                    label={subscription.period}
-                    size="small"
-                    color="secondary"
-                  />
                 </Box>
               </Box>
             </Box>
@@ -197,12 +200,21 @@ export const AdminSubscriptionCard: React.FC<AdminSubscriptionCardProps> = ({
             onClick={() => onEdit(subscription)}
             sx={{
               color: '#7E57C2',
-              '&:hover': {
-                backgroundColor: 'rgba(126, 87, 194, 0.08)',
-              },
+              '&:hover': { backgroundColor: 'rgba(126, 87, 194, 0.08)' },
             }}
           >
             Edit
+          </Button>
+          <Button
+            size="small"
+            startIcon={<PriceChange />}
+            onClick={() => onManagePrices(subscription)}
+            sx={{
+              color: '#FF9800',
+              '&:hover': { backgroundColor: 'rgba(255, 152, 0, 0.08)' },
+            }}
+          >
+            Prices
           </Button>
           <Button
             size="small"
@@ -210,9 +222,7 @@ export const AdminSubscriptionCard: React.FC<AdminSubscriptionCardProps> = ({
             onClick={() => onDelete(subscription)}
             sx={{
               color: '#f44336',
-              '&:hover': {
-                backgroundColor: 'rgba(244, 67, 54, 0.08)',
-              },
+              '&:hover': { backgroundColor: 'rgba(244, 67, 54, 0.08)' },
             }}
           >
             Delete

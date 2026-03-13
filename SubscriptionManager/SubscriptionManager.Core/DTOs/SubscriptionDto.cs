@@ -7,13 +7,14 @@
         public string Description { get; set; } = string.Empty;
         public string DescriptionMarkdown { get; set; } = string.Empty;
         public decimal Price { get; set; }
-        public string Period { get; set; } = string.Empty;
+        public string? PeriodName { get; set; }
         public string Category { get; set; } = string.Empty;
         public Guid? IconFileId { get; set; }
         public string? IconUrl { get; set; }
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
+        public List<SubscriptionPriceDto>? Prices { get; set; }
     }
 
     public class CreateSubscriptionRequest
@@ -22,7 +23,6 @@
         public string Description { get; set; } = string.Empty;
         public string DescriptionMarkdown { get; set; } = string.Empty;
         public decimal Price { get; set; }
-        public string Period { get; set; } = string.Empty;
         public string Category { get; set; } = string.Empty;
         public Guid? IconFileId { get; set; }
     }
@@ -33,7 +33,6 @@
         public string Description { get; set; } = string.Empty;
         public string DescriptionMarkdown { get; set; } = string.Empty;
         public decimal Price { get; set; }
-        public string Period { get; set; } = string.Empty;
         public string Category { get; set; } = string.Empty;
         public Guid? IconFileId { get; set; }
     }

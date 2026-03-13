@@ -4,7 +4,6 @@ import { useAuthStore } from '../store/auth-store';
 const API_BASE_URL = import.meta.env.VITE_AUTH_API_URL;
 
 interface RefreshTokenResponse {
-  success: boolean;
   accessToken?: string;
   refreshToken?: string;
   accessTokenExpiresAt?: string;
@@ -82,7 +81,7 @@ api.interceptors.response.use(
 
         const data = response.data;
 
-        if (data.success && data.accessToken && data.refreshToken) {
+        if (!data.error && data.accessToken && data.refreshToken) {
           const authStore = useAuthStore.getState();
 
           authStore.login(authStore.user!, {

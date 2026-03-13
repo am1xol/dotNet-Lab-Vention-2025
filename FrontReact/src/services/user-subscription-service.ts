@@ -81,4 +81,11 @@ export const userSubscriptionService = {
     );
     return response.data;
   },
+
+  async getSubscriptionHistory(page: number, pageSize: number) {
+    const response = await api.get(
+      `${API_BASE_URL}/UserSubscriptions/subscription-history?pageNumber=${page}&pageSize=${pageSize}`
+    );
+    return response.data;
+  },
 };

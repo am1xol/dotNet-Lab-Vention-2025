@@ -1,4 +1,4 @@
-﻿using Dapper;
+using Dapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
@@ -470,6 +470,67 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 TotalCount = totalCount,
                 PageNumber = pq.PageNumber,
                 PageSize = pq.PageSize
+            });
+        }
+
+        [HttpGet("subscription-history")]
+        [ProducesResponseType(typeof(PagedResult<UserSubscriptionDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<PagedResult<UserSubscriptionDto>>> GetSubscriptionHistory(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 5)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+                return Unauthorized();
+
+            using var connection = new SqlConnection(_connectionString);
+            const string sql = "sp_UserSubscriptions_GetHistoryByUserIdPaged";
+            var parameters = new DynamicParameters();
+            parameters.Add("@UserId", userId);
+            parameters.Add("@PageNumber", pageNumber);
+            parameters.Add("@PageSize", pageSize);
+            parameters.Add("@TotalCount", dbType: DbType.Int32, direction: ParameterDirection.Output);
+
+            var results = await connection.QueryAsync<dynamic>(sql, parameters, commandType: CommandType.StoredProcedure);
+            var totalCount = parameters.Get<int>("@TotalCount");
+
+            var dtos = results.Select(r => new UserSubscriptionDto
+            {
+                Id = r.Id,
+                UserId = r.UserId,
+                SubscriptionPriceId = r.SubscriptionPriceId,
+                SubscriptionId = r.SubscriptionId,
+                StartDate = r.StartDate,
+                NextBillingDate = r.NextBillingDate,
+                CancelledAt = r.CancelledAt,
+                ValidUntil = r.ValidUntil,
+                IsActive = r.IsActive,
+                IsValid = r.IsValid != null ? (int)r.IsValid == 1 : false,
+                Status = r.Status,
+                PeriodName = r.PeriodName,
+                FinalPrice = r.FinalPrice,
+                Subscription = new SubscriptionDto
+                {
+                    Id = r.SubscriptionId,
+                    Name = r.SubscriptionName,
+                    Category = r.Category,
+                    Price = r.Price,
+                    IconFileId = r.IconFileId,
+                    IconUrl = r.IconUrl,
+                    IsActive = r.SubscriptionIsActive,
+                    CreatedAt = r.SubscriptionCreatedAt,
+                    UpdatedAt = r.SubscriptionUpdatedAt,
+                    Description = r.Description,
+                    DescriptionMarkdown = r.DescriptionMarkdown
+                }
+            }).ToList();
+
+            return Ok(new PagedResult<UserSubscriptionDto>
+            {
+                Items = dtos,
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize
             });
         }
 

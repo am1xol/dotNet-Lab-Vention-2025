@@ -57,6 +57,7 @@ export interface UserSubscription {
   validUntil?: string;
   isActive: boolean;
   isValid: boolean;
+  status?: string;
   subscription: Subscription;
   periodName: string;
   finalPrice: number;

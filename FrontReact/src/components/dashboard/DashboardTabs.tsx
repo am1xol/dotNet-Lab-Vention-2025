@@ -9,6 +9,7 @@ import {
 import { AvailableSubscriptionsTab } from '../subscriptions/AvailableSubscriptionsTab';
 import { MySubscriptionsTab } from '../subscriptions/MySubscriptionsTab';
 import { PaymentHistoryTab } from '../payment/PaymentHistoryTab';
+import { SubscriptionHistoryTab } from '../subscriptions/SubscriptionHistoryTab';
 import { AdminSubscriptionPanel } from '../subscriptions/AdminSubscriptionPanel';
 import { AdminUsersPanel } from '../subscriptions/AdminUsersPanel';
 
@@ -109,6 +110,7 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
             <Tab label="Available Subscriptions" />
             <Tab label="My Subscriptions" />
             <Tab label="Payment History" />
+            <Tab label="Subscription History" />
             {userRole === 'Admin' && <Tab label="Manage Subscriptions" />}
             {userRole === 'Admin' && <Tab label="Users Management" />}
           </Tabs>
@@ -143,9 +145,14 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
           <PaymentHistoryTab />
         </TabPanel>
 
+        {/* Subscription History Tab */}
+        <TabPanel value={tabValue} index={3}>
+          <SubscriptionHistoryTab />
+        </TabPanel>
+
         {/* Admin Management Tab */}
         {userRole === 'Admin' && (
-          <TabPanel value={tabValue} index={3}>
+          <TabPanel value={tabValue} index={4}>
             <AdminSubscriptionPanel
               onSubscriptionCreated={loadData}
               onSubscriptionUpdated={loadData}
@@ -156,7 +163,7 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
 
         {/* Admin Users Management Tab */}
         {userRole === 'Admin' && (
-          <TabPanel value={tabValue} index={4}>
+          <TabPanel value={tabValue} index={5}>
             <AdminUsersPanel />
           </TabPanel>
         )}

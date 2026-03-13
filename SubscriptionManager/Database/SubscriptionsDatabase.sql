@@ -550,6 +550,79 @@ BEGIN
 END
 GO
 
+USE [SubscriptionsDb];
+GO
+CREATE OR ALTER PROCEDURE [dbo].[sp_UserSubscriptions_GetHistoryByUserIdPaged]
+    @UserId UNIQUEIDENTIFIER,
+    @PageNumber INT,
+    @PageSize INT,
+    @TotalCount INT OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF (@PageNumber IS NULL OR @PageNumber < 1)
+        SET @PageNumber = 1;
+
+    IF (@PageSize IS NULL OR @PageSize <= 0)
+        SET @PageSize = 10;
+
+    SELECT @TotalCount = COUNT(*)
+    FROM [UserSubscriptions] us
+    INNER JOIN [SubscriptionPrices] sp ON us.[SubscriptionPriceId] = sp.[Id]
+    INNER JOIN [Subscriptions] s ON sp.[SubscriptionId] = s.[Id]
+    INNER JOIN [Periods] p ON sp.[PeriodId] = p.[Id]
+    WHERE us.[UserId] = @UserId;
+
+    SELECT
+        us.Id,
+        us.UserId,
+        us.SubscriptionPriceId,
+        sp.SubscriptionId,
+        us.StartDate,
+        us.NextBillingDate,
+        us.CancelledAt,
+        us.ValidUntil,
+        us.IsActive,
+        CASE 
+            WHEN us.IsActive = 1 
+                 AND (us.ValidUntil IS NULL OR us.ValidUntil >= SYSUTCDATETIME()) 
+                THEN 1
+            ELSE 0
+        END AS IsValid,
+        CASE 
+            WHEN us.IsActive = 1 
+                 AND (us.ValidUntil IS NULL OR us.ValidUntil >= SYSUTCDATETIME()) 
+                THEN 'Active'
+            WHEN us.CancelledAt IS NOT NULL THEN 'Cancelled'
+            WHEN us.ValidUntil IS NOT NULL 
+                 AND us.ValidUntil < SYSUTCDATETIME() THEN 'Expired'
+            ELSE 'Unknown'
+        END AS Status,
+        s.Name AS SubscriptionName,
+        s.Category,
+        s.Price,
+        s.IconFileId,
+        s.IconUrl,
+        s.IsActive AS SubscriptionIsActive,
+        s.CreatedAt AS SubscriptionCreatedAt,
+        s.UpdatedAt AS SubscriptionUpdatedAt,
+        s.Description,
+        s.DescriptionMarkdown,
+        p.Name AS PeriodName,
+        sp.FinalPrice
+    FROM [UserSubscriptions] us
+    INNER JOIN [SubscriptionPrices] sp ON us.[SubscriptionPriceId] = sp.[Id]
+    INNER JOIN [Subscriptions] s ON sp.[SubscriptionId] = s.[Id]
+    INNER JOIN [Periods] p ON sp.[PeriodId] = p.[Id]
+    WHERE us.[UserId] = @UserId
+    ORDER BY us.[StartDate] DESC
+    OFFSET (@PageNumber - 1) * @PageSize ROWS
+    FETCH NEXT @PageSize ROWS ONLY;
+END;
+GO
+
+
 -- 22. Обновление статуса платежа (используется в вебхуках и джобах)
 CREATE OR ALTER PROCEDURE [sp_Payments_UpdateStatus]
     @Id UNIQUEIDENTIFIER,

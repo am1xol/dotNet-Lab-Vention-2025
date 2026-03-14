@@ -803,3 +803,122 @@ BEGIN
     FETCH NEXT @PageSize ROWS ONLY;
 END
 GO
+
+-- 31. Отчет: количество активных подписок в разрезе тарифного плана
+CREATE OR ALTER PROCEDURE [sp_Report_ActiveSubscriptionsByPlan]
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        s.Id AS SubscriptionId,
+        s.Name AS SubscriptionName,
+        p.Id AS PeriodId,
+        p.Name AS PeriodName,
+        sp.FinalPrice,
+        COUNT(us.Id) AS ActiveSubscriptionsCount
+    FROM Subscriptions s
+    INNER JOIN SubscriptionPrices sp ON sp.SubscriptionId = s.Id
+    INNER JOIN Periods p ON sp.PeriodId = p.Id
+    LEFT JOIN UserSubscriptions us ON us.SubscriptionPriceId = sp.Id
+        AND us.IsActive = 1
+        AND (us.CancelledAt IS NULL OR us.ValidUntil >= GETUTCDATE())
+    GROUP BY
+        s.Id, s.Name,
+        p.Id, p.Name,
+        sp.FinalPrice
+    ORDER BY s.Name, p.Name;
+END
+GO
+
+-- 32. Отчет: подписки с указанием тарифных планов
+CREATE OR ALTER PROCEDURE [sp_Report_SubscriptionsWithPlans]
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        s.Id AS SubscriptionId,
+        s.Name AS SubscriptionName,
+        s.Category,
+        s.Price AS BasePrice,
+        p.Id AS PeriodId,
+        p.Name AS PeriodName,
+        p.MonthsCount,
+        sp.Id AS SubscriptionPriceId,
+        sp.FinalPrice
+    FROM Subscriptions s
+    INNER JOIN SubscriptionPrices sp ON sp.SubscriptionId = s.Id
+    INNER JOIN Periods p ON sp.PeriodId = p.Id
+    ORDER BY s.Name, p.MonthsCount;
+END
+GO
+
+-- 33. Отчет: топ N самых популярных подписок
+CREATE OR ALTER PROCEDURE [sp_Report_TopPopularSubscriptions]
+    @TopCount INT = 10
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT TOP (@TopCount)
+        s.Id AS SubscriptionId,
+        s.Name AS SubscriptionName,
+        s.Category,
+        COUNT(us.Id) AS TotalSubscriptionsCount
+    FROM Subscriptions s
+    LEFT JOIN SubscriptionPrices sp ON sp.SubscriptionId = s.Id
+    LEFT JOIN UserSubscriptions us ON us.SubscriptionPriceId = sp.Id
+    GROUP BY s.Id, s.Name, s.Category
+    ORDER BY TotalSubscriptionsCount DESC, s.Name;
+END
+GO
+
+-- 34. Отчет: количество подписок по временным периодам (по месяцам)
+CREATE OR ALTER PROCEDURE [sp_Report_SubscriptionsByMonth]
+    @StartDate DATETIME2,
+    @EndDate DATETIME2
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        YEAR(us.StartDate) AS [Year],
+        MONTH(us.StartDate) AS [Month],
+        COUNT(us.Id) AS SubscriptionsCount
+    FROM UserSubscriptions us
+    WHERE us.StartDate >= @StartDate
+      AND us.StartDate < @EndDate
+    GROUP BY YEAR(us.StartDate), MONTH(us.StartDate)
+    ORDER BY [Year], [Month];
+END
+GO
+
+-- 35. Отчет: подписки конкретного подписчика
+CREATE OR ALTER PROCEDURE [sp_Report_UserSubscriptions]
+    @UserId UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        us.Id AS UserSubscriptionId,
+        us.UserId,
+        s.Id AS SubscriptionId,
+        s.Name AS SubscriptionName,
+        s.Category,
+        p.Name AS PeriodName,
+        sp.FinalPrice,
+        us.StartDate,
+        us.NextBillingDate,
+        us.CancelledAt,
+        us.ValidUntil,
+        us.IsActive
+    FROM UserSubscriptions us
+    INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id
+    INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id
+    INNER JOIN Periods p ON sp.PeriodId = p.Id
+    WHERE us.UserId = @UserId
+    ORDER BY us.StartDate DESC;
+END
+GO

@@ -34,12 +34,11 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         public async Task<ActionResult<List<SubscriptionPriceDto>>> GetBySubscriptionId([FromQuery] Guid subscriptionId)
         {
             using var connection = new SqlConnection(_connectionString);
-            const string sql = @"
-                SELECT sp.*, p.Name AS PeriodName, p.MonthsCount
-                FROM SubscriptionPrices sp
-                INNER JOIN Periods p ON sp.PeriodId = p.Id
-                WHERE sp.SubscriptionId = @SubscriptionId";
-            var prices = await connection.QueryAsync<SubscriptionPriceDto>(sql, new { SubscriptionId = subscriptionId });
+            var prices = await connection.QueryAsync<SubscriptionPriceDto>(
+                "sp_SubscriptionPrices_GetBySubscriptionId",
+                new { SubscriptionId = subscriptionId },
+                commandType: CommandType.StoredProcedure);
+            
             return Ok(prices.ToList());
         }
 
@@ -47,55 +46,25 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         public async Task<ActionResult<SubscriptionPriceDto>> Create(CreateSubscriptionPriceRequest request)
         {
             using var connection = new SqlConnection(_connectionString);
-            await connection.OpenAsync();
-            using var transaction = await connection.BeginTransactionAsync();
-
             try
             {
-                const string checkSubSql = "SELECT COUNT(1) FROM Subscriptions WHERE Id = @SubscriptionId";
-                var subExists = await connection.ExecuteScalarAsync<int>(checkSubSql, new { request.SubscriptionId }, transaction) > 0;
-                if (!subExists)
-                    return BadRequest("Subscription not found");
+                var created = await connection.QueryFirstOrDefaultAsync<SubscriptionPriceDto>(
+                    "sp_SubscriptionPrices_Create",
+                    new
+                    {
+                        Id = Guid.NewGuid(),
+                        request.SubscriptionId,
+                        request.PeriodId,
+                        request.FinalPrice
+                    },
+                    commandType: CommandType.StoredProcedure);
 
-                const string checkPeriodSql = "SELECT COUNT(1) FROM Periods WHERE Id = @PeriodId";
-                var periodExists = await connection.ExecuteScalarAsync<int>(checkPeriodSql, new { request.PeriodId }, transaction) > 0;
-                if (!periodExists)
-                    return BadRequest("Period not found");
-
-                const string checkDuplicateSql = @"
-                    SELECT COUNT(1) FROM SubscriptionPrices 
-                    WHERE SubscriptionId = @SubscriptionId AND PeriodId = @PeriodId";
-                var duplicate = await connection.ExecuteScalarAsync<int>(checkDuplicateSql, new { request.SubscriptionId, request.PeriodId }, transaction) > 0;
-                if (duplicate)
-                    return BadRequest("Price for this subscription and period already exists");
-
-                var id = Guid.NewGuid();
-                const string insertSql = @"
-                    INSERT INTO SubscriptionPrices (Id, SubscriptionId, PeriodId, FinalPrice)
-                    VALUES (@Id, @SubscriptionId, @PeriodId, @FinalPrice)";
-
-                await connection.ExecuteAsync(insertSql, new
-                {
-                    Id = id,
-                    request.SubscriptionId,
-                    request.PeriodId,
-                    request.FinalPrice
-                }, transaction);
-
-                await transaction.CommitAsync();
-
-                const string selectSql = @"
-                    SELECT sp.*, p.Name AS PeriodName, p.MonthsCount
-                    FROM SubscriptionPrices sp
-                    INNER JOIN Periods p ON sp.PeriodId = p.Id
-                    WHERE sp.Id = @Id";
-                var created = await connection.QueryFirstOrDefaultAsync<SubscriptionPriceDto>(selectSql, new { Id = id });
-                return CreatedAtAction(nameof(GetBySubscriptionId), new { subscriptionId = request.SubscriptionId }, created);
+                return CreatedAtAction(nameof(GetBySubscriptionId), 
+                    new { subscriptionId = request.SubscriptionId }, created);
             }
-            catch
+            catch (SqlException ex) when (ex.Number >= 50000)
             {
-                await transaction.RollbackAsync();
-                throw;
+                return BadRequest(ex.Message);
             }
         }
 
@@ -103,21 +72,24 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         public async Task<IActionResult> Delete(Guid id)
         {
             using var connection = new SqlConnection(_connectionString);
-            const string checkSql = "SELECT COUNT(1) FROM SubscriptionPrices WHERE Id = @Id";
-            var exists = await connection.ExecuteScalarAsync<int>(checkSql, new { Id = id }) > 0;
-            if (!exists)
-                return NotFound();
+            var parameters = new DynamicParameters();
+            parameters.Add("@Id", id);
+            parameters.Add("@ReturnValue", dbType: DbType.Int32, direction: ParameterDirection.ReturnValue);
 
-            const string checkUsageSql = @"
-                SELECT COUNT(1) FROM UserSubscriptions 
-                WHERE SubscriptionPriceId = @Id AND IsActive = 1";
-            var inUse = await connection.ExecuteScalarAsync<int>(checkUsageSql, new { Id = id }) > 0;
-            if (inUse)
-                return BadRequest("Cannot delete price because it is used in active user subscriptions");
+            await connection.ExecuteAsync(
+                "sp_SubscriptionPrices_Delete",
+                parameters,
+                commandType: CommandType.StoredProcedure);
 
-            const string deleteSql = "DELETE FROM SubscriptionPrices WHERE Id = @Id";
-            await connection.ExecuteAsync(deleteSql, new { Id = id });
-            return NoContent();
+            var result = parameters.Get<int>("@ReturnValue");
+
+            return result switch
+            {
+                204 => NoContent(),
+                404 => NotFound(),
+                400 => BadRequest("Cannot delete price because it is used in active user subscriptions"),
+                _ => StatusCode(500)
+            };
         }
     }
 }

@@ -57,71 +57,59 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                     return NotFound("Payment not found");
                 }
 
-                const string updatePaymentSql = "sp_Payments_UpdateStatus";
-                var parameters = new DynamicParameters();
-                parameters.Add("@Id", paymentId);
-                parameters.Add("@ExternalTransactionId", webhookData.Transaction.Id);
+                var paymentParams = new DynamicParameters();
+                paymentParams.Add("@Id", paymentId);
+                paymentParams.Add("@ExternalTransactionId", webhookData.Transaction.Id);
 
                 switch (webhookData.Transaction.Status)
                 {
                     case "successful":
-                        parameters.Add("@Status", PaymentStatus.Completed);
-                        parameters.Add("@CardLastFour", webhookData.Transaction.CreditCard?.Last4 ?? "");
-                        parameters.Add("@CardBrand", webhookData.Transaction.CreditCard?.Brand ?? "");
+                        paymentParams.Add("@Status", PaymentStatus.Completed);
+                        paymentParams.Add("@CardLastFour", webhookData.Transaction.CreditCard?.Last4 ?? "");
+                        paymentParams.Add("@CardBrand", webhookData.Transaction.CreditCard?.Brand ?? "");
                         break;
 
                     case "failed":
                     case "error":
                     case "expired":
-                        parameters.Add("@Status", PaymentStatus.Failed);
-                        parameters.Add("@CardLastFour", (string?)null);
-                        parameters.Add("@CardBrand", (string?)null);
+                        paymentParams.Add("@Status", PaymentStatus.Failed);
+                        paymentParams.Add("@CardLastFour", (string?)null);
+                        paymentParams.Add("@CardBrand", (string?)null);
                         break;
 
                     default:
                         _logger.LogInformation("Unhandled status: {Status}. Ignoring webhook.", webhookData.Transaction.Status);
                         await transaction.CommitAsync();
-                        return Ok(new { message = "Webhook ignored (unhandled status)" });
+                        return Ok(new { message = "Webhook ignored" });
                 }
 
                 await connection.ExecuteAsync(
-                    updatePaymentSql,
-                    parameters,
+                    "sp_Payments_UpdateStatus",
+                    paymentParams,
                     transaction,
                     commandType: CommandType.StoredProcedure);
 
                 if (webhookData.Transaction.Status == "successful")
                 {
-                    const string activateSubSql = @"
-                        UPDATE UserSubscriptions 
-                        SET IsActive = 1 
-                        WHERE Id = @UserSubscriptionId";
                     await connection.ExecuteAsync(
-                        activateSubSql,
-                        new { payment.UserSubscriptionId },
-                        transaction);
+                        "sp_UserSubscriptions_Update",
+                        new { Id = payment.UserSubscriptionId, IsActive = 1 },
+                        transaction,
+                        commandType: CommandType.StoredProcedure);
 
                     await _notificationService.CreateAsync(
                         payment.UserId,
                         "Подписка активна",
                         "Оплата прошла успешно!",
                         NotificationType.Info);
-
-                    _logger.LogInformation("Subscription {SubId} activated for user {UserId}",
-                        payment.UserSubscriptionId, payment.UserId);
                 }
-                else if (webhookData.Transaction.Status == "failed" ||
-                         webhookData.Transaction.Status == "error" ||
-                         webhookData.Transaction.Status == "expired")
+                else if (new[] { "failed", "error", "expired" }.Contains(webhookData.Transaction.Status))
                 {
                     await _notificationService.CreateAsync(
                         payment.UserId,
                         "Ошибка оплаты",
                         "Не удалось провести платеж. Проверьте данные карты.",
                         NotificationType.Error);
-
-                    _logger.LogWarning("Payment failed for user {UserId}, status: {Status}",
-                        payment.UserId, webhookData.Transaction.Status);
                 }
 
                 await transaction.CommitAsync();

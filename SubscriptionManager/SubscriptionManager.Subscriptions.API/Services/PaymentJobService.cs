@@ -4,6 +4,7 @@ using SubscriptionManager.Core;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Models;
 using SubscriptionManager.Subscriptions.Infrastructure.Services;
+using System.Data;
 
 namespace SubscriptionManager.Subscriptions.API.Services
 {
@@ -36,117 +37,45 @@ namespace SubscriptionManager.Subscriptions.API.Services
         public async Task<int> CleanupStuckPaymentsAsync(CancellationToken ct)
         {
             using var connection = new SqlConnection(_connectionString);
-            await connection.OpenAsync(ct);
-
-            const string getStuckSql = "sp_Jobs_GetStuckPayments";
-            var stuckPayments = await connection.QueryAsync<Payment, UserSubscription, Payment>(
-                getStuckSql,
-                (payment, userSub) =>
-                {
-                    payment.UserSubscription = userSub;
-                    return payment;
-                },
-                splitOn: "UserSubscriptionId",
+            
+            var stuckPayments = await connection.QueryAsync<Payment>(
+                "sp_Jobs_GetStuckPayments", 
                 commandType: System.Data.CommandType.StoredProcedure);
 
             var stuckList = stuckPayments.ToList();
-            if (!stuckList.Any())
-            {
-                _logger.LogInformation("No stuck payments found.");
-                return 0;
-            }
+            if (!stuckList.Any()) return 0;
 
-            _logger.LogInformation("Found {Count} stuck payments. Verifying with bePaid...", stuckList.Count);
             int updatedCount = 0;
-
             foreach (var payment in stuckList)
             {
                 try
                 {
                     var remoteStatus = await _gatewayService.CheckPaymentStatusAsync(payment.Id.ToString());
+                    
+                    var finalStatus = remoteStatus ?? PaymentStatus.Failed;
 
-                    if (remoteStatus.HasValue)
+                    if (finalStatus == PaymentStatus.Pending) continue;
+
+                    var result = await connection.QueryFirstOrDefaultAsync<dynamic>(
+                        "sp_Payments_SyncStatus",
+                        new { PaymentId = payment.Id, Status = (int)finalStatus },
+                        commandType: System.Data.CommandType.StoredProcedure
+                    );
+
+                    if (result == null) continue;
+
+                    if (finalStatus == PaymentStatus.Failed)
                     {
-                        if (remoteStatus.Value != PaymentStatus.Pending)
-                        {
-                            const string updatePaymentSql = "sp_Payments_UpdateStatus";
-                            await connection.ExecuteAsync(updatePaymentSql, new
-                            {
-                                payment.Id,
-                                Status = remoteStatus.Value,
-                                ExternalTransactionId = (string?)null,
-                                CardLastFour = (string?)null,
-                                CardBrand = (string?)null
-                            }, commandType: System.Data.CommandType.StoredProcedure);
-
-                            string subscriptionName = "Unknown";
-                            if (payment.UserSubscription != null)
-                            {
-                                const string getNameSql = @"
-                            SELECT s.Name 
-                            FROM UserSubscriptions us
-                            INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id
-                            INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id
-                            WHERE us.Id = @UserSubscriptionId";
-                                subscriptionName = await connection.QueryFirstOrDefaultAsync<string>(
-                                    getNameSql,
-                                    new { payment.UserSubscriptionId }) ?? "Unknown";
-                            }
-
-                            if (remoteStatus.Value == PaymentStatus.Completed && payment.UserSubscription != null)
-                            {
-                                const string activateSubSql = "UPDATE UserSubscriptions SET IsActive = 1 WHERE Id = @UserSubscriptionId";
-                                await connection.ExecuteAsync(activateSubSql, new { payment.UserSubscriptionId });
-                            }
-                            else if (remoteStatus.Value == PaymentStatus.Failed)
-                            {
-                                await _notificationService.CreateAsync(
-                                    payment.UserId,
-                                    "Ошибка оплаты",
-                                    $"Не удалось продлить подписку '{subscriptionName}'. Платеж отклонен платежной системой.",
-                                    NotificationType.Error
-                                );
-                            }
-
-                            updatedCount++;
-                        }
-                    }
-                    else
-                    {
-                        const string updatePaymentSql = "sp_Payments_UpdateStatus";
-                        await connection.ExecuteAsync(updatePaymentSql, new
-                        {
-                            payment.Id,
-                            Status = PaymentStatus.Failed,
-                            ExternalTransactionId = (string?)null,
-                            CardLastFour = (string?)null,
-                            CardBrand = (string?)null
-                        }, commandType: System.Data.CommandType.StoredProcedure);
-
-                        string subscriptionName = "Unknown";
-                        if (payment.UserSubscription != null)
-                        {
-                            const string getNameSql = @"
-                        SELECT s.Name 
-                        FROM UserSubscriptions us
-                        INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id
-                        INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id
-                        WHERE us.Id = @UserSubscriptionId";
-                            subscriptionName = await connection.QueryFirstOrDefaultAsync<string>(
-                                getNameSql,
-                                new { payment.UserSubscriptionId }) ?? "Unknown";
-                        }
-
+                        string reason = remoteStatus.HasValue ? "Платеж отклонен" : "Время ожидания истекло";
                         await _notificationService.CreateAsync(
-                            payment.UserId,
-                            "Время ожидания истекло",
-                            $"Платеж для подписки '{subscriptionName}' был отменен из-за истечения времени ожидания.",
+                            (Guid)result.UserId,
+                            "Ошибка оплаты",
+                            $"{reason} для подписки '{result.SubscriptionName}'.",
                             NotificationType.Error
                         );
-
-                        updatedCount++;
-                        _logger.LogInformation("Payment {Id} has no transactions in bePaid and exceeded timeout. Marking as Failed.", payment.Id);
                     }
+
+                    updatedCount++;
                 }
                 catch (Exception ex)
                 {
@@ -160,45 +89,32 @@ namespace SubscriptionManager.Subscriptions.API.Services
         public async Task CheckExpiringSubscriptionsAsync(CancellationToken ct)
         {
             using var connection = new SqlConnection(_connectionString);
-            await connection.OpenAsync(ct);
 
-            const string expireSql = "sp_Jobs_ProcessExpiredSubscriptions";
-            var expired = await connection.QueryAsync(expireSql, commandType: System.Data.CommandType.StoredProcedure);
+            var expiredItems = await connection.QueryAsync<dynamic>(
+                "sp_Jobs_ProcessExpiredSubscriptions",
+                commandType: CommandType.StoredProcedure);
 
-            foreach (var item in expired)
+            foreach (var item in expiredItems)
             {
-                Guid userId = item.UserId;
+                Guid userId = (Guid)item.UserId;
+                string subName = (string)item.SubscriptionName;
 
-                Guid? subscriptionPriceId = item.SubscriptionPriceId;
-
-                if (subscriptionPriceId == null)
-                {
-                    _logger.LogWarning("SubscriptionPriceId is null for expired subscription. UserId: {UserId}", userId);
-                    continue;
-                }
-
-                const string getNameSql = @"
-            SELECT s.Name 
-            FROM SubscriptionPrices sp
-            INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id
-            WHERE sp.Id = @SubscriptionPriceId";
-
-                var subscriptionName = await connection.QueryFirstOrDefaultAsync<string>(
-                    getNameSql,
-                    new { SubscriptionPriceId = subscriptionPriceId.Value });
-
-                if (!string.IsNullOrEmpty(subscriptionName))
+                try
                 {
                     await _notificationService.CreateAsync(
                         userId,
                         "Подписка истекла",
-                        $"Срок действия вашей подписки '{subscriptionName}' истек. Пожалуйста, продлите её, чтобы продолжить пользоваться сервисом.",
+                        $"Срок действия вашей подписки '{subName}' истек. Пожалуйста, продлите её, чтобы продолжить пользоваться сервисом.",
                         NotificationType.Warning
                     );
-                }
 
-                _logger.LogInformation("SubscriptionPrice {SubscriptionPriceId} marked as expired for User {UserId}",
-                    subscriptionPriceId.Value, userId);
+                    _logger.LogInformation("Notified user {UserId} about expired subscription {SubName}",
+                        userId, subName);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error sending expiration notification to user {UserId}", userId);
+                }
             }
         }
     }

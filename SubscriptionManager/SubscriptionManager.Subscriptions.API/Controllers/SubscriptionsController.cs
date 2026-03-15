@@ -43,16 +43,16 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         [HttpGet]
         [ProducesResponseType(typeof(PagedResult<SubscriptionDto>), StatusCodes.Status200OK)]
         public async Task<ActionResult<PagedResult<SubscriptionDto>>> GetSubscriptions(
-    [FromQuery] PaginationParams pq,
-    [FromQuery] string? category = null,
-    [FromQuery] string? search = null,
-    [FromQuery] decimal? minPrice = null,
-    [FromQuery] decimal? maxPrice = null,
-    [FromQuery] string? orderBy = null,
-    [FromQuery] bool? descending = null)
+            [FromQuery] PaginationParams pq,
+            [FromQuery] string? category = null,
+            [FromQuery] string? search = null,
+            [FromQuery] decimal? minPrice = null,
+            [FromQuery] decimal? maxPrice = null,
+            [FromQuery] string? orderBy = null,
+            [FromQuery] bool? descending = null)
         {
             using var connection = new SqlConnection(_connectionString);
-            const string sql = "sp_Subscriptions_GetPagedExtended";
+            
             var parameters = new DynamicParameters();
             parameters.Add("@PageNumber", pq.PageNumber);
             parameters.Add("@PageSize", pq.PageSize);
@@ -64,50 +64,28 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             parameters.Add("@Descending", descending ?? true);
             parameters.Add("@TotalCount", dbType: DbType.Int32, direction: ParameterDirection.Output);
 
-            var subscriptions = await connection.QueryAsync<Subscription>(sql, parameters, commandType: CommandType.StoredProcedure);
+            using var multi = await connection.QueryMultipleAsync(
+                "sp_Subscriptions_GetPagedExtended",
+                parameters,
+                commandType: CommandType.StoredProcedure);
+
+            var subscriptions = (await multi.ReadAsync<Subscription>()).ToList();
+            var allPrices = (await multi.ReadAsync<SubscriptionPriceDto>()).ToList();
             var totalCount = parameters.Get<int>("@TotalCount");
 
             var dtos = subscriptions.Select(MapToDto).ToList();
 
-            if (dtos.Any())
-            {
-                var subscriptionIds = dtos.Select(s => s.Id).ToList();
-                const string pricesSql = @"
-            SELECT sp.*, p.Name AS PeriodName, p.MonthsCount
-            FROM SubscriptionPrices sp
-            INNER JOIN Periods p ON sp.PeriodId = p.Id
-            WHERE sp.SubscriptionId IN @SubscriptionIds";
-
-                var allPrices = await connection.QueryAsync<SubscriptionPriceDto>(pricesSql, new { SubscriptionIds = subscriptionIds });
-
-                var pricesBySubscription = allPrices.GroupBy(p => p.SubscriptionId)
-                                                    .ToDictionary(g => g.Key, g => g.ToList());
-
-                foreach (var dto in dtos)
-                {
-                    if (pricesBySubscription.TryGetValue(dto.Id, out var prices))
-                    {
-                        dto.Prices = prices;
-                    }
-                    else
-                    {
-                        dto.Prices = new List<SubscriptionPriceDto>();
-                    }
-                }
-            }
+            var pricesBySubscription = allPrices.GroupBy(p => p.SubscriptionId)
+                                                .ToDictionary(g => g.Key, g => g.ToList());
 
             foreach (var dto in dtos)
             {
+                dto.Prices = pricesBySubscription.GetValueOrDefault(dto.Id, new List<SubscriptionPriceDto>());
+
                 if (dto.IconFileId.HasValue)
                 {
-                    try
-                    {
-                        dto.IconUrl = await _fileStorageService.GetPresignedUrlAsync(dto.IconFileId.Value);
-                    }
-                    catch
-                    {
-                        dto.IconUrl = null;
-                    }
+                    try { dto.IconUrl = await _fileStorageService.GetPresignedUrlAsync(dto.IconFileId.Value); }
+                    catch { dto.IconUrl = null; }
                 }
             }
 
@@ -255,49 +233,12 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         public async Task<ActionResult<SubscriptionDto>> CreateSubscriptionWithPrice(CreateSubscriptionWithPriceRequest request)
         {
             using var connection = new SqlConnection(_connectionString);
-            await connection.OpenAsync();
-            using var transaction = await connection.BeginTransactionAsync();
+            var subscriptionId = Guid.NewGuid();
 
             try
             {
-                const string checkPeriodSql = "SELECT COUNT(1) FROM Periods WHERE Id = @PeriodId";
-                var periodExists = await connection.ExecuteScalarAsync<int>(
-                    checkPeriodSql,
-                    new { request.PeriodId },
-                    transaction) > 0;
-
-                if (!periodExists)
-                {
-                    await transaction.RollbackAsync();
-                    return BadRequest("Selected period does not exist");
-                }
-
-                if (request.IconFileId.HasValue)
-                {
-                    const string checkFileSql = "SELECT COUNT(1) FROM StoredFiles WHERE Id = @Id";
-                    var fileExists = await connection.ExecuteScalarAsync<int>(
-                        checkFileSql,
-                        new { Id = request.IconFileId.Value },
-                        transaction) > 0;
-
-                    if (!fileExists)
-                    {
-                        await transaction.RollbackAsync();
-                        return BadRequest("Icon file not found");
-                    }
-                }
-
-                var allowedPrices = new[] { 10m, 20m, 50m };
-                if (!allowedPrices.Contains(request.Price))
-                {
-                    await transaction.RollbackAsync();
-                    return BadRequest($"Invalid base price. Allowed prices: {string.Join(", ", allowedPrices)}");
-                }
-
-                var subscriptionId = Guid.NewGuid();
-                const string insertSubSql = "sp_Subscriptions_Insert";
-                await connection.ExecuteAsync(
-                    insertSubSql,
+                using var multi = await connection.QueryMultipleAsync(
+                    "sp_Subscriptions_InsertWithPrice",
                     new
                     {
                         Id = subscriptionId,
@@ -307,41 +248,19 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                         request.Price,
                         request.Category,
                         request.IconFileId,
-                        IsActive = true
-                    },
-                    transaction,
-                    commandType: CommandType.StoredProcedure);
-
-                const string insertPriceSql = @"
-            INSERT INTO SubscriptionPrices (Id, SubscriptionId, PeriodId, FinalPrice)
-            VALUES (@Id, @SubscriptionId, @PeriodId, @FinalPrice)";
-
-                await connection.ExecuteAsync(
-                    insertPriceSql,
-                    new
-                    {
-                        Id = Guid.NewGuid(),
-                        SubscriptionId = subscriptionId,
                         request.PeriodId,
                         request.FinalPrice
                     },
-                    transaction);
-
-                await transaction.CommitAsync();
-
-                const string getSubSql = "sp_Subscriptions_GetById";
-                var subscription = await connection.QueryFirstOrDefaultAsync<Subscription>(
-                    getSubSql,
-                    new { Id = subscriptionId },
                     commandType: CommandType.StoredProcedure);
 
+                var subscription = await multi.ReadFirstOrDefaultAsync<Subscription>();
+                var prices = (await multi.ReadAsync<SubscriptionPriceDto>()).ToList();
+
                 if (subscription == null)
-                {
-                    _logger.LogError("Subscription was not found immediately after creation. Id: {SubscriptionId}", subscriptionId);
-                    return StatusCode(500, "Subscription created but failed to retrieve");
-                }
+                    return StatusCode(500, "Failed to create subscription");
 
                 var dto = MapToDto(subscription);
+                dto.Prices = prices;
 
                 if (dto.IconFileId.HasValue)
                 {
@@ -355,19 +274,14 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                     }
                 }
 
-                const string pricesSql = @"
-            SELECT sp.*, p.Name AS PeriodName, p.MonthsCount
-            FROM SubscriptionPrices sp
-            INNER JOIN Periods p ON sp.PeriodId = p.Id
-            WHERE sp.SubscriptionId = @SubscriptionId";
-                var prices = await connection.QueryAsync<SubscriptionPriceDto>(pricesSql, new { SubscriptionId = subscriptionId });
-                dto.Prices = prices.ToList();
-
                 return CreatedAtAction(nameof(GetSubscription), new { id = subscriptionId }, dto);
+            }
+            catch (SqlException ex) when (ex.Number >= 50000)
+            {
+                return BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
                 _logger.LogError(ex, "Error creating subscription with price");
                 return StatusCode(500, "Internal server error");
             }
@@ -498,39 +412,25 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         public async Task<IActionResult> UpdateSubscriptionActive(Guid id, [FromBody] UpdateActiveRequest request)
         {
             using var connection = new SqlConnection(_connectionString);
-            await connection.OpenAsync();
-            using var transaction = await connection.BeginTransactionAsync();
+            
+            var parameters = new DynamicParameters();
+            parameters.Add("@Id", id);
+            parameters.Add("@IsActive", request.IsActive);
+            parameters.Add("@ReturnValue", dbType: DbType.Int32, direction: ParameterDirection.ReturnValue);
 
-            try
+            await connection.ExecuteAsync(
+                "sp_Subscriptions_UpdateActive",
+                parameters,
+                commandType: CommandType.StoredProcedure);
+
+            var result = parameters.Get<int>("@ReturnValue");
+
+            return result switch
             {
-                const string checkSubSql = "SELECT COUNT(1) FROM Subscriptions WHERE Id = @Id";
-                var subExists = await connection.ExecuteScalarAsync<int>(checkSubSql, new { Id = id }, transaction) > 0;
-                if (!subExists)
-                {
-                    await transaction.RollbackAsync();
-                    return NotFound();
-                }
-
-                if (!request.IsActive)
-                {
-                    const string cancelUserSubsSql = @"
-                        UPDATE UserSubscriptions 
-                        SET CancelledAt = @Now, ValidUntil = NextBillingDate
-                        WHERE SubscriptionId = @Id AND IsActive = 1";
-                    await connection.ExecuteAsync(cancelUserSubsSql, new { Id = id, Now = DateTime.UtcNow }, transaction);
-                }
-
-                const string sql = "sp_Subscriptions_UpdateActive";
-                await connection.ExecuteAsync(sql, new { Id = id, request.IsActive }, transaction, commandType: CommandType.StoredProcedure);
-
-                await transaction.CommitAsync();
-                return NoContent();
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
+                204 => NoContent(),
+                404 => NotFound(),
+                _ => StatusCode(500)
+            };
         }
 
         public class UpdateActiveRequest

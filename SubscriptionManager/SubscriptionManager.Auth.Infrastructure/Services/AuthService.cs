@@ -1,4 +1,4 @@
-﻿using DeviceDetectorNET;
+using DeviceDetectorNET;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using SubscriptionManager.Core.Constants;
@@ -200,56 +200,73 @@ public class AuthService : IAuthService
 
     public async Task<RefreshTokenResponse> RefreshTokenAsync(RefreshTokenRequest request)
     {
-        var refreshTokenEntity = await _refreshTokenRepository.GetByTokenAsync(request.RefreshToken);
-        if (refreshTokenEntity == null)
+        try
         {
-            return new RefreshTokenResponse { Error = "Invalid refresh token" };
+            var refreshTokenEntity = await _refreshTokenRepository.GetByTokenAsync(request.RefreshToken);
+            if (refreshTokenEntity == null)
+            {
+                return new RefreshTokenResponse { Error = "Invalid refresh token" };
+            }
+
+            var now = DateTime.UtcNow;
+            if (refreshTokenEntity.ExpiresAt < now)
+            {
+                return new RefreshTokenResponse { Error = "Refresh token has expired" };
+            }
+
+            if (refreshTokenEntity.IsRevoked)
+            {
+                return new RefreshTokenResponse { Error = "Refresh token has been revoked" };
+            }
+
+            var user = refreshTokenEntity.User;
+
+            if (user == null)
+            {
+                user = await _userRepository.GetByIdAsync(refreshTokenEntity.UserId)
+                       ?? throw new InvalidOperationException("User not found for refresh token");
+            }
+
+            if (user.IsBlocked)
+            {
+                return new RefreshTokenResponse { Error = "Your account has been blocked." };
+            }
+
+            var newAccessToken = _tokenService.GenerateAccessToken(user);
+            var newRefreshToken = _tokenService.GenerateRefreshToken();
+
+            refreshTokenEntity.IsRevoked = true;
+
+            var newRefreshTokenEntity = new RefreshToken
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id,
+                Token = newRefreshToken,
+                DeviceName = refreshTokenEntity.DeviceName,
+                ExpiresAt = _tokenService.GetRefreshTokenExpiration(),
+                CreatedAt = now,
+                IsRevoked = false
+            };
+
+            await _refreshTokenRepository.UpdateAsync(refreshTokenEntity);
+            await _refreshTokenRepository.AddAsync(newRefreshTokenEntity);
+            await _refreshTokenRepository.SaveChangesAsync();
+
+            return new RefreshTokenResponse
+            {
+                AccessToken = newAccessToken,
+                RefreshToken = newRefreshToken,
+                AccessTokenExpiresAt = now.AddMinutes(10)
+            };
         }
-
-        var now = DateTime.UtcNow;
-        if (refreshTokenEntity.ExpiresAt < now)
+        catch (Exception ex)
         {
-            return new RefreshTokenResponse { Error = "Refresh token has expired" };
+            _logger.LogError(ex, "Error while refreshing token");
+            return new RefreshTokenResponse
+            {
+                Error = "Failed to refresh token"
+            };
         }
-
-        if (refreshTokenEntity.IsRevoked)
-        {
-            return new RefreshTokenResponse { Error = "Refresh token has been revoked" };
-        }
-
-        var user = refreshTokenEntity.User;
-
-        if (user.IsBlocked)
-        {
-            return new RefreshTokenResponse { Error = "Your account has been blocked." };
-        }
-
-        var newAccessToken = _tokenService.GenerateAccessToken(user);
-        var newRefreshToken = _tokenService.GenerateRefreshToken();
-
-        refreshTokenEntity.IsRevoked = true;
-
-        var newRefreshTokenEntity = new RefreshToken
-        {
-            Id = Guid.NewGuid(),
-            UserId = user.Id,
-            Token = newRefreshToken,
-            DeviceName = refreshTokenEntity.DeviceName,
-            ExpiresAt = _tokenService.GetRefreshTokenExpiration(),
-            CreatedAt = now,
-            IsRevoked = false
-        };
-
-        await _refreshTokenRepository.UpdateAsync(refreshTokenEntity);
-        await _refreshTokenRepository.AddAsync(newRefreshTokenEntity);
-        await _refreshTokenRepository.SaveChangesAsync();
-
-        return new RefreshTokenResponse
-        {
-            AccessToken = newAccessToken,
-            RefreshToken = newRefreshToken,
-            AccessTokenExpiresAt = now.AddMinutes(10)
-        };
     }
 
     public async Task<ForgotPasswordResponse> ForgotPasswordAsync(ForgotPasswordRequest request)

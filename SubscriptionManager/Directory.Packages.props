@@ -6,7 +6,7 @@
   <ItemGroup>
     <PackageVersion Include="AspNetCore.HealthChecks.SqlServer" Version="9.0.0" />
     <PackageVersion Include="AspNetCore.HealthChecks.UI.Client" Version="9.0.0" />
-    <PackageVersion Include="AutoMapper" Version="16.0.0" />
+    <PackageVersion Include="AutoMapper" Version="16.1.1" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="Dapper" Version="2.1.72" />
     <PackageVersion Include="DeviceDetector.NET" Version="6.4.7" />
@@ -43,7 +43,6 @@
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.3" />
   </ItemGroup>
-
   <ItemGroup>
     <PackageVersion Update="System.IdentityModel.Tokens.Jwt" Version="8.15.0" />
     <PackageVersion Update="Microsoft.IdentityModel.Tokens" Version="8.15.0" />

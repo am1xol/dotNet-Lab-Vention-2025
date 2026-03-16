@@ -749,21 +749,34 @@ END
 GO
 
 CREATE OR ALTER PROCEDURE [sp_Report_ActiveSubscriptionsByPlan]
+    @Offset INT = 0,
+    @Fetch INT = 50
 AS
 BEGIN
     SET NOCOUNT ON;
     SELECT s.Id AS SubscriptionId, s.Name AS SubscriptionName, p.Id AS PeriodId, p.Name AS PeriodName, sp.FinalPrice, COUNT(us.Id) AS ActiveSubscriptionsCount
-    FROM Subscriptions s INNER JOIN SubscriptionPrices sp ON sp.SubscriptionId = s.Id INNER JOIN Periods p ON sp.PeriodId = p.Id LEFT JOIN UserSubscriptions us ON us.SubscriptionPriceId = sp.Id AND us.IsActive = 1 AND (us.CancelledAt IS NULL OR us.ValidUntil >= GETUTCDATE())
-    GROUP BY s.Id, s.Name, p.Id, p.Name, sp.FinalPrice ORDER BY s.Name, p.Name;
+    FROM Subscriptions s 
+    INNER JOIN SubscriptionPrices sp ON sp.SubscriptionId = s.Id 
+    INNER JOIN Periods p ON sp.PeriodId = p.Id 
+    LEFT JOIN UserSubscriptions us ON us.SubscriptionPriceId = sp.Id AND us.IsActive = 1 AND (us.CancelledAt IS NULL OR us.ValidUntil >= GETUTCDATE())
+    GROUP BY s.Id, s.Name, p.Id, p.Name, sp.FinalPrice 
+    ORDER BY s.Name, p.Name
+    OFFSET @Offset ROWS FETCH NEXT @Fetch ROWS ONLY;
 END
 GO
 
 CREATE OR ALTER PROCEDURE [sp_Report_SubscriptionsWithPlans]
+    @Offset INT = 0,
+    @Fetch INT = 50
 AS
 BEGIN
     SET NOCOUNT ON;
     SELECT s.Id AS SubscriptionId, s.Name AS SubscriptionName, s.Category, s.Price AS BasePrice, p.Id AS PeriodId, p.Name AS PeriodName, p.MonthsCount, sp.Id AS SubscriptionPriceId, sp.FinalPrice
-    FROM Subscriptions s INNER JOIN SubscriptionPrices sp ON sp.SubscriptionId = s.Id INNER JOIN Periods p ON sp.PeriodId = p.Id ORDER BY s.Name, p.MonthsCount;
+    FROM Subscriptions s 
+    INNER JOIN SubscriptionPrices sp ON sp.SubscriptionId = s.Id 
+    INNER JOIN Periods p ON sp.PeriodId = p.Id 
+    ORDER BY s.Name, p.MonthsCount
+    OFFSET @Offset ROWS FETCH NEXT @Fetch ROWS ONLY;
 END
 GO
 
@@ -789,12 +802,17 @@ END
 GO
 
 CREATE OR ALTER PROCEDURE [sp_Report_UserSubscriptions]
-    @UserId UNIQUEIDENTIFIER
+    @Email NVARCHAR(256)
 AS
 BEGIN
     SET NOCOUNT ON;
     SELECT us.Id AS UserSubscriptionId, us.UserId, s.Id AS SubscriptionId, s.Name AS SubscriptionName, s.Category, p.Name AS PeriodName, sp.FinalPrice, us.StartDate, us.NextBillingDate, us.CancelledAt, us.ValidUntil, us.IsActive
-    FROM UserSubscriptions us INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id INNER JOIN Periods p ON sp.PeriodId = p.Id
-    WHERE us.UserId = @UserId ORDER BY us.StartDate DESC;
+    FROM UserSubscriptions us 
+    INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id 
+    INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id 
+    INNER JOIN Periods p ON sp.PeriodId = p.Id
+    INNER JOIN AuthDb.dbo.Users u ON us.UserId = u.Id
+    WHERE u.Email = @Email 
+    ORDER BY us.StartDate DESC;
 END
 GO

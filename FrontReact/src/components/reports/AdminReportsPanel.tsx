@@ -16,7 +16,16 @@ import {
   TableRow,
   LinearProgress,
   Stack,
+  IconButton,
+  Select,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
+import {
+  ChevronLeft,
+  ChevronRight,
+  FirstPage,
+} from '@mui/icons-material';
 import { reportService } from '../../services/report-service';
 import {
   ActiveSubscriptionsByPlan,
@@ -36,7 +45,7 @@ type ReportType =
 type ExportFormat = 'csv' | 'word';
 
 interface AdminReportsPanelProps {
-  currentUserId?: string;
+  currentUserEmail?: string;
 }
 
 const normalizeForChart = (values: number[]) => {
@@ -113,48 +122,63 @@ const exportToWord = (filename: string, title: string, items: any[]) => {
 };
 
 export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
-  currentUserId,
+  currentUserEmail,
 }) => {
   const [tab, setTab] = useState<ReportType>('activeByPlan');
   const [loading, setLoading] = useState(false);
-  const [activeByPlan, setActiveByPlan] = useState<ActiveSubscriptionsByPlan[]>(
-    []
-  );
-  const [subsWithPlans, setSubsWithPlans] = useState<SubscriptionWithPlans[]>(
-    []
-  );
+
+  const [activeByPlan, setActiveByPlan] = useState<ActiveSubscriptionsByPlan[]>([]);
+  const [subsWithPlans, setSubsWithPlans] = useState<SubscriptionWithPlans[]>([]);
   const [topPopular, setTopPopular] = useState<TopPopularSubscription[]>([]);
   const [byMonth, setByMonth] = useState<SubscriptionsByMonth[]>([]);
   const [userSubs, setUserSubs] = useState<UserSubscriptionReportItem[]>([]);
 
   const [topCount, setTopCount] = useState(5);
-  const [userId, setUserId] = useState(currentUserId || '');
   const [periodFrom, setPeriodFrom] = useState('');
   const [periodTo, setPeriodTo] = useState('');
+  const [userEmail, setUserEmail] = useState(currentUserEmail || '');
+
+  const [activePage, setActivePage] = useState(1);
+  const [activePageSize, setActivePageSize] = useState(50);
+
+  const [subsPage, setSubsPage] = useState(1);
+  const [subsPageSize, setSubsPageSize] = useState(50);
+
+  const hasNextActive = activeByPlan.length === activePageSize;
+  const hasNextSubs = subsWithPlans.length === subsPageSize;
 
   useEffect(() => {
     loadCurrentTab();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab]);
+  }, [tab, activePage, activePageSize, subsPage, subsPageSize, topCount, periodFrom, periodTo, userEmail]);
 
   const loadCurrentTab = async () => {
     try {
       setLoading(true);
-      if (tab === 'activeByPlan') {
-        const data = await reportService.getActiveByPlan();
-        setActiveByPlan(data);
-      } else if (tab === 'subscriptionsWithPlans') {
-        const data = await reportService.getSubscriptionsWithPlans();
-        setSubsWithPlans(data);
-      } else if (tab === 'topPopular') {
-        const data = await reportService.getTopPopular(topCount);
-        setTopPopular(data);
-      } else if (tab === 'byMonth') {
-        const data = await reportService.getByMonth(periodFrom, periodTo);
-        setByMonth(data);
-      } else if (tab === 'userSubscriptions' && userId) {
-        const data = await reportService.getUserSubscriptions(userId);
-        setUserSubs(data);
+      switch (tab) {
+        case 'activeByPlan':
+          const activeData = await reportService.getActiveByPlan(activePage, activePageSize);
+          setActiveByPlan(activeData);
+          break;
+        case 'subscriptionsWithPlans':
+          const subsData = await reportService.getSubscriptionsWithPlans(subsPage, subsPageSize);
+          setSubsWithPlans(subsData);
+          break;
+        case 'topPopular':
+          const popularData = await reportService.getTopPopular(topCount);
+          setTopPopular(popularData);
+          break;
+        case 'byMonth':
+          const monthData = await reportService.getByMonth(periodFrom, periodTo);
+          setByMonth(monthData);
+          break;
+        case 'userSubscriptions':
+          if (userEmail) {
+            const userData = await reportService.getUserSubscriptions(userEmail);
+            setUserSubs(userData);
+          } else {
+            setUserSubs([]);
+          }
+          break;
       }
     } finally {
       setLoading(false);
@@ -420,6 +444,106 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
     );
   };
 
+  const renderPagination = () => {
+    if (tab === 'activeByPlan') {
+      return (
+        <Stack direction="row" spacing={1} alignItems="center">
+          <IconButton
+            size="small"
+            onClick={() => setActivePage(1)}
+            disabled={activePage === 1}
+          >
+            <FirstPage />
+          </IconButton>
+          <IconButton
+            size="small"
+            onClick={() => setActivePage((p) => Math.max(1, p - 1))}
+            disabled={activePage === 1}
+          >
+            <ChevronLeft />
+          </IconButton>
+          <Typography variant="body2">
+            Page {activePage}
+          </Typography>
+          <IconButton
+            size="small"
+            onClick={() => setActivePage((p) => p + 1)}
+            disabled={!hasNextActive}
+          >
+            <ChevronRight />
+          </IconButton>
+          <FormControl size="small" sx={{ minWidth: 80 }}>
+            <InputLabel id="active-page-size-label">Rows</InputLabel>
+            <Select
+              labelId="active-page-size-label"
+              value={activePageSize}
+              label="Rows"
+              onChange={(e) => {
+                setActivePageSize(Number(e.target.value));
+                setActivePage(1);
+              }}
+            >
+              <MenuItem value={10}>10</MenuItem>
+              <MenuItem value={25}>25</MenuItem>
+              <MenuItem value={50}>50</MenuItem>
+              <MenuItem value={100}>100</MenuItem>
+            </Select>
+          </FormControl>
+        </Stack>
+      );
+    }
+
+    if (tab === 'subscriptionsWithPlans') {
+      return (
+        <Stack direction="row" spacing={1} alignItems="center">
+          <IconButton
+            size="small"
+            onClick={() => setSubsPage(1)}
+            disabled={subsPage === 1}
+          >
+            <FirstPage />
+          </IconButton>
+          <IconButton
+            size="small"
+            onClick={() => setSubsPage((p) => Math.max(1, p - 1))}
+            disabled={subsPage === 1}
+          >
+            <ChevronLeft />
+          </IconButton>
+          <Typography variant="body2">
+            Page {subsPage}
+          </Typography>
+          <IconButton
+            size="small"
+            onClick={() => setSubsPage((p) => p + 1)}
+            disabled={!hasNextSubs}
+          >
+            <ChevronRight />
+          </IconButton>
+          <FormControl size="small" sx={{ minWidth: 80 }}>
+            <InputLabel id="subs-page-size-label">Rows</InputLabel>
+            <Select
+              labelId="subs-page-size-label"
+              value={subsPageSize}
+              label="Rows"
+              onChange={(e) => {
+                setSubsPageSize(Number(e.target.value));
+                setSubsPage(1);
+              }}
+            >
+              <MenuItem value={10}>10</MenuItem>
+              <MenuItem value={25}>25</MenuItem>
+              <MenuItem value={50}>50</MenuItem>
+              <MenuItem value={100}>100</MenuItem>
+            </Select>
+          </FormControl>
+        </Stack>
+      );
+    }
+
+    return null;
+  };
+
   const renderControls = () => {
     if (tab === 'topPopular') {
       return (
@@ -456,10 +580,10 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
     if (tab === 'userSubscriptions') {
       return (
         <TextField
-          label="User ID"
+          label="User Email"
           size="small"
-          value={userId}
-          onChange={(e) => setUserId(e.target.value)}
+          value={userEmail}
+          onChange={(e) => setUserEmail(e.target.value)}
           fullWidth
         />
       );
@@ -508,9 +632,10 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
           alignItems="center"
           mb={2}
           gap={2}
+          flexWrap="wrap"
         >
           <Box>{renderControls()}</Box>
-          <Box display="flex" gap={1}>
+          <Box display="flex" gap={1} alignItems="center">
             <Button
               variant="outlined"
               size="small"
@@ -524,9 +649,7 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
               size="small"
               label="Export"
               value=""
-              onChange={(e) =>
-                handleExport(e.target.value as ExportFormat)
-              }
+              onChange={(e) => handleExport(e.target.value as ExportFormat)}
               sx={{ minWidth: 140 }}
             >
               <MenuItem value="csv">CSV (Excel)</MenuItem>
@@ -539,9 +662,12 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
 
         <Box sx={{ overflowX: 'auto' }}>{renderTable()}</Box>
 
+        <Box mt={2} display="flex" justifyContent="flex-end">
+          {renderPagination()}
+        </Box>
+
         {renderChart()}
       </CardContent>
     </Card>
   );
 };
-

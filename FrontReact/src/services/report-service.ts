@@ -11,14 +11,25 @@ const SUBSCRIPTIONS_API_BASE =
   import.meta.env.VITE_SUBSCRIPTIONS_API_URL + '/api/Reports';
 
 export const reportService = {
-  async getActiveByPlan(): Promise<ActiveSubscriptionsByPlan[]> {
-    const response = await api.get(`${SUBSCRIPTIONS_API_BASE}/active-by-plan`);
+  async getActiveByPlan(
+    page: number = 1,
+    pageSize: number = 50
+  ): Promise<ActiveSubscriptionsByPlan[]> {
+    const response = await api.get(`${SUBSCRIPTIONS_API_BASE}/active-by-plan`, {
+      params: { page, pageSize },
+    });
     return response.data as ActiveSubscriptionsByPlan[];
   },
 
-  async getSubscriptionsWithPlans(): Promise<SubscriptionWithPlans[]> {
+  async getSubscriptionsWithPlans(
+    page: number = 1,
+    pageSize: number = 50
+  ): Promise<SubscriptionWithPlans[]> {
     const response = await api.get(
-      `${SUBSCRIPTIONS_API_BASE}/subscriptions-with-plans`
+      `${SUBSCRIPTIONS_API_BASE}/subscriptions-with-plans`,
+      {
+        params: { page, pageSize },
+      }
     );
     return response.data as SubscriptionWithPlans[];
   },
@@ -47,11 +58,13 @@ export const reportService = {
     return response.data as SubscriptionsByMonth[];
   },
 
-  async getUserSubscriptions(userId: string): Promise<UserSubscriptionReportItem[]> {
+  async getUserSubscriptions(email: string): Promise<UserSubscriptionReportItem[]> {
     const response = await api.get(
-      `${SUBSCRIPTIONS_API_BASE}/user-subscriptions?userId=${userId}`
+      `${SUBSCRIPTIONS_API_BASE}/user-subscriptions`,
+      {
+        params: { email },
+      }
     );
     return response.data as UserSubscriptionReportItem[];
   },
 };
-

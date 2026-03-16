@@ -21,13 +21,18 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
 
         [HttpGet("active-by-plan")]
         [ProducesResponseType(typeof(IEnumerable<ActiveSubscriptionsByPlanDto>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<IEnumerable<ActiveSubscriptionsByPlanDto>>> GetActiveSubscriptionsByPlan()
+        public async Task<ActionResult<IEnumerable<ActiveSubscriptionsByPlanDto>>> GetActiveSubscriptionsByPlan(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50)
         {
             using var connection = new SqlConnection(_connectionString);
             const string sql = "sp_Report_ActiveSubscriptionsByPlan";
 
+            var offset = (page - 1) * pageSize;
+
             var results = await connection.QueryAsync<ActiveSubscriptionsByPlanDto>(
                 sql,
+                new { Offset = offset, Fetch = pageSize },
                 commandType: System.Data.CommandType.StoredProcedure);
 
             return Ok(results);
@@ -35,13 +40,18 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
 
         [HttpGet("subscriptions-with-plans")]
         [ProducesResponseType(typeof(IEnumerable<SubscriptionWithPlansDto>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<IEnumerable<SubscriptionWithPlansDto>>> GetSubscriptionsWithPlans()
+        public async Task<ActionResult<IEnumerable<SubscriptionWithPlansDto>>> GetSubscriptionsWithPlans(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50)
         {
             using var connection = new SqlConnection(_connectionString);
             const string sql = "sp_Report_SubscriptionsWithPlans";
 
+            var offset = (page - 1) * pageSize;
+
             var results = await connection.QueryAsync<SubscriptionWithPlansDto>(
                 sql,
+                new { Offset = offset, Fetch = pageSize },
                 commandType: System.Data.CommandType.StoredProcedure);
 
             return Ok(results);
@@ -86,11 +96,11 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         [HttpGet("user-subscriptions")]
         [ProducesResponseType(typeof(IEnumerable<UserSubscriptionReportItemDto>), StatusCodes.Status200OK)]
         public async Task<ActionResult<IEnumerable<UserSubscriptionReportItemDto>>> GetUserSubscriptionsReport(
-            [FromQuery] Guid userId)
+            [FromQuery] string email)
         {
-            if (userId == Guid.Empty)
+            if (string.IsNullOrWhiteSpace(email))
             {
-                return BadRequest("UserId is required");
+                return BadRequest("Email is required");
             }
 
             using var connection = new SqlConnection(_connectionString);
@@ -98,11 +108,10 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
 
             var results = await connection.QueryAsync<UserSubscriptionReportItemDto>(
                 sql,
-                new { UserId = userId },
+                new { Email = email.Trim() },
                 commandType: System.Data.CommandType.StoredProcedure);
 
             return Ok(results);
         }
     }
 }
-

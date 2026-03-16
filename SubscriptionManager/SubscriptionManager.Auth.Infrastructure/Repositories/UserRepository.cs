@@ -155,4 +155,11 @@ public class UserRepository : IUserRepository
             PasswordHash = passwordHash
         }, commandType: CommandType.StoredProcedure);
     }
+
+    public async Task VerifyEmailAsync(Guid userId)
+    {
+        const string sql = "sp_Users_VerifyEmail";
+        using var connection = CreateConnection();
+        await connection.ExecuteAsync(sql, new { Id = userId }, commandType: CommandType.StoredProcedure);
+    }
 }

@@ -134,12 +134,7 @@ public class AuthService : IAuthService
             return new AuthResult { Error = "Verification code has expired" };
         }
 
-        user.IsEmailVerified = true;
-        user.EmailVerificationCode = null;
-        user.EmailVerificationCodeExpiresAt = null;
-        user.UpdatedAt = now;
-
-        await _userRepository.SaveChangesAsync();
+        await _userRepository.VerifyEmailAsync(user.Id);
 
         return new AuthResult { UserId = user.Id.ToString() };
     }

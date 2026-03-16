@@ -15,4 +15,5 @@ public interface IUserRepository
     Task<bool> IsEmailTakenAsync(string email, Guid excludeUserId);
     Task UpdateResetCodeAsync(Guid userId, string resetCode, DateTime expiresAt);
     Task UpdatePasswordAsync(Guid userId, string passwordHash);
+    Task VerifyEmailAsync(Guid userId);
 }

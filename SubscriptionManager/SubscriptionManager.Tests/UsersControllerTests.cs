@@ -160,6 +160,8 @@ namespace SubscriptionManager.Tests
             {
                 return Task.CompletedTask;
             }
+
+            public Task VerifyEmailAsync(Guid userId) => Task.CompletedTask;
         }
     }
 }

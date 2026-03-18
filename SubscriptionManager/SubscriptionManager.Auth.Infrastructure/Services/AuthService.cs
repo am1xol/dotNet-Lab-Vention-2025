@@ -170,6 +170,10 @@ public class AuthService : IAuthService
         var accessToken = _tokenService.GenerateAccessToken(user);
         var refreshToken = _tokenService.GenerateRefreshToken();
         var now = DateTime.UtcNow;
+        var refreshTokenExpiration = _tokenService.GetRefreshTokenExpiration();
+
+        _logger.LogInformation("Creating refresh token - UserId: {UserId}, Now: {Now}, GetRefreshTokenExpiration: {Expiration}, RefreshTokenExpirationDays config: {ConfigDays}", 
+            user.Id, now, refreshTokenExpiration, _tokenService.GetRefreshTokenExpirationDays());
 
         var refreshTokenEntity = new RefreshToken
         {
@@ -177,13 +181,19 @@ public class AuthService : IAuthService
             UserId = user.Id,
             Token = refreshToken,
             DeviceName = GetDeviceDescription(),
-            ExpiresAt = _tokenService.GetRefreshTokenExpiration(),
+            ExpiresAt = refreshTokenExpiration,
             CreatedAt = now,
             IsRevoked = false
         };
 
+        _logger.LogInformation("RefreshTokenEntity before save - ExpiresAt: {ExpiresAt}, CreatedAt: {CreatedAt}", 
+            refreshTokenEntity.ExpiresAt, refreshTokenEntity.CreatedAt);
+
         await _refreshTokenRepository.AddAsync(refreshTokenEntity);
         await _refreshTokenRepository.SaveChangesAsync();
+
+        _logger.LogInformation("Refresh token saved successfully - Token: {Token}, ExpiresAt: {ExpiresAt}", 
+            refreshToken, refreshTokenEntity.ExpiresAt);
 
         return new LoginResponse
         {
@@ -197,20 +207,36 @@ public class AuthService : IAuthService
     {
         try
         {
+            _logger.LogInformation("RefreshTokenAsync - Starting refresh for token: {Token}", request.RefreshToken);
+            
             var refreshTokenEntity = await _refreshTokenRepository.GetByTokenAsync(request.RefreshToken);
+            
+            _logger.LogInformation("RefreshTokenAsync - GetByTokenAsync returned: {Found}", refreshTokenEntity != null);
+            
             if (refreshTokenEntity == null)
             {
+                _logger.LogWarning("RefreshTokenAsync - Token not found in database");
                 return new RefreshTokenResponse { Error = "Invalid refresh token" };
             }
 
             var now = DateTime.UtcNow;
-            if (refreshTokenEntity.ExpiresAt < now)
+            
+            var expiresAtUtc = refreshTokenEntity.ExpiresAt.Kind == DateTimeKind.Unspecified 
+                ? DateTime.SpecifyKind(refreshTokenEntity.ExpiresAt, DateTimeKind.Utc)
+                : refreshTokenEntity.ExpiresAt.ToUniversalTime();
+            
+            _logger.LogInformation("Token check - Now (UTC): {Now}, ExpiresAt (UTC): {ExpiresAt}, ExpiresAt Kind: {Kind}, IsExpired: {IsExpired}", 
+                now, expiresAtUtc, expiresAtUtc.Kind, expiresAtUtc < now);
+            
+            if (expiresAtUtc < now)
             {
+                _logger.LogWarning("RefreshTokenAsync - Token expired. ExpiresAt: {ExpiresAt}, Now: {Now}", expiresAtUtc, now);
                 return new RefreshTokenResponse { Error = "Refresh token has expired" };
             }
 
             if (refreshTokenEntity.IsRevoked)
             {
+                _logger.LogWarning("RefreshTokenAsync - Token is revoked");
                 return new RefreshTokenResponse { Error = "Refresh token has been revoked" };
             }
 
@@ -246,6 +272,8 @@ public class AuthService : IAuthService
             await _refreshTokenRepository.UpdateAsync(refreshTokenEntity);
             await _refreshTokenRepository.AddAsync(newRefreshTokenEntity);
             await _refreshTokenRepository.SaveChangesAsync();
+
+            _logger.LogInformation("RefreshTokenAsync - Token refreshed successfully for user {UserId}", user.Id);
 
             return new RefreshTokenResponse
             {

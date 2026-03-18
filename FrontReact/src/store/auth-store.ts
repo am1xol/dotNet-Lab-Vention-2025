@@ -30,6 +30,8 @@ export const useAuthStore = create<AuthState>()(
           accessToken: tokens.accessToken,
           refreshToken: tokens.refreshToken,
         });
+        localStorage.setItem('accessToken', tokens.accessToken);
+        localStorage.setItem('refreshToken', tokens.refreshToken);
       },
       logout: () => {
         set({
@@ -38,12 +40,16 @@ export const useAuthStore = create<AuthState>()(
           accessToken: null,
           refreshToken: null,
         });
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
       },
       setTokens: (tokens) => {
         set({
           accessToken: tokens.accessToken,
           refreshToken: tokens.refreshToken,
         });
+        localStorage.setItem('accessToken', tokens.accessToken);
+        localStorage.setItem('refreshToken', tokens.refreshToken);
       },
       setUser: (userData) => {
         set({

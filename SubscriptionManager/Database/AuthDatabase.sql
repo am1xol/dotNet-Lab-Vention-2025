@@ -218,6 +218,10 @@ AS
 BEGIN
     INSERT INTO [RefreshTokens] (Id, UserId, Token, DeviceName, ExpiresAt, CreatedAt, IsRevoked)
     VALUES (@Id, @UserId, @Token, @DeviceName, @ExpiresAt, @CreatedAt, 0);
+    
+    -- Для отладки: выбираем только что вставленную строку
+    SELECT @Id AS Id, @UserId AS UserId, @Token AS Token, @DeviceName AS DeviceName, 
+           @ExpiresAt AS ExpiresAt, @CreatedAt AS CreatedAt, 0 AS IsRevoked;
 END
 GO
 
@@ -226,9 +230,15 @@ CREATE OR ALTER PROCEDURE [sp_RefreshTokens_GetByTokenWithUser]
     @Token NVARCHAR(450)
 AS
 BEGIN
-    SELECT 
-        rt.Id, rt.UserId, rt.Token, rt.DeviceName, rt.ExpiresAt, rt.CreatedAt, rt.IsRevoked,
-        u.Id AS UserId,
+    SELECT
+        rt.Id,
+        rt.UserId,
+        rt.Token,
+        rt.DeviceName,
+        rt.ExpiresAt,
+        rt.CreatedAt,
+        rt.IsRevoked,
+        u.Id,
         u.Email,
         u.PasswordHash,
         u.FirstName,
@@ -244,8 +254,11 @@ BEGIN
         u.IsBlocked
     FROM [RefreshTokens] rt
     INNER JOIN [Users] u ON rt.[UserId] = u.[Id]
-    WHERE rt.[Token] = @Token AND rt.[IsRevoked] = 0;
+    WHERE rt.[Token] = @Token 
+      AND rt.[IsRevoked] = 0
+      AND rt.[ExpiresAt] > GETUTCDATE();
 END
+GO
 GO
 
 -- Обновление статуса токена

@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using SubscriptionManager.Core;
 using SubscriptionManager.Core.Interfaces;
@@ -15,11 +16,16 @@ public class TokenService : ITokenService
 {
     private readonly JwtOptions _jwtOptions;
     private readonly TimeProvider _timeProvider;
+    private readonly ILogger<TokenService> _logger;
 
-    public TokenService(IOptions<JwtOptions> jwtOptions, TimeProvider timeProvider)
+    public TokenService(IOptions<JwtOptions> jwtOptions, TimeProvider timeProvider, ILogger<TokenService> logger)
     {
         _jwtOptions = jwtOptions.Value;
         _timeProvider = timeProvider;
+        _logger = logger;
+        
+        _logger.LogInformation("TokenService initialized - RefreshTokenExpirationDays: {Days}, AccessTokenExpirationMinutes: {Minutes}", 
+            _jwtOptions.RefreshTokenExpirationDays, _jwtOptions.AccessTokenExpirationMinutes);
     }
 
     public string GenerateAccessToken(User user)
@@ -61,6 +67,25 @@ public class TokenService : ITokenService
 
     public DateTime GetRefreshTokenExpiration()
     {
-        return _timeProvider.GetUtcNow().UtcDateTime.AddDays(_jwtOptions.RefreshTokenExpirationDays);
+        var expirationDays = _jwtOptions.RefreshTokenExpirationDays;
+        _logger.LogInformation("GetRefreshTokenExpiration - Config days: {Days}", expirationDays);
+        
+        if (expirationDays <= 0)
+        {
+            _logger.LogWarning("GetRefreshTokenExpiration - Invalid config days ({Days}), using default 30", expirationDays);
+            expirationDays = 30;
+            _jwtOptions.RefreshTokenExpirationDays = 30;
+        }
+        
+        var utcNow = _timeProvider.GetUtcNow().UtcDateTime;
+        var result = utcNow.AddDays(expirationDays);
+        _logger.LogInformation("GetRefreshTokenExpiration - UTC Now: {UtcNow}, Result: {Result}", utcNow, result);
+        
+        return result;
+    }
+
+    public int GetRefreshTokenExpirationDays()
+    {
+        return _jwtOptions.RefreshTokenExpirationDays;
     }
 }

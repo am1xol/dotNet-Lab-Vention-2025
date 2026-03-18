@@ -84,7 +84,8 @@ api.interceptors.response.use(
         if (!data.error && data.accessToken && data.refreshToken) {
           const authStore = useAuthStore.getState();
 
-          authStore.login(authStore.user!, {
+          // Use updateTokens instead of login to preserve user state
+          authStore.updateTokens({
             accessToken: data.accessToken,
             refreshToken: data.refreshToken,
           });

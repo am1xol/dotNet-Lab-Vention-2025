@@ -7,4 +7,5 @@ public interface ITokenService
     string GenerateAccessToken(User user);
     string GenerateRefreshToken();
     DateTime GetRefreshTokenExpiration();
+    int GetRefreshTokenExpirationDays();
 }

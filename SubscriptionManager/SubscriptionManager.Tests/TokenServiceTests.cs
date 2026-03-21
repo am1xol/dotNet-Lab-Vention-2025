@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using SubscriptionManager.Auth.Infrastructure.Services;
 using SubscriptionManager.Core.Models;
@@ -28,7 +29,7 @@ namespace SubscriptionManager.Tests
             _fixedStartTime = new DateTimeOffset(2026, 2, 20, 10, 0, 0, TimeSpan.Zero);
             _fakeTime = new FakeTimeProvider(_fixedStartTime);
 
-            _tokenService = new TokenService(Options.Create(_jwtOptions), _fakeTime);
+            _tokenService = new TokenService(Options.Create(_jwtOptions), _fakeTime, NullLogger<TokenService>.Instance);
         }
 
         [Fact]

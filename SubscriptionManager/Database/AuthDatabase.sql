@@ -89,7 +89,7 @@ BEGIN
 END
 GO
 
-CREATE PROCEDURE sp_Users_VerifyEmail
+CREATE OR ALTER PROCEDURE sp_Users_VerifyEmail
     @Id UNIQUEIDENTIFIER
 AS
 BEGIN
@@ -100,6 +100,7 @@ BEGIN
         UpdatedAt = GETUTCDATE()
     WHERE Id = @Id
 END
+GO
 
 
 /* =========================================================================================
@@ -281,5 +282,194 @@ BEGIN
     UPDATE [RefreshTokens]
     SET [IsRevoked] = 1
     WHERE [UserId] = @UserId AND [IsRevoked] = 0;
+END
+GO
+
+
+/* =========================================================================================
+   ЧАТ С АДМИНИСТРАТОРОМ
+========================================================================================= */
+USE [AuthDb];
+GO
+
+-- Таблица диалогов пользователей с администратором
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ChatConversations')
+BEGIN
+    CREATE TABLE [ChatConversations] (
+        [Id] UNIQUEIDENTIFIER PRIMARY KEY,
+        [UserId] UNIQUEIDENTIFIER NOT NULL,
+        [AdminId] UNIQUEIDENTIFIER NULL,
+        [Status] NVARCHAR(20) NOT NULL DEFAULT 'Open',
+        [LastMessageAt] DATETIME2 NULL,
+        [CreatedAt] DATETIME2 NOT NULL,
+        [UpdatedAt] DATETIME2 NOT NULL,
+        CONSTRAINT [FK_ChatConversations_Users] FOREIGN KEY ([UserId]) 
+            REFERENCES [Users] ([Id]) ON DELETE CASCADE
+    );
+    
+    IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ChatConversations_UserId' AND object_id = OBJECT_ID('ChatConversations'))
+        CREATE UNIQUE INDEX [IX_ChatConversations_UserId] ON [ChatConversations] ([UserId]);
+END
+GO
+
+-- Таблица сообщений чата
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ChatMessages')
+BEGIN
+    CREATE TABLE [ChatMessages] (
+        [Id] UNIQUEIDENTIFIER PRIMARY KEY,
+        [ConversationId] UNIQUEIDENTIFIER NOT NULL,
+        [SenderId] UNIQUEIDENTIFIER NOT NULL,
+        [SenderRole] NVARCHAR(10) NOT NULL,
+        [Content] NVARCHAR(MAX) NOT NULL,
+        [IsRead] BIT NOT NULL DEFAULT 0,
+        [CreatedAt] DATETIME2 NOT NULL,
+        CONSTRAINT [FK_ChatMessages_Conversations] FOREIGN KEY ([ConversationId]) 
+            REFERENCES [ChatConversations] ([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_ChatMessages_Sender] FOREIGN KEY ([SenderId]) 
+            REFERENCES [Users] ([Id]) ON DELETE NO ACTION
+    );
+    
+    IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ChatMessages_ConversationId' AND object_id = OBJECT_ID('ChatMessages'))
+        CREATE INDEX [IX_ChatMessages_ConversationId] ON [ChatMessages] ([ConversationId]);
+    
+    IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ChatMessages_IsRead' AND object_id = OBJECT_ID('ChatMessages'))
+        CREATE INDEX [IX_ChatMessages_IsRead] ON [ChatMessages] ([IsRead]);
+END
+GO
+
+-- Получить или создать диалог пользователя
+IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'sp_ChatConversations_GetOrCreate')
+BEGIN
+    EXEC('CREATE PROCEDURE [sp_ChatConversations_GetOrCreate] AS BEGIN SELECT 1 END');
+END
+GO
+ALTER PROCEDURE [sp_ChatConversations_GetOrCreate]
+    @UserId UNIQUEIDENTIFIER
+AS
+BEGIN
+    DECLARE @ConversationId UNIQUEIDENTIFIER;
+    
+    SELECT @ConversationId = Id FROM [ChatConversations] WHERE [UserId] = @UserId;
+    
+    IF @ConversationId IS NULL
+    BEGIN
+        SET @ConversationId = NEWID();
+        INSERT INTO [ChatConversations] (Id, UserId, Status, CreatedAt, UpdatedAt)
+        VALUES (@ConversationId, @UserId, 'Open', GETUTCDATE(), GETUTCDATE());
+    END
+    
+    SELECT * FROM [ChatConversations] WHERE [Id] = @ConversationId;
+END
+GO
+
+-- Получить все диалоги (для админа)
+IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'sp_ChatConversations_GetAll')
+BEGIN
+    EXEC('CREATE PROCEDURE [sp_ChatConversations_GetAll] AS BEGIN SELECT 1 END');
+END
+GO
+ALTER PROCEDURE [sp_ChatConversations_GetAll]
+    @Status NVARCHAR(20) = NULL
+AS
+BEGIN
+    SELECT * FROM [ChatConversations] 
+    WHERE @Status IS NULL OR [Status] = @Status
+    ORDER BY [LastMessageAt] DESC;
+END
+GO
+
+-- Обновить статус диалога
+IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'sp_ChatConversations_UpdateStatus')
+BEGIN
+    EXEC('CREATE PROCEDURE [sp_ChatConversations_UpdateStatus] AS BEGIN SELECT 1 END');
+END
+GO
+ALTER PROCEDURE [sp_ChatConversations_UpdateStatus]
+    @Id UNIQUEIDENTIFIER,
+    @Status NVARCHAR(20),
+    @AdminId UNIQUEIDENTIFIER = NULL
+AS
+BEGIN
+    UPDATE [ChatConversations]
+    SET [Status] = @Status, 
+        [AdminId] = CASE WHEN @AdminId IS NOT NULL THEN @AdminId ELSE [AdminId] END,
+        [UpdatedAt] = GETUTCDATE()
+    WHERE [Id] = @Id;
+END
+GO
+
+-- Добавить сообщение
+IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'sp_ChatMessages_Insert')
+BEGIN
+    EXEC('CREATE PROCEDURE [sp_ChatMessages_Insert] AS BEGIN SELECT 1 END');
+END
+GO
+ALTER PROCEDURE [sp_ChatMessages_Insert]
+    @Id UNIQUEIDENTIFIER,
+    @ConversationId UNIQUEIDENTIFIER,
+    @SenderId UNIQUEIDENTIFIER,
+    @SenderRole NVARCHAR(10),
+    @Content NVARCHAR(MAX)
+AS
+BEGIN
+    INSERT INTO [ChatMessages] (Id, ConversationId, SenderId, SenderRole, Content, IsRead, CreatedAt)
+    VALUES (@Id, @ConversationId, @SenderId, @SenderRole, @Content, 0, GETUTCDATE());
+    
+    UPDATE [ChatConversations]
+    SET [LastMessageAt] = GETUTCDATE(), [UpdatedAt] = GETUTCDATE()
+    WHERE [Id] = @ConversationId;
+    
+    SELECT * FROM [ChatMessages] WHERE [Id] = @Id;
+END
+GO
+
+-- Получить сообщения диалога
+IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'sp_ChatMessages_GetByConversation')
+BEGIN
+    EXEC('CREATE PROCEDURE [sp_ChatMessages_GetByConversation] AS BEGIN SELECT 1 END');
+END
+GO
+ALTER PROCEDURE [sp_ChatMessages_GetByConversation]
+    @ConversationId UNIQUEIDENTIFIER
+AS
+BEGIN
+    SELECT * FROM [ChatMessages] 
+    WHERE [ConversationId] = @ConversationId
+    ORDER BY [CreatedAt] ASC;
+END
+GO
+
+-- Получить непрочитанные сообщения для админа
+IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'sp_ChatMessages_GetUnreadForAdmin')
+BEGIN
+    EXEC('CREATE PROCEDURE [sp_ChatMessages_GetUnreadForAdmin] AS BEGIN SELECT 1 END');
+END
+GO
+ALTER PROCEDURE [sp_ChatMessages_GetUnreadForAdmin]
+AS
+BEGIN
+    SELECT m.*, c.UserId, u.FirstName, u.LastName, u.Email
+    FROM [ChatMessages] m
+    INNER JOIN [ChatConversations] c ON m.ConversationId = c.Id
+    INNER JOIN [Users] u ON c.UserId = u.Id
+    WHERE m.[IsRead] = 0 AND m.[SenderRole] = 'User'
+    ORDER BY m.[CreatedAt] DESC;
+END
+GO
+
+-- Отметить сообщения как прочитанные
+IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'sp_ChatMessages_MarkAsRead')
+BEGIN
+    EXEC('CREATE PROCEDURE [sp_ChatMessages_MarkAsRead] AS BEGIN SELECT 1 END');
+END
+GO
+ALTER PROCEDURE [sp_ChatMessages_MarkAsRead]
+    @ConversationId UNIQUEIDENTIFIER,
+    @ReaderId UNIQUEIDENTIFIER
+AS
+BEGIN
+    UPDATE [ChatMessages]
+    SET [IsRead] = 1
+    WHERE [ConversationId] = @ConversationId AND [SenderId] != @ReaderId;
 END
 GO

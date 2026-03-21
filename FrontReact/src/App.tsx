@@ -13,10 +13,12 @@ import { ResetPasswordForm } from './components/auth/ResetPasswordForm';
 import { UserProfile } from './components/profile/UserProfile';
 import { DashboardPage } from './pages/DashboardPage';
 import { CategorySubscriptionsPage } from './pages/CategorySubscriptionsPage';
+import UserChatWidget from './components/shared/UserChatWidget';
 
 function App() {
   return (
     <>
+      <UserChatWidget />
       <GlobalStyles
         styles={{
           'html, body': {

@@ -13,6 +13,7 @@ import { SubscriptionHistoryTab } from '../subscriptions/SubscriptionHistoryTab'
 import { AdminSubscriptionPanel } from '../subscriptions/AdminSubscriptionPanel';
 import { AdminUsersPanel } from '../subscriptions/AdminUsersPanel';
 import { AdminReportsPanel } from '../reports/AdminReportsPanel';
+import { AdminChatPanel } from '../chat/AdminChatPanel';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -115,6 +116,7 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
             {userRole === 'Admin' && <Tab label="Manage Subscriptions" />}
             {userRole === 'Admin' && <Tab label="Users Management" />}
             {userRole === 'Admin' && <Tab label="Reports" />}
+            {userRole === 'Admin' && <Tab label="Chat Support" />}
           </Tabs>
         </Box>
 
@@ -174,6 +176,13 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
         {userRole === 'Admin' && (
           <TabPanel value={tabValue} index={6}>
             <AdminReportsPanel />
+          </TabPanel>
+        )}
+
+        {/* Admin Chat Support Tab */}
+        {userRole === 'Admin' && (
+          <TabPanel value={tabValue} index={7}>
+            <AdminChatPanel />
           </TabPanel>
         )}
       </Paper>

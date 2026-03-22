@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, memo } from 'react';
 import { Box, Typography, Grid, CircularProgress, Button } from '@mui/material';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { SubscriptionCard } from '../subscriptions/SubscriptionCard';
 import { UnsubscribeReasonDialog } from './UnsubscribeReasonDialog';
@@ -136,16 +136,15 @@ export const AvailableSubscriptionsTab: React.FC<
             </Typography>
 
             <Grid container spacing={3}>
-              <AnimatePresence>
                 {data.items.map((subscription) => {
                   if (!subscription || !subscription.id) return null;
                   const userSub = getUserSubscription(subscription.id);
                   return (
                     <Grid key={subscription.id} size={{ xs: 12, md: 6, lg: 4 }}>
                       <motion.div
-                        layout
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
+                        transition={{ duration: 0.3 }}
                       >
                         <SubscriptionCard
                           subscription={subscription}
@@ -165,7 +164,6 @@ export const AvailableSubscriptionsTab: React.FC<
                     </Grid>
                   );
                 })}
-              </AnimatePresence>
             </Grid>
 
             {data.currentPage < data.totalPages && (
@@ -192,3 +190,6 @@ export const AvailableSubscriptionsTab: React.FC<
     </>
   );
 };
+
+// Memoize to prevent unnecessary re-renders
+export default memo(AvailableSubscriptionsTab);

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, memo } from 'react';
 import {
   Card,
   CardContent,
@@ -27,7 +27,7 @@ interface UserStatisticsProps {
   statistics: UserStatisticsType;
 }
 
-export const UserStatistics: React.FC<UserStatisticsProps> = ({
+export const UserStatistics: React.FC<UserStatisticsProps> = memo(({
   statistics,
 }) => {
   const formatCurrency = (amount: number) => {
@@ -602,4 +602,4 @@ export const UserStatistics: React.FC<UserStatisticsProps> = ({
       </Grid>
     </Box>
   );
-};
+});

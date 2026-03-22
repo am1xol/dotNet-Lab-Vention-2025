@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo, useMemo, useCallback } from 'react';
 import {
   Card,
   CardContent,
@@ -53,48 +53,8 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
-  const formatPrice = (price: number) => `${price} BYN`;
-
-  const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return 'Unknown date';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
-
-  const getSubscriptionStatus = () => {
-    if (isCancelled) return 'Cancelled';
-    if (isSubscribed) return 'Active';
-    return 'Available';
-  };
-
-  const getStatusColor = () => {
-    const status = getSubscriptionStatus();
-    switch (status) {
-      case 'Active':
-        return 'success';
-      case 'Cancelled':
-        return 'warning';
-      default:
-        return 'default';
-    }
-  };
-
-  const getStatusText = () => {
-    const status = getSubscriptionStatus();
-    if (status === 'Cancelled') {
-      const untilDate = unsubscribeInfo?.validUntil || validUntil;
-      return untilDate
-        ? `Cancelled (until ${formatDate(untilDate)})`
-        : 'Cancelled';
-    }
-    return status;
-  };
-
-  const handleInitiatePayment = async (priceId: string) => {
+  // Memoized handlers
+  const handleInitiatePayment = useCallback(async (priceId: string) => {
     setPaymentLoading(true);
     try {
       await onInitiatePayment(priceId);
@@ -103,33 +63,66 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
     } finally {
       setPaymentLoading(false);
     }
-  };
+  }, [onInitiatePayment]);
 
-  const handleSubscribe = (id: string) => {
+  const handleSubscribe = useCallback((id: string) => {
     onSubscribe(id);
-  };
+  }, [onSubscribe]);
 
-  const handleUnsubscribeClick = () => {
+  const handleUnsubscribeClick = useCallback(() => {
     onUnsubscribe(subscription.id);
-  };
+  }, [onUnsubscribe, subscription.id]);
+
+  const handleExpandToggle = useCallback(() => {
+    setExpanded(prev => !prev);
+  }, []);
+
+  // Memoized computed values
+  const formatPrice = useMemo(() => (price: number) => `${price} BYN`, []);
+  
+  const formatDate = useMemo(() => (dateString: string | undefined) => {
+    if (!dateString) return 'Unknown date';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  }, []);
+
+  const status = useMemo(() => {
+    if (isCancelled) return 'Cancelled';
+    if (isSubscribed) return 'Active';
+    return 'Available';
+  }, [isCancelled, isSubscribed]);
+
+  const statusColor = useMemo(() => {
+    switch (status) {
+      case 'Active': return 'success';
+      case 'Cancelled': return 'warning';
+      default: return 'default';
+    }
+  }, [status]);
+
+  const statusText = useMemo(() => {
+    if (status === 'Cancelled') {
+      const untilDate = unsubscribeInfo?.validUntil || validUntil;
+      return untilDate
+        ? `Cancelled (until ${formatDate(untilDate)})`
+        : 'Cancelled';
+    }
+    return status;
+  }, [status, unsubscribeInfo?.validUntil, validUntil, formatDate]);
 
   const finalLoadingState = loading || paymentLoading;
-  const status = getSubscriptionStatus();
-  const statusText = getStatusText();
-  const statusColor = getStatusColor();
-
-  const hasMarkdownContent =
-    subscription.descriptionMarkdown?.trim().length > 0;
-
-  const createMarkup = (htmlContent: string) => ({
-    __html: DOMPurify.sanitize(htmlContent),
-  });
-
+  const hasMarkdownContent = subscription.descriptionMarkdown?.trim().length > 0;
   const hasMultiplePrices = prices && prices.length > 0;
-  const displayPrice = hasMultiplePrices
-    ? null
-    : (finalPrice ?? subscription.price);
+  const displayPrice = hasMultiplePrices ? null : (finalPrice ?? subscription.price);
   const displayPeriod = hasMultiplePrices ? null : periodName;
+
+  const createMarkup = useMemo(() => (htmlContent: string) => ({
+    __html: DOMPurify.sanitize(htmlContent),
+  }), []);
 
   return (
     <Card
@@ -253,7 +246,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
 
             <Button
               size="small"
-              onClick={() => setExpanded(!expanded)}
+              onClick={handleExpandToggle}
               endIcon={expanded ? <ExpandLess /> : <ExpandMore />}
               sx={{
                 color: 'primary.main',
@@ -465,3 +458,6 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
     </Card>
   );
 };
+
+// Memoize the entire component to prevent unnecessary re-renders
+export default memo(SubscriptionCard);

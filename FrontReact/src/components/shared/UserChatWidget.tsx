@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { Box, Paper, IconButton, TextField, Typography, Badge, Avatar, Fab, Alert, Button } from '@mui/material';
 import { Send as SendIcon, Chat as ChatIcon, Close as CloseIcon, Lock as LockIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 import chatService from '../../services/chat-service';
 import { ChatMessageDto } from '../../types/chat';
 import { useAuthStore } from '../../store/auth-store';
 
+const POLL_INTERVAL = 10000; // Increased from 3s to 10s to reduce server load
 const UserChatWidget: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessageDto[]>([]);
@@ -15,15 +16,20 @@ const UserChatWidget: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const prevMessagesLengthRef = useRef<number>(0);
   
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
-  const loadConversation = async () => {
+  const loadConversation = useCallback(async () => {
     if (!isAuthenticated) return;
     
     try {
       const data = await chatService.getMyConversation();
-      setMessages(data.messages);
+      // Only update state if messages actually changed
+      if (data.messages.length !== prevMessagesLengthRef.current) {
+        setMessages(data.messages);
+        prevMessagesLengthRef.current = data.messages.length;
+      }
       setUnreadCount(data.conversation.unreadCount);
       setIsClosed(data.conversation.status === 'Closed');
       setError(null);
@@ -34,18 +40,18 @@ const UserChatWidget: React.FC = () => {
         setIsClosed(true);
       }
     }
-  };
+  }, [isAuthenticated]);
 
-  const markAsRead = async () => {
+  const markAsRead = useCallback(async () => {
     try {
       await chatService.markAsRead();
       setUnreadCount(0);
     } catch (error) {
       console.error('Error marking as read:', error);
     }
-  };
+  }, []);
 
-  const startNewConversation = async () => {
+  const startNewConversation = useCallback(async () => {
     try {
       setIsLoading(true);
       const data = await chatService.createNewConversation();
@@ -59,27 +65,33 @@ const UserChatWidget: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
+  // Optimized polling - only poll when chat is open
   useEffect(() => {
     if (isOpen && isAuthenticated) {
       loadConversation();
       markAsRead();
+      // Increased interval from 3000ms to 10000ms for better performance
       pollIntervalRef.current = setInterval(() => {
         loadConversation();
-      }, 3000);
+      }, POLL_INTERVAL);
     }
     
     return () => {
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
       }
     };
-  }, [isOpen, isAuthenticated]);
+  }, [isOpen, isAuthenticated, loadConversation, markAsRead]);
 
+  // Optimized scroll effect - only run when messages actually change
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (messages.length > prevMessagesLengthRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages.length]);
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !isAuthenticated || isClosed) return;
@@ -302,4 +314,5 @@ const UserChatWidget: React.FC = () => {
   );
 };
 
-export default UserChatWidget;
+// Memoize the entire component to prevent unnecessary re-renders
+export default memo(UserChatWidget);

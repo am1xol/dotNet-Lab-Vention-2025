@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Box, Tabs, Tab, Paper } from '@mui/material';
 import { motion } from 'framer-motion';
 import {
@@ -17,18 +17,28 @@ interface TabPanelProps {
   value: number;
 }
 
-const TabPanel: React.FC<TabPanelProps> = ({
+// Fixed TabPanel - keeps children mounted but hidden to prevent data refetching
+const TabPanel: React.FC<TabPanelProps> = memo(({
   children,
   value,
   index,
   ...other
 }) => {
+  const isActive = value === index;
   return (
-    <div role="tabpanel" id={`dashboard-tabpanel-${index}`} {...other}>
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+    <div 
+      role="tabpanel" 
+      id={`dashboard-tabpanel-${index}`} 
+      {...other}
+      aria-hidden={!isActive}
+      style={{
+        display: isActive ? 'block' : 'none',
+      }}
+    >
+      <Box sx={{ p: 3 }}>{children}</Box>
     </div>
   );
-};
+});
 
 interface UnsubscribeInfo {
   validUntil: string;
@@ -47,7 +57,7 @@ interface DashboardTabsProps {
   handleUnsubscribe: (subscriptionId: string) => Promise<void>;
 }
 
-export const DashboardTabs: React.FC<DashboardTabsProps> = ({
+export const DashboardTabs: React.FC<DashboardTabsProps> = memo(({
   tabValue,
   handleTabChange,
   mySubscriptions,
@@ -60,9 +70,10 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
 }) => {
   return (
     <motion.div
+      key="dashboard-tabs" // Prevents re-animation on parent re-renders
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8, delay: 0.2 }}
+      transition={{ duration: 0.5 }}
     >
       <Paper
         elevation={0}
@@ -144,4 +155,7 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
       </Paper>
     </motion.div>
   );
-};
+});
+
+// Add memo comparison function
+DashboardTabs.displayName = 'DashboardTabs';

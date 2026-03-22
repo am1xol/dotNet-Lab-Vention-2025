@@ -5,17 +5,46 @@ import {
   Navigate,
 } from 'react-router-dom';
 import { GlobalStyles } from '@mui/material';
-import LandingPage from './pages/LandingPage';
-import { SignIn } from './components/auth/SignIn';
-import { SignUp } from './components/auth/SignUp';
-import { ForgotPasswordForm } from './components/auth/ForgotPasswordForm';
-import { ResetPasswordForm } from './components/auth/ResetPasswordForm';
-import { UserProfile } from './components/profile/UserProfile';
-import { DashboardPage } from './pages/DashboardPage';
-import { AdminPage } from './pages/AdminPage';
-import { CategorySubscriptionsPage } from './pages/CategorySubscriptionsPage';
-import UserChatWidget from './components/shared/UserChatWidget';
+import { lazy, Suspense } from 'react';
 import { useAuthStore } from './store/auth-store';
+
+// Lazy load all pages for better performance
+const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.default })));
+const SignIn = lazy(() => import('./components/auth/SignIn').then(m => ({ default: m.SignIn })));
+const SignUp = lazy(() => import('./components/auth/SignUp').then(m => ({ default: m.SignUp })));
+const ForgotPasswordForm = lazy(() => import('./components/auth/ForgotPasswordForm').then(m => ({ default: m.ForgotPasswordForm })));
+const ResetPasswordForm = lazy(() => import('./components/auth/ResetPasswordForm').then(m => ({ default: m.ResetPasswordForm })));
+const UserProfile = lazy(() => import('./components/profile/UserProfile').then(m => ({ default: m.UserProfile })));
+const DashboardPage = lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
+const AdminPage = lazy(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })));
+const CategorySubscriptionsPage = lazy(() => import('./pages/CategorySubscriptionsPage').then(m => ({ default: m.CategorySubscriptionsPage })));
+const UserChatWidget = lazy(() => import('./components/shared/UserChatWidget').then(m => ({ default: m.default })));
+
+// Loading fallback component
+const PageLoader = () => (
+  <div style={{
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: '100vh',
+    background: 'linear-gradient(135deg, #F5F3FF 0%, #EDE7F6 50%, #E8EAF6 100%)'
+  }}>
+    <div style={{
+      width: 40,
+      height: 40,
+      border: '3px solid #B39DDB',
+      borderTop: '3px solid #7E57C2',
+      borderRadius: '50%',
+      animation: 'spin 1s linear infinite'
+    }} />
+    <style>{`
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `}</style>
+  </div>
+);
 
 const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isAuthenticated } = useAuthStore();
@@ -34,7 +63,9 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 function App() {
   return (
     <>
-      <UserChatWidget />
+      <Suspense fallback={<PageLoader />}>
+        <UserChatWidget />
+      </Suspense>
       <GlobalStyles
         styles={{
           'html, body': {
@@ -43,8 +74,9 @@ function App() {
         }}
       />
       <Router>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
 
           <Route
             path="/auth"
@@ -74,7 +106,8 @@ function App() {
             path="/category/:category"
             element={<CategorySubscriptionsPage />}
           />
-        </Routes>
+          </Routes>
+        </Suspense>
       </Router>
     </>
   );

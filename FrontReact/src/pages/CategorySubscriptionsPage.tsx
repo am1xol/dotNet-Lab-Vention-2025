@@ -60,24 +60,22 @@ const PageContainer = styled(Box)(({ theme }) => ({
   },
 }));
 
+// Simplified floating circles - CSS only, with light blur
 const FloatingCircle = styled(Box)(({ theme }) => ({
   position: 'absolute',
   borderRadius: '50%',
   background: `linear-gradient(45deg, ${alpha(theme.palette.primary.main, 0.1)}, ${alpha(theme.palette.secondary.main, 0.05)})`,
-  animation: 'float 8s ease-in-out infinite',
+  animation: 'float 12s ease-in-out infinite',
   zIndex: 0,
+  willChange: 'transform',
+  // Light blur for visual appeal
+  filter: 'blur(20px)',
   '@keyframes float': {
     '0%, 100%': {
-      transform: 'translate(0px, 0px) scale(1)',
-      opacity: 0.3,
+      transform: 'translate(0px, 0px)',
     },
-    '33%': {
-      transform: 'translate(30px, -20px) scale(1.1)',
-      opacity: 0.4,
-    },
-    '66%': {
-      transform: 'translate(-20px, 15px) scale(0.9)',
-      opacity: 0.2,
+    '50%': {
+      transform: 'translate(10px, -10px)',
     },
   },
 }));

@@ -1,7 +1,7 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { memo, useMemo } from 'react';
 import { Box } from '@mui/material';
 
+// Memoized service data to prevent recreation on every render
 const services = [
   { name: 'Netflix', color: '#E50914', size: 110 },
   { name: 'YouTube', color: '#FF0000', size: 105 },
@@ -12,149 +12,123 @@ const services = [
   { name: 'Google', color: '#4285F4', size: 104 },
 ];
 
-const generatePositions = (count: number) => {
-  const positions = [];
-  for (let i = 0; i < count; i++) {
-    positions.push({
-      x: `${10 + ((i * 14) % 75)}%`,
-      y: `${15 + ((i * 18) % 65)}%`,
-      rotation: -8 + Math.random() * 16,
-    });
-  }
-  return positions;
-};
-
-const positions = generatePositions(services.length);
-
-const backgroundCircles = [
-  { size: 300, x: '10%', y: '10%', color: 'rgba(179, 157, 219, 0.08)' },
-  { size: 200, x: '85%', y: '15%', color: 'rgba(206, 147, 216, 0.06)' },
-  { size: 250, x: '15%', y: '70%', color: 'rgba(126, 87, 194, 0.07)' },
-  { size: 180, x: '80%', y: '75%', color: 'rgba(179, 157, 219, 0.05)' },
-  { size: 220, x: '5%', y: '40%', color: 'rgba(206, 147, 216, 0.06)' },
-  { size: 280, x: '90%', y: '50%', color: 'rgba(126, 87, 194, 0.08)' },
+// Pre-computed static positions (no random regeneration)
+const positions = [
+  { x: '10%', y: '15%', rotation: -5 },
+  { x: '24%', y: '33%', rotation: 3 },
+  { x: '38%', y: '51%', rotation: -8 },
+  { x: '52%', y: '69%', rotation: 6 },
+  { x: '66%', y: '87%', rotation: -2 },
+  { x: '80%', y: '22%', rotation: 7 },
+  { x: '94%', y: '40%', rotation: -4 },
 ];
 
+// Background circles with light blur
+const backgroundCircles = [
+  { size: 300, x: '10%', y: '10%', color: 'rgba(179, 157, 219, 0.15)' },
+  { size: 200, x: '85%', y: '15%', color: 'rgba(206, 147, 216, 0.12)' },
+  { size: 250, x: '15%', y: '70%', color: 'rgba(126, 87, 194, 0.15)' },
+  { size: 180, x: '80%', y: '75%', color: 'rgba(179, 157, 219, 0.10)' },
+];
+
+// CSS-only animation styles (more performant than JS animations)
+const animationStyles = `
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-15px); }
+  }
+  @keyframes fadeInOut {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 0.8; }
+  }
+  .service-icon {
+    animation: float 6s ease-in-out infinite;
+    will-change: transform;
+  }
+  .bg-circle {
+    animation: fadeInOut 8s ease-in-out infinite;
+    will-change: opacity;
+  }
+`;
+
 const FloatingServiceIcons: React.FC = () => {
+  // Memoize service icons array to prevent recreation
+  const serviceIcons = useMemo(() => services.map((service, index) => ({
+    ...service,
+    position: positions[index],
+    delay: index * 0.5,
+  })), []);
+
   return (
-    <Box
-      sx={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        overflow: 'hidden',
-        pointerEvents: 'none',
-        zIndex: 0,
-      }}
-    >
-      {/* Фоновые кружки */}
-      {backgroundCircles.map((circle, index) => (
-        <Box
-          key={`circle-${index}`}
-          sx={{
-            position: 'absolute',
-            width: circle.size,
-            height: circle.size,
-            left: circle.x,
-            top: circle.y,
-            borderRadius: '50%',
-            background: circle.color,
-            filter: 'blur(40px)',
-            opacity: 0.7,
-          }}
-        />
-      ))}
-
-      {/* Иконки сервисов */}
-      {services.map((service, index) => {
-        const position = positions[index];
-
-        return (
-          <motion.div
-            key={service.name}
-            style={{
+    <>
+      <style>{animationStyles}</style>
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          overflow: 'hidden',
+          pointerEvents: 'none',
+          zIndex: 0,
+        }}
+      >
+        {/* Background circles with light blur */}
+        {backgroundCircles.map((circle, index) => (
+          <Box
+            key={`circle-${index}`}
+            className="bg-circle"
+            sx={{
               position: 'absolute',
-              width: `${service.size}px`,
-              height: `${service.size}px`,
-              left: position.x,
-              top: position.y,
+              width: circle.size,
+              height: circle.size,
+              left: circle.x,
+              top: circle.y,
+              borderRadius: '50%',
+              background: circle.color,
+              // Light blur for visual appeal (optimized)
+              filter: 'blur(25px)',
+              animationDelay: `${index * 1.5}s`,
+            }}
+          />
+        ))}
+
+        {/* Service icons with CSS-only animation */}
+        {serviceIcons.map((service) => (
+          <Box
+            key={service.name}
+            className="service-icon"
+            sx={{
+              position: 'absolute',
+              width: service.size,
+              height: service.size,
+              left: service.position.x,
+              top: service.position.y,
               opacity: 0.75,
-              filter: 'drop-shadow(0 10px 30px rgba(0,0,0,0.5))',
-              transform: `rotate(${position.rotation}deg)`,
+              transform: `rotate(${service.position.rotation}deg)`,
+              animationDelay: `${service.delay}s`,
               zIndex: 1,
-            }}
-            initial={{
-              y: 0,
-              rotateZ: position.rotation,
-            }}
-            animate={{
-              y: [0, -25, 0, 15, 0],
-              rotateZ: [
-                position.rotation,
-                position.rotation - 3,
-                position.rotation + 2,
-                position.rotation,
-              ],
-              scale: [1, 1.08, 1, 0.96, 1],
-            }}
-            transition={{
-              duration: 7 + index * 0.8,
-              repeat: Infinity,
-              repeatType: 'reverse',
-              ease: 'easeInOut',
-              times: [0, 0.3, 0.6, 0.8, 1],
+              // Light drop shadow for depth
+              filter: 'drop-shadow(0 4px 12px rgba(126, 87, 194, 0.3))',
             }}
           >
-            {
-              <img
-                src={`/icons/${service.name.toLowerCase().replace(' ', '-')}.png`}
-                alt={service.name}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'contain',
-                  filter:
-                    'brightness(1.15) contrast(1.15) drop-shadow(0 8px 16px rgba(0,0,0,0.5))',
-                  borderRadius: '12px',
-                }}
-              />
-            }
-          </motion.div>
-        );
-      })}
-
-      <Box
-        sx={{
-          position: 'absolute',
-          top: '30%',
-          right: '8%',
-          width: '60px',
-          height: '60px',
-          borderRadius: '50%',
-          background:
-            'linear-gradient(135deg, rgba(126, 87, 194, 0.1), rgba(179, 157, 219, 0.05))',
-          filter: 'blur(15px)',
-          opacity: 0.6,
-        }}
-      />
-      <Box
-        sx={{
-          position: 'absolute',
-          bottom: '25%',
-          left: '5%',
-          width: '80px',
-          height: '80px',
-          borderRadius: '50%',
-          background:
-            'linear-gradient(135deg, rgba(206, 147, 216, 0.08), rgba(126, 87, 194, 0.12))',
-          filter: 'blur(20px)',
-          opacity: 0.5,
-        }}
-      />
-    </Box>
+            <img
+              src={`/icons/${service.name.toLowerCase().replace(' ', '-')}.png`}
+              alt={service.name}
+              loading="lazy"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                borderRadius: '12px',
+              }}
+            />
+          </Box>
+        ))}
+      </Box>
+    </>
   );
 };
 
-export default FloatingServiceIcons;
+export default memo(FloatingServiceIcons);

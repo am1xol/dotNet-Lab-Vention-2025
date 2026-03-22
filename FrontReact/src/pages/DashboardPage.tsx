@@ -37,8 +37,7 @@ export const DashboardPage: React.FC = () => {
     [key: string]: { validUntil: string };
   }>({});
 
-  const { user, isAuthenticated } = useAuthStore();
-  const userRole = user?.role || 'User';
+  const { isAuthenticated } = useAuthStore();
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -209,7 +208,6 @@ export const DashboardPage: React.FC = () => {
         )}
 
         <DashboardTabs
-          userRole={userRole}
           tabValue={tabValue}
           handleTabChange={handleTabChange}
           availableSubscriptions={availableSubscriptions}
@@ -220,7 +218,6 @@ export const DashboardPage: React.FC = () => {
           handleSubscribe={handleSubscribe}
           handleInitiatePayment={handleInitiatePayment}
           handleUnsubscribe={handleUnsubscribe}
-          loadData={loadData}
         />
       </Stack>
     </DashboardShell>

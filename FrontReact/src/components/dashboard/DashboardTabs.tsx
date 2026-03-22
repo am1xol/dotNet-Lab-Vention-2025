@@ -10,10 +10,6 @@ import { AvailableSubscriptionsTab } from '../subscriptions/AvailableSubscriptio
 import { MySubscriptionsTab } from '../subscriptions/MySubscriptionsTab';
 import { PaymentHistoryTab } from '../payment/PaymentHistoryTab';
 import { SubscriptionHistoryTab } from '../subscriptions/SubscriptionHistoryTab';
-import { AdminSubscriptionPanel } from '../subscriptions/AdminSubscriptionPanel';
-import { AdminUsersPanel } from '../subscriptions/AdminUsersPanel';
-import { AdminReportsPanel } from '../reports/AdminReportsPanel';
-import { AdminChatPanel } from '../chat/AdminChatPanel';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -39,7 +35,6 @@ interface UnsubscribeInfo {
 }
 
 interface DashboardTabsProps {
-  userRole: string;
   tabValue: number;
   handleTabChange: (newValue: number) => void;
   availableSubscriptions: GroupedSubscriptions;
@@ -50,11 +45,9 @@ interface DashboardTabsProps {
   handleSubscribe: (subscriptionId: string) => Promise<void>;
   handleInitiatePayment: (subscriptionId: string) => Promise<void>;
   handleUnsubscribe: (subscriptionId: string) => Promise<void>;
-  loadData: () => Promise<void>;
 }
 
 export const DashboardTabs: React.FC<DashboardTabsProps> = ({
-  userRole,
   tabValue,
   handleTabChange,
   mySubscriptions,
@@ -64,7 +57,6 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
   handleSubscribe,
   handleInitiatePayment,
   handleUnsubscribe,
-  loadData,
 }) => {
   return (
     <motion.div
@@ -113,10 +105,6 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
             <Tab label="My Subscriptions" />
             <Tab label="Payment History" />
             <Tab label="Subscription History" />
-            {userRole === 'Admin' && <Tab label="Manage Subscriptions" />}
-            {userRole === 'Admin' && <Tab label="Users Management" />}
-            {userRole === 'Admin' && <Tab label="Reports" />}
-            {userRole === 'Admin' && <Tab label="Chat Support" />}
           </Tabs>
         </Box>
 
@@ -153,38 +141,6 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
         <TabPanel value={tabValue} index={3}>
           <SubscriptionHistoryTab />
         </TabPanel>
-
-        {/* Admin Management Tab */}
-        {userRole === 'Admin' && (
-          <TabPanel value={tabValue} index={4}>
-            <AdminSubscriptionPanel
-              onSubscriptionCreated={loadData}
-              onSubscriptionUpdated={loadData}
-              onSubscriptionDeleted={loadData}
-            />
-          </TabPanel>
-        )}
-
-        {/* Admin Users Management Tab */}
-        {userRole === 'Admin' && (
-          <TabPanel value={tabValue} index={5}>
-            <AdminUsersPanel />
-          </TabPanel>
-        )}
-
-        {/* Admin Reports Tab */}
-        {userRole === 'Admin' && (
-          <TabPanel value={tabValue} index={6}>
-            <AdminReportsPanel />
-          </TabPanel>
-        )}
-
-        {/* Admin Chat Support Tab */}
-        {userRole === 'Admin' && (
-          <TabPanel value={tabValue} index={7}>
-            <AdminChatPanel />
-          </TabPanel>
-        )}
       </Paper>
     </motion.div>
   );

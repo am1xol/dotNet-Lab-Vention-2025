@@ -162,6 +162,29 @@ const Header: React.FC = () => {
               >
                 Profile
               </Button>
+              {user?.role === 'Admin' && (
+                <Button
+                  variant="outlined"
+                  onClick={() => navigate('/admin')}
+                  sx={{
+                    color: '#7E57C2',
+                    borderColor: '#7E57C2',
+                    borderRadius: 2,
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    padding: '8px 20px',
+                    minWidth: 'auto',
+                    borderWidth: '2px',
+                    '&:hover': {
+                      borderColor: '#5E35B1',
+                      backgroundColor: 'rgba(126, 87, 194, 0.08)',
+                      borderWidth: '2px',
+                    },
+                  }}
+                >
+                  Admin Panel
+                </Button>
+              )}
               <Button
                 variant="outlined"
                 onClick={handleLogout}

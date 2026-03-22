@@ -12,8 +12,24 @@ import { ForgotPasswordForm } from './components/auth/ForgotPasswordForm';
 import { ResetPasswordForm } from './components/auth/ResetPasswordForm';
 import { UserProfile } from './components/profile/UserProfile';
 import { DashboardPage } from './pages/DashboardPage';
+import { AdminPage } from './pages/AdminPage';
 import { CategorySubscriptionsPage } from './pages/CategorySubscriptionsPage';
 import UserChatWidget from './components/shared/UserChatWidget';
+import { useAuthStore } from './store/auth-store';
+
+const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, isAuthenticated } = useAuthStore();
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/auth/signin" replace />;
+  }
+  
+  if (user?.role !== 'Admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+  
+  return <>{children}</>;
+};
 
 function App() {
   return (
@@ -45,6 +61,14 @@ function App() {
 
           <Route path="/profile" element={<UserProfile />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route 
+            path="/admin" 
+            element={
+              <AdminRoute>
+                <AdminPage />
+              </AdminRoute>
+            } 
+          />
 
           <Route
             path="/category/:category"

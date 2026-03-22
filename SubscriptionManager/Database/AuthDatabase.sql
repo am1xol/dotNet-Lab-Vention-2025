@@ -473,3 +473,124 @@ BEGIN
     WHERE [ConversationId] = @ConversationId AND [SenderId] != @ReaderId;
 END
 GO
+
+
+/* =========================================================================================
+    ОТЗЫВЫ И ОЦЕНКИ ПОЛЬЗОВАТЕЛЕЙ
+========================================================================================= */
+
+use [AuthDb];
+go
+-- Таблица отзывов пользователей
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Feedbacks')
+BEGIN
+    CREATE TABLE [Feedbacks] (
+        [Id] UNIQUEIDENTIFIER PRIMARY KEY,
+        [UserId] UNIQUEIDENTIFIER NOT NULL,
+        [Rating] INT NOT NULL CHECK ([Rating] >= 1 AND [Rating] <= 5),
+        [Comment] NVARCHAR(MAX) NULL,
+        [CreatedAt] DATETIME2 NOT NULL,
+        [UpdatedAt] DATETIME2 NOT NULL,
+        CONSTRAINT [FK_Feedbacks_Users] FOREIGN KEY ([UserId]) 
+            REFERENCES [Users] ([Id]) ON DELETE CASCADE
+    );
+    
+    IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Feedbacks_UserId' AND object_id = OBJECT_ID('Feedbacks'))
+        CREATE UNIQUE INDEX [IX_Feedbacks_UserId] ON [Feedbacks] ([UserId]);
+END
+GO
+
+-- Создать отзыв или обновить существующий
+IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'sp_Feedbacks_Upsert')
+BEGIN
+    EXEC('CREATE PROCEDURE [sp_Feedbacks_Upsert] AS BEGIN SELECT 1 END');
+END
+GO
+ALTER PROCEDURE [sp_Feedbacks_Upsert]
+    @Id UNIQUEIDENTIFIER,
+    @UserId UNIQUEIDENTIFIER,
+    @Rating INT,
+    @Comment NVARCHAR(MAX) = NULL,
+    @CreatedAt DATETIME2
+AS
+BEGIN
+    -- Проверяем, существует ли уже отзыв пользователя
+    DECLARE @ExistingId UNIQUEIDENTIFIER;
+    
+    SELECT @ExistingId = Id FROM [Feedbacks] WHERE [UserId] = @UserId;
+    
+    IF @ExistingId IS NOT NULL
+    BEGIN
+        -- Обновляем существующий отзыв
+        UPDATE [Feedbacks]
+        SET [Rating] = @Rating,
+            [Comment] = @Comment,
+            [UpdatedAt] = GETUTCDATE()
+        WHERE [UserId] = @UserId;
+        
+        SELECT * FROM [Feedbacks] WHERE [UserId] = @UserId;
+    END
+    ELSE
+    BEGIN
+        -- Создаём новый отзыв
+        INSERT INTO [Feedbacks] (Id, UserId, Rating, Comment, CreatedAt, UpdatedAt)
+        VALUES (@Id, @UserId, @Rating, @Comment, @CreatedAt, @CreatedAt);
+        
+        SELECT * FROM [Feedbacks] WHERE [Id] = @Id;
+    END
+END
+GO
+
+-- Получить отзыв пользователя
+IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'sp_Feedbacks_GetByUserId')
+BEGIN
+    EXEC('CREATE PROCEDURE [sp_Feedbacks_GetByUserId] AS BEGIN SELECT 1 END');
+END
+GO
+ALTER PROCEDURE [sp_Feedbacks_GetByUserId]
+    @UserId UNIQUEIDENTIFIER
+AS
+BEGIN
+    SELECT * FROM [Feedbacks] WHERE [UserId] = @UserId;
+END
+GO
+
+-- Получить все отзывы (для админа)
+IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'sp_Feedbacks_GetAll')
+BEGIN
+    EXEC('CREATE PROCEDURE [sp_Feedbacks_GetAll] AS BEGIN SELECT 1 END');
+END
+GO
+ALTER PROCEDURE [sp_Feedbacks_GetAll]
+    @PageNumber INT = 1,
+    @PageSize INT = 10
+AS
+BEGIN
+    DECLARE @TotalCount INT;
+    
+    SELECT @TotalCount = COUNT(*) FROM [Feedbacks];
+    
+    SELECT * FROM [Feedbacks]
+    ORDER BY [CreatedAt] DESC
+    OFFSET ((@PageNumber - 1) * @PageSize) ROWS
+    FETCH NEXT @PageSize ROWS ONLY;
+    
+    SELECT @TotalCount AS TotalCount;
+END
+GO
+
+-- Получить средний рейтинг
+IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'sp_Feedbacks_GetAverageRating')
+BEGIN
+    EXEC('CREATE PROCEDURE [sp_Feedbacks_GetAverageRating] AS BEGIN SELECT 1 END');
+END
+GO
+ALTER PROCEDURE [sp_Feedbacks_GetAverageRating]
+AS
+BEGIN
+    SELECT 
+        COUNT(*) AS TotalCount,
+        AVG(CAST([Rating] AS FLOAT)) AS AverageRating
+    FROM [Feedbacks];
+END
+GO

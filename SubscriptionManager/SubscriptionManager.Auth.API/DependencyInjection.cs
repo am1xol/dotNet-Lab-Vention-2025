@@ -51,6 +51,7 @@ namespace SubscriptionManager.Auth.API
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IChatRepository, ChatRepository>();
+            services.AddScoped<IFeedbackRepository, FeedbackRepository>();
 
             return services;
         }

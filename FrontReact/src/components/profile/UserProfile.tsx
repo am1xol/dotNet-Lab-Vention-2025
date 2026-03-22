@@ -24,6 +24,7 @@ import {
   VerifiedUser,
   CalendarToday,
   Notifications,
+  Star,
 } from '@mui/icons-material';
 import { UserProfile as UserProfileType } from '../../types/user';
 import { userService } from '../../services/user-service';
@@ -32,6 +33,7 @@ import FloatingIcons from '../shared/FloatingServiceIcons';
 import { ProfileForm } from './ProfileForm';
 import { ChangePasswordForm } from './ChangePasswordForm';
 import { NotificationsTab } from './NotificationsTab';
+import { FeedbackTab } from './FeedbackTab';
 import { notificationService } from '../../services/notification-service';
 
 export const UserProfile: React.FC = () => {
@@ -39,7 +41,7 @@ export const UserProfile: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [activeSection, setActiveSection] = useState<
-    'profile' | 'security' | 'notifications'
+    'profile' | 'security' | 'notifications' | 'feedback'
   >('profile');
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
@@ -331,6 +333,26 @@ export const UserProfile: React.FC = () => {
                       )}
                     </Box>
                   </Button>
+
+                  <Button
+                    fullWidth
+                    startIcon={<Star />}
+                    onClick={() => setActiveSection('feedback')}
+                    variant={
+                      activeSection === 'feedback' ? 'contained' : 'text'
+                    }
+                    sx={{
+                      justifyContent: 'flex-start',
+                      borderRadius: 2,
+                      py: 1.5,
+                      ...(activeSection === 'feedback' && {
+                        background:
+                          'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                      }),
+                    }}
+                  >
+                    Rate Service
+                  </Button>
                 </Stack>
 
                 <Divider sx={{ my: 2 }} />
@@ -377,11 +399,15 @@ export const UserProfile: React.FC = () => {
                     {activeSection === 'notifications' && (
                       <Notifications sx={{ color: '#7E57C2', mr: 2 }} />
                     )}
+                    {activeSection === 'feedback' && (
+                      <Star sx={{ color: '#7E57C2', mr: 2 }} />
+                    )}
 
                     <Typography variant="h5" fontWeight="600" color="#7E57C2">
                       {activeSection === 'profile' && 'Personal Information'}
                       {activeSection === 'security' && 'Security Settings'}
                       {activeSection === 'notifications' && 'My Notifications'}
+                      {activeSection === 'feedback' && 'Rate Our Service'}
                     </Typography>
                   </Box>
 
@@ -393,6 +419,7 @@ export const UserProfile: React.FC = () => {
                   )}
                   {activeSection === 'security' && <ChangePasswordForm />}
                   {activeSection === 'notifications' && <NotificationsTab />}
+                  {activeSection === 'feedback' && <FeedbackTab />}
                 </Card>
               </motion.div>
             </Grid>

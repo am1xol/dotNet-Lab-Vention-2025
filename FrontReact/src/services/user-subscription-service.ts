@@ -49,10 +49,13 @@ export const userSubscriptionService = {
   },
 
   async unsubscribe(
-    subscriptionId: string
+    subscriptionId: string,
+    reason?: string,
+    customReason?: string
   ): Promise<{ message: string; validUntil: string }> {
     const response = await api.post(
-      `${API_BASE_URL}/UserSubscriptions/unsubscribe/${subscriptionId}`
+      `${API_BASE_URL}/UserSubscriptions/unsubscribe/${subscriptionId}`,
+      { reason, customReason }
     );
     return response.data as { message: string; validUntil: string };
   },

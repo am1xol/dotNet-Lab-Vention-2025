@@ -30,6 +30,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { motion } from 'framer-motion';
 
 import { SubscriptionCard } from '../components/subscriptions/SubscriptionCard';
+import { UnsubscribeReasonDialog } from '../components/subscriptions/UnsubscribeReasonDialog';
 import { subscriptionService } from '../services/subscription-service';
 import { userSubscriptionService } from '../services/user-subscription-service';
 import { useAuthStore } from '../store/auth-store';
@@ -40,7 +41,6 @@ declare const BeGateway: new (options: any) => {
   createWidget: () => void;
 };
 
-// Styled components for background
 const PageContainer = styled(Box)(({ theme }) => ({
   minHeight: '100vh',
   background: `linear-gradient(135deg, ${alpha(theme.palette.primary.light, 0.05)} 0%, ${alpha(theme.palette.secondary.light, 0.05)} 100%)`,
@@ -113,7 +113,6 @@ export const CategorySubscriptionsPage: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
-  // Filters
   const [search, setSearch] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPeriods, setSelectedPeriods] = useState<string[]>([]);
@@ -131,7 +130,6 @@ export const CategorySubscriptionsPage: React.FC = () => {
   const pageSize = 12;
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Search delay (500ms)
   useEffect(() => {
     if (searchTimerRef.current) {
       clearTimeout(searchTimerRef.current);
@@ -148,7 +146,6 @@ export const CategorySubscriptionsPage: React.FC = () => {
     };
   }, [search]);
 
-  // Load user subscriptions
   const loadMySubscriptions = useCallback(async () => {
     if (!isAuthenticated) return;
 
@@ -161,7 +158,6 @@ export const CategorySubscriptionsPage: React.FC = () => {
     }
   }, [isAuthenticated]);
 
-  // Load category subscriptions via API with filters
   const loadSubscriptions = useCallback(
     async (resetPage = false) => {
       const currentPage = resetPage ? 1 : page;
@@ -173,7 +169,6 @@ export const CategorySubscriptionsPage: React.FC = () => {
       }
 
       try {
-        // Убрали параметр period
         const result = await subscriptionService.getSubscriptionsWithFilters(
           currentPage,
           pageSize,
@@ -205,7 +200,6 @@ export const CategorySubscriptionsPage: React.FC = () => {
     [category, searchQuery, priceRange, sortBy, sortDesc, page]
   );
 
-  // Load on category or auth change
   useEffect(() => {
     if (category) {
       loadSubscriptions(true);
@@ -215,7 +209,6 @@ export const CategorySubscriptionsPage: React.FC = () => {
     }
   }, [category, isAuthenticated]);
 
-  // Load on filter changes
   useEffect(() => {
     if (category) {
       const timer = setTimeout(() => {
@@ -230,7 +223,6 @@ export const CategorySubscriptionsPage: React.FC = () => {
     subscriptionId: string
   ): UserSubscription | undefined => {
     if (!isAuthenticated || !mySubscriptions) return undefined;
-    // Исправлено: us.subscription.id вместо us.subscriptionId
     return mySubscriptions.find(
       (us) => us.subscription.id === subscriptionId && us.isActive
     );
@@ -294,7 +286,15 @@ export const CategorySubscriptionsPage: React.FC = () => {
     }
   };
 
-  const handleUnsubscribe = async (subscriptionId: string) => {
+  const [unsubscribeDialogOpen, setUnsubscribeDialogOpen] = useState(false);
+  const [selectedSubscriptionId, setSelectedSubscriptionId] = useState<string | null>(null);
+  const [selectedSubscriptionName, setSelectedSubscriptionName] = useState<string>('');
+
+  const handleUnsubscribe = async (
+    subscriptionId: string,
+    reason?: string,
+    customReason?: string
+  ) => {
     if (!isAuthenticated) {
       navigate('/auth/signin');
       return;
@@ -302,8 +302,11 @@ export const CategorySubscriptionsPage: React.FC = () => {
 
     try {
       setActionLoading(subscriptionId);
-      const response =
-        await userSubscriptionService.unsubscribe(subscriptionId);
+      const response = await userSubscriptionService.unsubscribe(
+        subscriptionId,
+        reason,
+        customReason
+      );
       setUnsubscribedData((prev) => ({
         ...prev,
         [subscriptionId]: { validUntil: response.validUntil },
@@ -313,6 +316,25 @@ export const CategorySubscriptionsPage: React.FC = () => {
       setError(err.response?.data?.message || 'Failed to unsubscribe');
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleOpenUnsubscribeDialog = (subscriptionId: string, subscriptionName: string) => {
+    setSelectedSubscriptionId(subscriptionId);
+    setSelectedSubscriptionName(subscriptionName);
+    setUnsubscribeDialogOpen(true);
+  };
+
+  const handleCloseUnsubscribeDialog = () => {
+    setUnsubscribeDialogOpen(false);
+    setSelectedSubscriptionId(null);
+    setSelectedSubscriptionName('');
+  };
+
+  const handleConfirmUnsubscribe = async (reason: string, customReason?: string) => {
+    if (selectedSubscriptionId) {
+      await handleUnsubscribe(selectedSubscriptionId, reason, customReason);
+      handleCloseUnsubscribeDialog();
     }
   };
 
@@ -636,7 +658,9 @@ export const CategorySubscriptionsPage: React.FC = () => {
                           }
                           onSubscribe={handleSubscribe}
                           onInitiatePayment={handleInitiatePayment}
-                          onUnsubscribe={handleUnsubscribe}
+                          onUnsubscribe={(id) =>
+                            handleOpenUnsubscribeDialog(id, subscription.name)
+                          }
                           loading={actionLoading === subscription.id}
                         />
                       </motion.div>
@@ -669,6 +693,14 @@ export const CategorySubscriptionsPage: React.FC = () => {
           )}
         </Box>
       </ContentContainer>
+
+      <UnsubscribeReasonDialog
+        open={unsubscribeDialogOpen}
+        onClose={handleCloseUnsubscribeDialog}
+        onConfirm={handleConfirmUnsubscribe}
+        subscriptionName={selectedSubscriptionName}
+        loading={actionLoading !== null}
+      />
     </PageContainer>
   );
 };

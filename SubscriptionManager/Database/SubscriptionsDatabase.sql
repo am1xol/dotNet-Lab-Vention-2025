@@ -48,6 +48,23 @@ GO
 CREATE INDEX [IX_UserSubscriptions_UserId] ON [UserSubscriptions] ([UserId]);
 GO
 
+CREATE TABLE [SubscriptionCancellationReasons] (
+    [Id] UNIQUEIDENTIFIER PRIMARY KEY,
+    [UserSubscriptionId] UNIQUEIDENTIFIER NOT NULL,
+    [UserId] UNIQUEIDENTIFIER NOT NULL,
+    [SubscriptionId] UNIQUEIDENTIFIER NOT NULL,
+    [Reason] NVARCHAR(100) NOT NULL,
+    [CustomReason] NVARCHAR(MAX) NULL,
+    [CancelledAt] DATETIME2 NOT NULL,
+    CONSTRAINT [FK_SubscriptionCancellationReasons_UserSubscriptions] FOREIGN KEY ([UserSubscriptionId]) 
+        REFERENCES [UserSubscriptions] ([Id]) ON DELETE CASCADE
+);
+GO
+CREATE INDEX [IX_SubscriptionCancellationReasons_UserId] ON [SubscriptionCancellationReasons] ([UserId]);
+GO
+CREATE INDEX [IX_SubscriptionCancellationReasons_SubscriptionId] ON [SubscriptionCancellationReasons] ([SubscriptionId]);
+GO
+
 CREATE TABLE [Payments] (
     [Id] UNIQUEIDENTIFIER PRIMARY KEY,
     [UserSubscriptionId] UNIQUEIDENTIFIER NOT NULL,
@@ -486,7 +503,9 @@ GO
 CREATE OR ALTER PROCEDURE [sp_UserSubscriptions_Unsubscribe]
     @UserId UNIQUEIDENTIFIER,
     @SubscriptionId UNIQUEIDENTIFIER,
-    @Now DATETIME2
+    @Now DATETIME2,
+    @Reason NVARCHAR(100) = NULL,
+    @CustomReason NVARCHAR(MAX) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -503,6 +522,12 @@ BEGIN
     SET CancelledAt = @Now, 
         ValidUntil = @NextBillingDate
     WHERE Id = @UserSubId;
+    
+    IF @Reason IS NOT NULL
+    BEGIN
+        INSERT INTO [SubscriptionCancellationReasons] ([Id], [UserSubscriptionId], [UserId], [SubscriptionId], [Reason], [CustomReason], [CancelledAt])
+        VALUES (NEWID(), @UserSubId, @UserId, @SubscriptionId, @Reason, @CustomReason, @Now);
+    END
     
     SELECT @NextBillingDate AS ValidUntil;
     RETURN 200;

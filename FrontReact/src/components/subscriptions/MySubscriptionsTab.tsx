@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Box, Typography, Grid, Button } from '@mui/material';
 import { AnimatePresence, motion } from 'framer-motion';
 import { SubscriptionCard } from '../subscriptions/SubscriptionCard';
+import { UnsubscribeReasonDialog } from './UnsubscribeReasonDialog';
 import {
   GroupedUserSubscriptions,
   UserSubscription,
@@ -17,7 +18,11 @@ interface MySubscriptionsTabProps {
   unsubscribedData: { [key: string]: UnsubscribeInfo };
   handleSubscribe: (subscriptionId: string) => Promise<void>;
   handleInitiatePayment: (subscriptionPriceId: string) => Promise<void>;
-  handleUnsubscribe: (subscriptionId: string) => Promise<void>;
+  handleUnsubscribe: (
+    subscriptionId: string,
+    reason?: string,
+    customReason?: string
+  ) => Promise<void>;
 }
 
 const PAGE_SIZE = 3;
@@ -31,6 +36,9 @@ export const MySubscriptionsTab: React.FC<MySubscriptionsTabProps> = ({
   handleUnsubscribe,
 }) => {
   const [displayData, setDisplayData] = useState<any>({});
+  const [unsubscribeDialogOpen, setUnsubscribeDialogOpen] = useState(false);
+  const [selectedSubscriptionId, setSelectedSubscriptionId] = useState<string | null>(null);
+  const [selectedSubscriptionName, setSelectedSubscriptionName] = useState<string>('');
 
   useEffect(() => {
     const initialData: any = {};
@@ -61,6 +69,25 @@ export const MySubscriptionsTab: React.FC<MySubscriptionsTabProps> = ({
         currentPage: prev[category].currentPage + 1,
       },
     }));
+  };
+
+  const handleOpenUnsubscribeDialog = (subscriptionId: string, subscriptionName: string) => {
+    setSelectedSubscriptionId(subscriptionId);
+    setSelectedSubscriptionName(subscriptionName);
+    setUnsubscribeDialogOpen(true);
+  };
+
+  const handleCloseUnsubscribeDialog = () => {
+    setUnsubscribeDialogOpen(false);
+    setSelectedSubscriptionId(null);
+    setSelectedSubscriptionName('');
+  };
+
+  const handleConfirmUnsubscribe = async (reason: string, customReason?: string) => {
+    if (selectedSubscriptionId) {
+      await handleUnsubscribe(selectedSubscriptionId, reason, customReason);
+      handleCloseUnsubscribeDialog();
+    }
   };
 
   if (Object.keys(mySubscriptions).length === 0) {
@@ -132,7 +159,12 @@ export const MySubscriptionsTab: React.FC<MySubscriptionsTabProps> = ({
                             }
                             onSubscribe={handleSubscribe}
                             onInitiatePayment={handleInitiatePayment}
-                            onUnsubscribe={handleUnsubscribe}
+                            onUnsubscribe={(id) =>
+                              handleOpenUnsubscribeDialog(
+                                id,
+                                userSubscription.subscription.name
+                              )
+                            }
                             loading={
                               actionLoading === userSubscription.subscription.id
                             }
@@ -155,6 +187,14 @@ export const MySubscriptionsTab: React.FC<MySubscriptionsTabProps> = ({
           </motion.div>
         )
       )}
+
+      <UnsubscribeReasonDialog
+        open={unsubscribeDialogOpen}
+        onClose={handleCloseUnsubscribeDialog}
+        onConfirm={handleConfirmUnsubscribe}
+        subscriptionName={selectedSubscriptionName}
+        loading={actionLoading !== null}
+      />
     </>
   );
 };

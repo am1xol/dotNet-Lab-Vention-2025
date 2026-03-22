@@ -135,11 +135,18 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
-  const handleUnsubscribe = async (subscriptionId: string) => {
+  const handleUnsubscribe = async (
+    subscriptionId: string,
+    reason?: string,
+    customReason?: string
+  ) => {
     try {
       setActionLoading(subscriptionId);
-      const response =
-        await userSubscriptionService.unsubscribe(subscriptionId);
+      const response = await userSubscriptionService.unsubscribe(
+        subscriptionId,
+        reason,
+        customReason
+      );
       setUnsubscribedData((prev) => ({
         ...prev,
         [subscriptionId]: { validUntil: response.validUntil },

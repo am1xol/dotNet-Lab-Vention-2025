@@ -371,7 +371,7 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         }
 
         [HttpPost("unsubscribe/{subscriptionId}")]
-        public async Task<IActionResult> Unsubscribe(Guid subscriptionId)
+        public async Task<IActionResult> Unsubscribe(Guid subscriptionId, [FromBody] UnsubscribeRequest? request)
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
@@ -383,6 +383,8 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             parameters.Add("@UserId", userId);
             parameters.Add("@SubscriptionId", subscriptionId);
             parameters.Add("@Now", DateTime.UtcNow);
+            parameters.Add("@Reason", request?.Reason);
+            parameters.Add("@CustomReason", request?.CustomReason);
             parameters.Add("@ReturnValue", dbType: DbType.Int32, direction: ParameterDirection.ReturnValue);
 
             var validUntil = await connection.QueryFirstOrDefaultAsync<DateTime?>(

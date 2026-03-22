@@ -33,4 +33,10 @@
         public bool IsActive { get; set; }
         public string Message { get; set; } = "Subscribed successfully";
     }
+
+    public class UnsubscribeRequest
+    {
+        public string? Reason { get; set; }
+        public string? CustomReason { get; set; }
+    }
 }

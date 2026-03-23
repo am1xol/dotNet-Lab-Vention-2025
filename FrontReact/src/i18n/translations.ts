@@ -668,6 +668,24 @@ export const translations = {
     invalidPhone: 'Введите корректный номер телефона',
     selectOption: 'Выберите вариант',
   },
+
+  // Статьи и FAQ
+  articlesFaq: {
+    title: 'Статьи и FAQ',
+    articles: 'Статьи',
+    faq: 'Часто задаваемые вопросы',
+    readMore: 'Читать далее',
+    minutesRead: 'мин. чтения',
+    allCategories: 'Все категории',
+    helpfulArticles: 'Полезные статьи',
+    popularQuestions: 'Популярные вопросы',
+    backToArticles: 'Вернуться к статьям',
+    searchArticles: 'Поиск статей...',
+    searchFaq: 'Поиск в FAQ...',
+    noArticlesFound: 'Статьи не найдены',
+    noFaqFound: 'Вопросы не найдены',
+    tryDifferentSearch: 'Попробуйте изменить параметры поиска',
+  },
 };
 
 export type TranslationKey = keyof typeof translations;

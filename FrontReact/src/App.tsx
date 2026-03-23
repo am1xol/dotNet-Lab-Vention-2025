@@ -8,7 +8,6 @@ import { GlobalStyles } from '@mui/material';
 import { lazy, Suspense } from 'react';
 import { useAuthStore } from './store/auth-store';
 
-// Lazy load all pages for better performance
 const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.default })));
 const SignIn = lazy(() => import('./components/auth/SignIn').then(m => ({ default: m.SignIn })));
 const SignUp = lazy(() => import('./components/auth/SignUp').then(m => ({ default: m.SignUp })));
@@ -18,9 +17,10 @@ const UserProfile = lazy(() => import('./components/profile/UserProfile').then(m
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
 const AdminPage = lazy(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })));
 const CategorySubscriptionsPage = lazy(() => import('./pages/CategorySubscriptionsPage').then(m => ({ default: m.CategorySubscriptionsPage })));
+const ArticlesFaqPage = lazy(() => import('./pages/ArticlesFaqPage').then(m => ({ default: m.default })));
 const UserChatWidget = lazy(() => import('./components/shared/UserChatWidget').then(m => ({ default: m.default })));
+const FaqFabWidget = lazy(() => import('./components/shared/FaqFabWidget').then(m => ({ default: m.default })));
 
-// Loading fallback component
 const PageLoader = () => (
   <div style={{
     display: 'flex',
@@ -63,9 +63,6 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 function App() {
   return (
     <>
-      <Suspense fallback={<PageLoader />}>
-        <UserChatWidget />
-      </Suspense>
       <GlobalStyles
         styles={{
           'html, body': {
@@ -75,6 +72,8 @@ function App() {
       />
       <Router>
         <Suspense fallback={<PageLoader />}>
+          <UserChatWidget />
+          <FaqFabWidget />
           <Routes>
             <Route path="/" element={<LandingPage />} />
 
@@ -105,6 +104,11 @@ function App() {
           <Route
             path="/category/:category"
             element={<CategorySubscriptionsPage />}
+          />
+
+          <Route
+            path="/articles-faq"
+            element={<ArticlesFaqPage />}
           />
           </Routes>
         </Suspense>

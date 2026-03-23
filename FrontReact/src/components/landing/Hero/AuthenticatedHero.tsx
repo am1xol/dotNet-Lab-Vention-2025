@@ -3,6 +3,7 @@ import { Typography, Button } from '@mui/material';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../../store/auth-store';
 import { useNavigate } from 'react-router-dom';
+import { translations } from '../../../i18n/translations';
 
 export const AuthenticatedHero: React.FC = () => {
   const { user } = useAuthStore();
@@ -26,7 +27,7 @@ export const AuthenticatedHero: React.FC = () => {
           mb: 2,
         }}
       >
-        Welcome back!
+        {translations.authenticatedHero.welcomeBack}
       </Typography>
       <Typography
         variant="h4"
@@ -49,7 +50,7 @@ export const AuthenticatedHero: React.FC = () => {
           lineHeight: 1.6,
         }}
       >
-        Ready to continue managing your subscriptions?
+        {translations.authenticatedHero.readyToContinue}
       </Typography>
 
       <Button
@@ -72,7 +73,7 @@ export const AuthenticatedHero: React.FC = () => {
           },
         }}
       >
-        Go to Dashboard
+        {translations.authenticatedHero.goToDashboard}
       </Button>
     </motion.div>
   );

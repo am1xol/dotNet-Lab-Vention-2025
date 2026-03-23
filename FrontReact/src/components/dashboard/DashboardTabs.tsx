@@ -10,6 +10,7 @@ import { AvailableSubscriptionsTab } from '../subscriptions/AvailableSubscriptio
 import { MySubscriptionsTab } from '../subscriptions/MySubscriptionsTab';
 import { PaymentHistoryTab } from '../payment/PaymentHistoryTab';
 import { SubscriptionHistoryTab } from '../subscriptions/SubscriptionHistoryTab';
+import { translations } from '../../i18n/translations';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -17,7 +18,6 @@ interface TabPanelProps {
   value: number;
 }
 
-// Fixed TabPanel - keeps children mounted but hidden to prevent data refetching
 const TabPanel: React.FC<TabPanelProps> = memo(({
   children,
   value,
@@ -70,7 +70,7 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = memo(({
 }) => {
   return (
     <motion.div
-      key="dashboard-tabs" // Prevents re-animation on parent re-renders
+      key="dashboard-tabs"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
@@ -112,10 +112,10 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = memo(({
               },
             }}
           >
-            <Tab label="Available Subscriptions" />
-            <Tab label="My Subscriptions" />
-            <Tab label="Payment History" />
-            <Tab label="Subscription History" />
+            <Tab label={translations.subscriptions.availableSubscriptions} />
+            <Tab label={translations.subscriptions.mySubscriptions} />
+            <Tab label={translations.payments.paymentHistory} />
+            <Tab label={translations.subscriptions.subscriptionHistory} />
           </Tabs>
         </Box>
 
@@ -157,5 +157,4 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = memo(({
   );
 });
 
-// Add memo comparison function
 DashboardTabs.displayName = 'DashboardTabs';

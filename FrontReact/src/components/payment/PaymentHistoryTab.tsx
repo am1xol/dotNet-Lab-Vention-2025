@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import { Payment } from '../../types/payment';
 import { userSubscriptionService } from '../../services/user-subscription-service';
+import { translations } from '../../i18n/translations';
 
 interface PagedPaymentResponse {
   items: Payment[];
@@ -56,7 +57,7 @@ export const PaymentHistoryTab: React.FC = () => {
 
       setHasMore(newPayments.length === pageSize);
     } catch (err) {
-      setError('Failed to load payment history');
+      setError(translations.payments.loadPaymentHistoryError);
       console.error('Error loading payment history:', err);
     } finally {
       setLoading(false);
@@ -101,7 +102,7 @@ export const PaymentHistoryTab: React.FC = () => {
         gutterBottom
         sx={{ color: '#7E57C2', fontWeight: 700 }}
       >
-        Payment History
+        {translations.payments.paymentHistory}
       </Typography>
 
       {error && (
@@ -115,10 +116,10 @@ export const PaymentHistoryTab: React.FC = () => {
           {payments.length === 0 && !loading ? (
             <Box textAlign="center" py={4}>
               <Typography variant="h6" color="text.secondary">
-                No payment history found
+                {translations.payments.noPaymentHistoryFound}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Your payment history will appear here after making payments
+                {translations.payments.paymentHistoryWillAppearHere}
               </Typography>
             </Box>
           ) : (
@@ -142,7 +143,7 @@ export const PaymentHistoryTab: React.FC = () => {
                                 variant="body2"
                                 color="text.secondary"
                               >
-                                {formatDate(payment.paymentDate)} • Period:{' '}
+                                {formatDate(payment.paymentDate)} • {translations.payments.period}:{' '}
                                 {formatDate(payment.periodStart)} -{' '}
                                 {formatDate(payment.periodEnd)}
                               </Typography>
@@ -163,7 +164,7 @@ export const PaymentHistoryTab: React.FC = () => {
                                 {formatCurrency(payment.amount)}
                               </Typography>
                               <Chip
-                                label={payment.status}
+                                label={payment.status === 'Completed' ? translations.payments.completed : payment.status === 'Failed' ? translations.payments.failed : payment.status}
                                 size="small"
                                 color={
                                   payment.status === 'Completed'
@@ -191,7 +192,7 @@ export const PaymentHistoryTab: React.FC = () => {
                     disabled={loading}
                     variant="outlined"
                   >
-                    {loading ? <CircularProgress size={24} /> : 'Load More'}
+                    {loading ? <CircularProgress size={24} /> : translations.subscriptions.loadMore}
                   </Button>
                 </Box>
               )}

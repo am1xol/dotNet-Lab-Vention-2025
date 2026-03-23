@@ -19,6 +19,7 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { Subscription } from '../../types/subscription';
+import { translations } from '../../i18n/translations';
 
 interface AdminSubscriptionCardProps {
   subscription: Subscription;
@@ -70,7 +71,7 @@ export const AdminSubscriptionCard: React.FC<AdminSubscriptionCardProps> = ({
             }}
           >
             <Chip
-              label="Inactive"
+              label={translations.common.inactive}
               color="default"
               size="small"
               variant="filled"
@@ -185,7 +186,7 @@ export const AdminSubscriptionCard: React.FC<AdminSubscriptionCardProps> = ({
               {subscription.price} BYN
             </Typography>
             <Chip
-              label={subscription.isActive ? 'Active' : 'Inactive'}
+              label={subscription.isActive ? translations.common.active : translations.common.inactive}
               color={subscription.isActive ? 'success' : 'default'}
               size="small"
               icon={subscription.isActive ? <Visibility /> : <VisibilityOff />}
@@ -203,7 +204,7 @@ export const AdminSubscriptionCard: React.FC<AdminSubscriptionCardProps> = ({
               '&:hover': { backgroundColor: 'rgba(126, 87, 194, 0.08)' },
             }}
           >
-            Edit
+            {translations.common.edit}
           </Button>
           <Button
             size="small"
@@ -214,7 +215,7 @@ export const AdminSubscriptionCard: React.FC<AdminSubscriptionCardProps> = ({
               '&:hover': { backgroundColor: 'rgba(255, 152, 0, 0.08)' },
             }}
           >
-            Prices
+            {translations.subscriptions.managePrices}
           </Button>
           <Button
             size="small"
@@ -225,7 +226,7 @@ export const AdminSubscriptionCard: React.FC<AdminSubscriptionCardProps> = ({
               '&:hover': { backgroundColor: 'rgba(244, 67, 54, 0.08)' },
             }}
           >
-            Delete
+            {translations.common.delete}
           </Button>
         </CardActions>
       </Card>

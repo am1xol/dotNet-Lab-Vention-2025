@@ -34,6 +34,7 @@ import {
   SubscriptionsByMonth,
   UserSubscriptionReportItem,
 } from '../../types/report';
+import { translations } from '../../i18n/translations';
 
 type ReportType =
   | 'activeByPlan'
@@ -267,7 +268,7 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
     return (
       <Box sx={{ mt: 3 }}>
         <Typography variant="h6" gutterBottom>
-          Visual overview
+          {translations.admin.visualOverview}
         </Typography>
         <Stack spacing={1.5}>
           {chartData.map((item) => (
@@ -301,10 +302,10 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>Subscription</TableCell>
-              <TableCell>Plan</TableCell>
-              <TableCell>Price</TableCell>
-              <TableCell align="right">Active count</TableCell>
+              <TableCell>{translations.admin.subscription}</TableCell>
+              <TableCell>{translations.admin.plan}</TableCell>
+              <TableCell>{translations.admin.price}</TableCell>
+              <TableCell align="right">{translations.admin.activeCount}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -328,12 +329,12 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>Subscription</TableCell>
-              <TableCell>Category</TableCell>
-              <TableCell>Base price</TableCell>
-              <TableCell>Period</TableCell>
-              <TableCell>Months</TableCell>
-              <TableCell>Final price</TableCell>
+              <TableCell>{translations.admin.subscription}</TableCell>
+              <TableCell>{translations.admin.category}</TableCell>
+              <TableCell>{translations.admin.basePrice}</TableCell>
+              <TableCell>{translations.admin.period}</TableCell>
+              <TableCell>{translations.admin.months}</TableCell>
+              <TableCell>{translations.admin.finalPrice}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -357,9 +358,9 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>Subscription</TableCell>
-              <TableCell>Category</TableCell>
-              <TableCell align="right">Total subscriptions</TableCell>
+              <TableCell>{translations.admin.subscription}</TableCell>
+              <TableCell>{translations.admin.category}</TableCell>
+              <TableCell align="right">{translations.admin.totalSubscriptionsCount}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -382,9 +383,9 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>Year</TableCell>
-              <TableCell>Month</TableCell>
-              <TableCell align="right">Subscriptions</TableCell>
+              <TableCell>{translations.admin.year}</TableCell>
+              <TableCell>{translations.admin.month}</TableCell>
+              <TableCell align="right">{translations.admin.subscriptionsCount}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -405,13 +406,13 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>Subscription</TableCell>
-              <TableCell>Category</TableCell>
-              <TableCell>Period</TableCell>
-              <TableCell>Price</TableCell>
-              <TableCell>Start</TableCell>
-              <TableCell>Valid until</TableCell>
-              <TableCell>Status</TableCell>
+              <TableCell>{translations.admin.subscription}</TableCell>
+              <TableCell>{translations.admin.category}</TableCell>
+              <TableCell>{translations.admin.period}</TableCell>
+              <TableCell>{translations.admin.price}</TableCell>
+              <TableCell>{translations.admin.start}</TableCell>
+              <TableCell>{translations.admin.validUntil}</TableCell>
+              <TableCell>{translations.admin.status}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -429,7 +430,7 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
                     ? new Date(row.validUntil).toLocaleDateString()
                     : '-'}
                 </TableCell>
-                <TableCell>{row.isActive ? 'Active' : 'Inactive'}</TableCell>
+                <TableCell>{row.isActive ? translations.admin.activeStatus : translations.admin.inactiveStatus}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -439,7 +440,7 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
 
     return (
       <Typography variant="body2" color="text.secondary">
-        No data for selected report.
+        {translations.admin.noDataForSelectedReport}
       </Typography>
     );
   };
@@ -463,7 +464,7 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
             <ChevronLeft />
           </IconButton>
           <Typography variant="body2">
-            Page {activePage}
+            {translations.admin.page} {activePage}
           </Typography>
           <IconButton
             size="small"
@@ -473,11 +474,11 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
             <ChevronRight />
           </IconButton>
           <FormControl size="small" sx={{ minWidth: 80 }}>
-            <InputLabel id="active-page-size-label">Rows</InputLabel>
+            <InputLabel id="active-page-size-label">{translations.admin.rows}</InputLabel>
             <Select
               labelId="active-page-size-label"
               value={activePageSize}
-              label="Rows"
+              label={translations.admin.rows}
               onChange={(e) => {
                 setActivePageSize(Number(e.target.value));
                 setActivePage(1);
@@ -511,7 +512,7 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
             <ChevronLeft />
           </IconButton>
           <Typography variant="body2">
-            Page {subsPage}
+            {translations.admin.page} {subsPage}
           </Typography>
           <IconButton
             size="small"
@@ -521,11 +522,11 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
             <ChevronRight />
           </IconButton>
           <FormControl size="small" sx={{ minWidth: 80 }}>
-            <InputLabel id="subs-page-size-label">Rows</InputLabel>
+            <InputLabel id="subs-page-size-label">{translations.admin.rows}</InputLabel>
             <Select
               labelId="subs-page-size-label"
               value={subsPageSize}
-              label="Rows"
+              label={translations.admin.rows}
               onChange={(e) => {
                 setSubsPageSize(Number(e.target.value));
                 setSubsPage(1);
@@ -548,7 +549,7 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
     if (tab === 'topPopular') {
       return (
         <TextField
-          label="Top N"
+          label={translations.admin.topN}
           type="number"
           size="small"
           value={topCount}
@@ -562,13 +563,13 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
       return (
         <Stack direction="row" spacing={2}>
           <TextField
-            label="From (YYYY-MM-DD)"
+            label={translations.admin.fromDate}
             size="small"
             value={periodFrom}
             onChange={(e) => setPeriodFrom(e.target.value)}
           />
           <TextField
-            label="To (YYYY-MM-DD)"
+            label={translations.admin.toDate}
             size="small"
             value={periodTo}
             onChange={(e) => setPeriodTo(e.target.value)}
@@ -580,7 +581,7 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
     if (tab === 'userSubscriptions') {
       return (
         <TextField
-          label="User Email"
+          label={translations.admin.userEmail}
           size="small"
           value={userEmail}
           onChange={(e) => setUserEmail(e.target.value)}
@@ -606,10 +607,10 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
           gutterBottom
           sx={{ color: '#7E57C2', fontWeight: 700 }}
         >
-          Reports
+          {translations.admin.reportsTitle}
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Generate analytics reports and export them to CSV (Excel) or Word.
+          {translations.admin.reportsSubtitle}
         </Typography>
 
         <Tabs
@@ -619,11 +620,11 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
           textColor="inherit"
           indicatorColor="secondary"
         >
-          <Tab label="Active by plan" value="activeByPlan" />
-          <Tab label="Subscriptions & plans" value="subscriptionsWithPlans" />
-          <Tab label="Top popular" value="topPopular" />
-          <Tab label="By month" value="byMonth" />
-          <Tab label="By user" value="userSubscriptions" />
+          <Tab label={translations.admin.activeByPlan} value="activeByPlan" />
+          <Tab label={translations.admin.subscriptionsPlans} value="subscriptionsWithPlans" />
+          <Tab label={translations.admin.topPopular} value="topPopular" />
+          <Tab label={translations.admin.byMonth} value="byMonth" />
+          <Tab label={translations.admin.byUser} value="userSubscriptions" />
         </Tabs>
 
         <Box
@@ -642,18 +643,18 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
               onClick={() => loadCurrentTab()}
               disabled={loading}
             >
-              Refresh
+              {translations.admin.refresh}
             </Button>
             <TextField
               select
               size="small"
-              label="Export"
+              label={translations.admin.export}
               value=""
               onChange={(e) => handleExport(e.target.value as ExportFormat)}
               sx={{ minWidth: 140 }}
             >
-              <MenuItem value="csv">CSV (Excel)</MenuItem>
-              <MenuItem value="word">Word (.doc)</MenuItem>
+              <MenuItem value="csv">{translations.admin.csvExcel}</MenuItem>
+              <MenuItem value="word">{translations.admin.wordDoc}</MenuItem>
             </TextField>
           </Box>
         </Box>

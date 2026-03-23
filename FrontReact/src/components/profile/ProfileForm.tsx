@@ -11,6 +11,7 @@ import { useSnackbar } from 'notistack';
 import { Save } from '@mui/icons-material';
 import { UserProfile, UpdateProfileRequest } from '../../types/user';
 import { userService } from '../../services/user-service';
+import { translations } from '../../i18n/translations';
 
 interface ProfileFormProps {
   user: UserProfile;
@@ -49,19 +50,19 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
 
     if (name === 'firstName' || name === 'lastName') {
       if (trimmedValue.length === 0) {
-        return 'Поле не может быть пустым';
+        return translations.profile.fieldCannotBeEmpty;
       }
 
       if (trimmedValue.length < 2) {
-        return 'Минимум 2 символа (не считая пробелы)';
+        return translations.profile.minimum2Chars;
       }
 
       if (/\s\s+/.test(value)) {
-        return 'Удалите лишние пробелы';
+        return translations.profile.removeExtraSpaces;
       }
 
       if (!/^[a-zA-Zа-яА-ЯёЁ]+(?:[ \-][a-zA-Zа-яА-ЯёЁ]+)*$/.test(value)) {
-        return 'Используйте только буквы';
+        return translations.profile.useOnlyLetters;
       }
     }
     return '';
@@ -102,9 +103,9 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
     try {
       const updatedUser = await userService.updateProfile(cleanData);
       onProfileUpdated(updatedUser);
-      enqueueSnackbar('Profile updated successfully!', { variant: 'success' });
+      enqueueSnackbar(translations.profile.profileUpdated, { variant: 'success' });
     } catch (err: any) {
-      setError(err.response?.data?.title || 'Failed to update profile');
+      setError(err.response?.data?.title || translations.common.error);
     } finally {
       setLoading(false);
     }
@@ -125,7 +126,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
         <Box sx={{ display: 'flex', gap: 2 }}>
           <TextField
             fullWidth
-            label="First Name"
+            label={translations.profile.firstName}
             name="firstName"
             value={formData.firstName}
             onChange={handleChange}
@@ -135,7 +136,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
           />
           <TextField
             fullWidth
-            label="Last Name"
+            label={translations.profile.lastName}
             name="lastName"
             value={formData.lastName}
             onChange={handleChange}
@@ -147,7 +148,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
 
         <TextField
           fullWidth
-          label="Email Address"
+          label={translations.auth.emailAddress}
           name="email"
           type="email"
           value={formData.email}
@@ -155,8 +156,8 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
           required
           helperText={
             user.isEmailVerified
-              ? 'Your email address is verified'
-              : 'Please verify your email address'
+              ? translations.profile.emailVerified
+              : translations.profile.emailNotVerified
           }
         />
 
@@ -177,7 +178,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
               borderRadius: 2,
             }}
           >
-            {loading ? 'Saving...' : 'Save Changes'}
+            {loading ? translations.common.loading : translations.profile.saveChanges}
           </Button>
         </Box>
       </Stack>

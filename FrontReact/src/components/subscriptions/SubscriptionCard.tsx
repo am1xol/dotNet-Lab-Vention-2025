@@ -16,6 +16,7 @@ import {
 import { ExpandMore, ExpandLess } from '@mui/icons-material';
 import DOMPurify from 'dompurify';
 import { Subscription, SubscriptionPrice } from '../../types/subscription';
+import { translations } from '../../i18n/translations';
 
 interface SubscriptionCardProps {
   subscription: Subscription;
@@ -53,7 +54,6 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
-  // Memoized handlers
   const handleInitiatePayment = useCallback(async (priceId: string) => {
     setPaymentLoading(true);
     try {
@@ -77,13 +77,12 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
     setExpanded(prev => !prev);
   }, []);
 
-  // Memoized computed values
   const formatPrice = useMemo(() => (price: number) => `${price} BYN`, []);
   
   const formatDate = useMemo(() => (dateString: string | undefined) => {
-    if (!dateString) return 'Unknown date';
+    if (!dateString) return translations.common.noData;
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString('ru-RU', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -91,25 +90,25 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   }, []);
 
   const status = useMemo(() => {
-    if (isCancelled) return 'Cancelled';
-    if (isSubscribed) return 'Active';
-    return 'Available';
+    if (isCancelled) return translations.subscriptions.cancelled;
+    if (isSubscribed) return translations.subscriptions.active;
+    return translations.subscriptions.available;
   }, [isCancelled, isSubscribed]);
 
   const statusColor = useMemo(() => {
     switch (status) {
-      case 'Active': return 'success';
-      case 'Cancelled': return 'warning';
+      case translations.subscriptions.active: return 'success';
+      case translations.subscriptions.cancelled: return 'warning';
       default: return 'default';
     }
   }, [status]);
 
   const statusText = useMemo(() => {
-    if (status === 'Cancelled') {
+    if (status === translations.subscriptions.cancelled) {
       const untilDate = unsubscribeInfo?.validUntil || validUntil;
       return untilDate
-        ? `Cancelled (until ${formatDate(untilDate)})`
-        : 'Cancelled';
+        ? `${translations.subscriptions.cancelled} (${translations.subscriptions.until} ${formatDate(untilDate)})`
+        : translations.subscriptions.cancelled;
     }
     return status;
   }, [status, unsubscribeInfo?.validUntil, validUntil, formatDate]);
@@ -255,7 +254,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                 mb: 2,
               }}
             >
-              {expanded ? 'Show less details' : 'Show more details'}
+              {expanded ? translations.subscriptions.showLessDetails : translations.subscriptions.showMoreDetails}
             </Button>
           </>
         )}
@@ -285,7 +284,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
         {hasMultiplePrices && (
           <Box mt="auto">
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              Available plans:
+              {translations.subscriptions.availablePlans}
             </Typography>
             <Stack spacing={1}>
               {prices.map((price) => (
@@ -329,11 +328,11 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
               }}
             >
               <Typography variant="body2" color="warning.dark" align="center">
-                <strong>Active until:</strong>{' '}
+                <strong>{translations.subscriptions.activeUntil}:</strong>{' '}
                 {formatDate(unsubscribeInfo?.validUntil || validUntil || '')}
                 <br />
                 <Typography variant="caption">
-                  You will lose access after this date
+                  {translations.subscriptions.youWillLoseAccess}
                 </Typography>
               </Typography>
             </Box>
@@ -350,7 +349,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
               fullWidth
               disabled={loading}
             >
-              Edit
+              {translations.subscriptions.edit}
             </Button>
             <Button
               size="large"
@@ -359,13 +358,13 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
               fullWidth
               disabled={loading}
             >
-              Delete
+              {translations.common.delete}
             </Button>
           </Box>
         ) : (
           <>
             {isCancelled ? (
-              <Tooltip title="Your subscription has been cancelled" arrow>
+              <Tooltip title={translations.subscriptions.subscriptionCancelled} arrow>
                 <span style={{ width: '100%' }}>
                   <Button
                     size="large"
@@ -374,12 +373,12 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                     fullWidth
                     disabled
                   >
-                    Cancelled
+                    {translations.subscriptions.cancelled}
                   </Button>
                 </span>
               </Tooltip>
             ) : isSubscribed ? (
-              <Tooltip title="Cancel your subscription" arrow>
+              <Tooltip title={translations.subscriptions.cancelSubscription} arrow>
                 <span style={{ width: '100%' }}>
                   <Button
                     size="large"
@@ -389,7 +388,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                     onClick={handleUnsubscribeClick}
                     disabled={finalLoadingState}
                   >
-                    Unsubscribe
+                    {translations.subscriptions.unsubscribe}
                   </Button>
                 </span>
               </Tooltip>
@@ -420,7 +419,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                     ))}
                   </Stack>
                 ) : (
-                  <Tooltip title="Subscribe to this service" arrow>
+                  <Tooltip title={translations.subscriptions.subscribe} arrow>
                     <span style={{ width: '100%' }}>
                       <Button
                         size="large"
@@ -445,7 +444,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                           },
                         }}
                       >
-                        Subscribe Now
+                        {translations.subscriptions.subscribeNow}
                       </Button>
                     </span>
                   </Tooltip>
@@ -459,5 +458,4 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   );
 };
 
-// Memoize the entire component to prevent unnecessary re-renders
 export default memo(SubscriptionCard);

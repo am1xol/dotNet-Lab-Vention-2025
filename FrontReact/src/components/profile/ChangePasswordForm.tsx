@@ -11,6 +11,7 @@ import {
 } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { userService } from '../../services/user-service';
+import { translations } from '../../i18n/translations';
 
 export const ChangePasswordForm: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -36,7 +37,7 @@ export const ChangePasswordForm: React.FC = () => {
     setError('');
 
     if (formData.newPassword !== formData.confirmPassword) {
-      setError('New passwords do not match');
+      setError(translations.auth.passwordsDoNotMatch);
       setLoading(false);
       return;
     }
@@ -47,14 +48,14 @@ export const ChangePasswordForm: React.FC = () => {
         newPassword: formData.newPassword,
       });
 
-      enqueueSnackbar('Password changed successfully!', { variant: 'success' });
+      enqueueSnackbar(translations.profile.passwordChanged, { variant: 'success' });
       setFormData({
         currentPassword: '',
         newPassword: '',
         confirmPassword: '',
       });
     } catch (err: any) {
-      setError(err.response?.data?.title || 'Failed to change password');
+      setError(err.response?.data?.title || translations.common.error);
     } finally {
       setLoading(false);
     }
@@ -66,7 +67,7 @@ export const ChangePasswordForm: React.FC = () => {
         variant="h5"
         sx={{ mb: 3, color: '#7E57C2', fontWeight: 600 }}
       >
-        Change Password
+        {translations.profile.changePassword}
       </Typography>
 
       {error && (
@@ -79,7 +80,7 @@ export const ChangePasswordForm: React.FC = () => {
         <Stack spacing={3}>
           <TextField
             fullWidth
-            label="Current Password"
+            label={translations.profile.currentPassword}
             name="currentPassword"
             type="password"
             value={formData.currentPassword}
@@ -90,19 +91,19 @@ export const ChangePasswordForm: React.FC = () => {
 
           <TextField
             fullWidth
-            label="New Password"
+            label={translations.profile.newPassword}
             name="newPassword"
             type="password"
             value={formData.newPassword}
             onChange={handleChange}
             required
             size="medium"
-            helperText="The password must contain numbers, uppercase and lowercase letters."
+            helperText={translations.profile.passwordHint}
           />
 
           <TextField
             fullWidth
-            label="Confirm New Password"
+            label={translations.profile.confirmPassword}
             name="confirmPassword"
             type="password"
             value={formData.confirmPassword}
@@ -121,7 +122,7 @@ export const ChangePasswordForm: React.FC = () => {
                 minWidth: 120,
               }}
             >
-              {loading ? <CircularProgress size={24} /> : 'Change Password'}
+              {loading ? <CircularProgress size={24} /> : translations.profile.changePassword}
             </Button>
           </Box>
         </Stack>

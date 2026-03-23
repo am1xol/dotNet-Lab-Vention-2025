@@ -4,8 +4,10 @@ import { Send as SendIcon, Chat as ChatIcon, Close as CloseIcon, Lock as LockIco
 import chatService from '../../services/chat-service';
 import { ChatMessageDto } from '../../types/chat';
 import { useAuthStore } from '../../store/auth-store';
+import { translations } from '../../i18n/translations';
 
-const POLL_INTERVAL = 10000; // Increased from 3s to 10s to reduce server load
+const POLL_INTERVAL = 10000;
+const t = translations.userChat;
 const UserChatWidget: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessageDto[]>([]);
@@ -25,7 +27,6 @@ const UserChatWidget: React.FC = () => {
     
     try {
       const data = await chatService.getMyConversation();
-      // Only update state if messages actually changed
       if (data.messages.length !== prevMessagesLengthRef.current) {
         setMessages(data.messages);
         prevMessagesLengthRef.current = data.messages.length;
@@ -61,18 +62,16 @@ const UserChatWidget: React.FC = () => {
       setError(null);
     } catch (error: any) {
       console.error('Error starting new conversation:', error);
-      setError('Failed to start new conversation');
+      setError(t.failedToStartConversation);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  // Optimized polling - only poll when chat is open
   useEffect(() => {
     if (isOpen && isAuthenticated) {
       loadConversation();
       markAsRead();
-      // Increased interval from 3000ms to 10000ms for better performance
       pollIntervalRef.current = setInterval(() => {
         loadConversation();
       }, POLL_INTERVAL);
@@ -86,7 +85,6 @@ const UserChatWidget: React.FC = () => {
     };
   }, [isOpen, isAuthenticated, loadConversation, markAsRead]);
 
-  // Optimized scroll effect - only run when messages actually change
   useEffect(() => {
     if (messages.length > prevMessagesLengthRef.current) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -178,10 +176,10 @@ const UserChatWidget: React.FC = () => {
               </Avatar>
               <Box>
                 <Typography variant="subtitle1" fontWeight="bold">
-                  Support Chat
+                  {t.supportChat}
                 </Typography>
                 <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                  {isClosed ? 'Chat closed' : 'We typically reply within a few minutes'}
+                  {isClosed ? t.chatClosed : t.weTypicallyReply}
                 </Typography>
               </Box>
             </Box>
@@ -213,11 +211,11 @@ const UserChatWidget: React.FC = () => {
             )}
             {isLoading && messages.length === 0 ? (
               <Typography variant="body2" color="text.secondary" align="center">
-                Loading...
+                {t.loading}
               </Typography>
             ) : messages.length === 0 ? (
               <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 4 }}>
-                Start a conversation with our support team
+                {t.startConversation}
               </Typography>
             ) : (
               messages.map((msg) => (
@@ -274,7 +272,7 @@ const UserChatWidget: React.FC = () => {
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
                   <LockIcon fontSize="small" />
-                  <Typography variant="body2">Chat is closed</Typography>
+                  <Typography variant="body2">{t.chatIsClosed}</Typography>
                 </Box>
                 <Button
                   variant="contained"
@@ -282,7 +280,7 @@ const UserChatWidget: React.FC = () => {
                   onClick={startNewConversation}
                   startIcon={<ChatIcon />}
                 >
-                  Start New Chat
+                  {t.startNewChat}
                 </Button>
               </Box>
             ) : (
@@ -290,7 +288,7 @@ const UserChatWidget: React.FC = () => {
                 <TextField
                   fullWidth
                   size="small"
-                  placeholder="Type a message..."
+                  placeholder={t.typeMessage}
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
@@ -314,5 +312,4 @@ const UserChatWidget: React.FC = () => {
   );
 };
 
-// Memoize the entire component to prevent unnecessary re-renders
 export default memo(UserChatWidget);

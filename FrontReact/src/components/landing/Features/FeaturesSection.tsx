@@ -3,6 +3,7 @@ import { Box, Container, Typography, Grid } from '@mui/material';
 import { motion } from 'framer-motion';
 import { features } from '../../../data/landing-page-data';
 import { FeatureCard } from './FeatureCard';
+import { translations } from '../../../i18n/translations';
 
 export const FeaturesSection: React.FC = () => {
   return (
@@ -23,7 +24,7 @@ export const FeaturesSection: React.FC = () => {
               mb: 2,
             }}
           >
-            Why Choose Subscription Manager?
+            {translations.landing.features}
           </Typography>
           <Typography
             variant="h6"
@@ -35,7 +36,7 @@ export const FeaturesSection: React.FC = () => {
               margin: '0 auto',
             }}
           >
-            Everything you need to take control of your subscription spending
+            {translations.landing.heroSubtitle}
           </Typography>
         </motion.div>
 

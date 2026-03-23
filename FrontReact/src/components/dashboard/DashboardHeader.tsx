@@ -1,8 +1,7 @@
-// src/components/Subscriptions/DashboardHeader.tsx
-
 import React from 'react';
 import { Typography } from '@mui/material';
 import { motion } from 'framer-motion';
+import { translations } from '../../i18n/translations';
 
 export const DashboardHeader: React.FC = () => {
   return (
@@ -24,7 +23,7 @@ export const DashboardHeader: React.FC = () => {
           mb: 2,
         }}
       >
-        Subscription Dashboard
+        {translations.dashboard.title}
       </Typography>
       <Typography
         variant="h5"
@@ -37,7 +36,7 @@ export const DashboardHeader: React.FC = () => {
           lineHeight: 1.6,
         }}
       >
-        Manage all your subscriptions in one beautiful interface
+        {translations.dashboard.subtitle}
       </Typography>
     </motion.div>
   );

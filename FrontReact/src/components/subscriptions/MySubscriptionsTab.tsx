@@ -7,6 +7,7 @@ import {
   GroupedUserSubscriptions,
   UserSubscription,
 } from '../../types/subscription';
+import { translations } from '../../i18n/translations';
 
 interface UnsubscribeInfo {
   validUntil: string;
@@ -94,7 +95,7 @@ export const MySubscriptionsTab: React.FC<MySubscriptionsTabProps> = ({
     return (
       <Box textAlign="center" py={8}>
         <Typography variant="h6" color="text.secondary">
-          No active subscriptions found.
+          {translations.subscriptions.noActiveSubscriptions}
         </Typography>
       </Box>
     );
@@ -179,7 +180,7 @@ export const MySubscriptionsTab: React.FC<MySubscriptionsTabProps> = ({
               {data.visibleItems.length < data.totalCount && (
                 <Box sx={{ mt: 3, textAlign: 'center' }}>
                   <Button variant="outlined" onClick={() => loadMore(category)}>
-                    Показать еще
+                    {translations.nav.showMore}
                   </Button>
                 </Box>
               )}

@@ -35,6 +35,7 @@ import { ChangePasswordForm } from './ChangePasswordForm';
 import { NotificationsTab } from './NotificationsTab';
 import { FeedbackTab } from './FeedbackTab';
 import { notificationService } from '../../services/notification-service';
+import { translations } from '../../i18n/translations';
 
 export const UserProfile: React.FC = () => {
   const [user, setUser] = useState<UserProfileType | null>(null);
@@ -69,8 +70,8 @@ export const UserProfile: React.FC = () => {
       const userData = await userService.getProfile();
       setUser(userData);
     } catch (err: any) {
-      setError('Failed to load profile');
-      enqueueSnackbar('Failed to load profile', { variant: 'error' });
+      setError(translations.userProfile.failedToLoadProfile);
+      enqueueSnackbar(translations.userProfile.failedToLoadProfile, { variant: 'error' });
     } finally {
       setLoading(false);
     }
@@ -129,7 +130,7 @@ export const UserProfile: React.FC = () => {
             backdropFilter: 'blur(10px)',
           }}
         >
-          {error || 'Failed to load profile'}
+          {error || translations.userProfile.failedToLoadProfile}
         </Alert>
       </Box>
     );
@@ -168,7 +169,7 @@ export const UserProfile: React.FC = () => {
                 },
               }}
             >
-              Back to Dashboard
+              {translations.userProfile.backToDashboard}
             </Button>
 
             <Typography
@@ -183,10 +184,10 @@ export const UserProfile: React.FC = () => {
                 WebkitTextFillColor: 'transparent',
               }}
             >
-              Account Settings
+              {translations.userProfile.accountSettings}
             </Typography>
             <Typography variant="h6" sx={{ color: 'text.secondary', mb: 4 }}>
-              Manage your personal information and security preferences
+              {translations.userProfile.manageYourInfo}
             </Typography>
           </Box>
 
@@ -231,8 +232,8 @@ export const UserProfile: React.FC = () => {
                     icon={<VerifiedUser />}
                     label={
                       user.isEmailVerified
-                        ? 'Email Verified'
-                        : 'Email Not Verified'
+                        ? translations.userProfile.emailVerified
+                        : translations.userProfile.emailNotVerified
                     }
                     color={user.isEmailVerified ? 'success' : 'warning'}
                     size="small"
@@ -259,7 +260,7 @@ export const UserProfile: React.FC = () => {
                       }),
                     }}
                   >
-                    Personal Information
+                    {translations.userProfile.personalInfo}
                   </Button>
 
                   <Button
@@ -279,7 +280,7 @@ export const UserProfile: React.FC = () => {
                       }),
                     }}
                   >
-                    Security & Password
+                    {translations.userProfile.securityPassword}
                   </Button>
 
                   <Button
@@ -315,7 +316,7 @@ export const UserProfile: React.FC = () => {
                         width: '100%',
                       }}
                     >
-                      Notifications
+                      {translations.userProfile.notifications}
                       {unreadCount > 0 && (
                         <Typography
                           variant="caption"
@@ -351,7 +352,7 @@ export const UserProfile: React.FC = () => {
                       }),
                     }}
                   >
-                    Rate Service
+                    {translations.userProfile.rateService}
                   </Button>
                 </Stack>
 
@@ -364,7 +365,7 @@ export const UserProfile: React.FC = () => {
                       sx={{ fontSize: 16, color: 'text.secondary', mr: 1 }}
                     />
                     <Typography variant="body2" color="text.secondary">
-                      Member since {formatDate(user.createdAt)}
+                      {translations.userProfile.memberSince.replace('{date}', formatDate(user.createdAt))}
                     </Typography>
                   </Box>
                 </Box>
@@ -404,10 +405,10 @@ export const UserProfile: React.FC = () => {
                     )}
 
                     <Typography variant="h5" fontWeight="600" color="#7E57C2">
-                      {activeSection === 'profile' && 'Personal Information'}
-                      {activeSection === 'security' && 'Security Settings'}
-                      {activeSection === 'notifications' && 'My Notifications'}
-                      {activeSection === 'feedback' && 'Rate Our Service'}
+                      {activeSection === 'profile' && translations.userProfile.personalInfo}
+                      {activeSection === 'security' && translations.userProfile.securitySettings}
+                      {activeSection === 'notifications' && translations.userProfile.myNotifications}
+                      {activeSection === 'feedback' && translations.userProfile.rateOurService}
                     </Typography>
                   </Box>
 

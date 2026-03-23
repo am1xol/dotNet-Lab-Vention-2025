@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { steps } from '../../../data/landing-page-data';
 import { StepCard } from './StepCard';
 import { useNavigate } from 'react-router-dom';
+import { translations } from '../../../i18n/translations';
 
 export const HowItWorksSection: React.FC = () => {
   const navigate = useNavigate();
@@ -26,7 +27,7 @@ export const HowItWorksSection: React.FC = () => {
               mb: 2,
             }}
           >
-            How It Works
+            {translations.howItWorks.title}
           </Typography>
           <Typography
             variant="h6"
@@ -36,7 +37,7 @@ export const HowItWorksSection: React.FC = () => {
               mb: 8,
             }}
           >
-            Get started in just 3 simple steps
+            {translations.howItWorks.subtitle}
           </Typography>
         </motion.div>
 
@@ -65,7 +66,7 @@ export const HowItWorksSection: React.FC = () => {
               mb: 4,
             }}
           >
-            Ready to Take Control?
+            {translations.howItWorks.readyToStart}
           </Typography>
           <Button
             variant="contained"
@@ -87,7 +88,7 @@ export const HowItWorksSection: React.FC = () => {
               },
             }}
           >
-            Start Managing Your Subscriptions Now
+            {translations.howItWorks.startManaging}
           </Button>
         </motion.div>
       </Container>

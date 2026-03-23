@@ -1,6 +1,7 @@
 import React from 'react';
 import { Typography, Grid, Card, CardContent } from '@mui/material';
 import { Subscription } from '../../types/subscription';
+import { translations } from '../../i18n/translations';
 
 interface AdminSubscriptionStatsProps {
   subscriptions: Subscription[];
@@ -15,28 +16,28 @@ export const AdminSubscriptionStats: React.FC<AdminSubscriptionStatsProps> = ({
 
   const stats = [
     {
-      title: 'Total Subscriptions',
+      title: translations.admin.totalSubscriptions,
       value: subscriptions.length,
       color: '#7E57C2',
       bgColor: 'rgba(126, 87, 194, 0.1)',
       borderColor: 'rgba(126, 87, 194, 0.2)',
     },
     {
-      title: 'Active',
+      title: translations.admin.active,
       value: activeCount,
       color: '#4CAF50',
       bgColor: 'rgba(76, 175, 80, 0.1)',
       borderColor: 'rgba(76, 175, 80, 0.2)',
     },
     {
-      title: 'Inactive',
+      title: translations.admin.inactive,
       value: inactiveCount,
       color: '#f44336',
       bgColor: 'rgba(244, 67, 54, 0.1)',
       borderColor: 'rgba(244, 67, 54, 0.2)',
     },
     {
-      title: 'Categories',
+      title: translations.admin.categories,
       value: uniqueCategories,
       color: '#FF9800',
       bgColor: 'rgba(255, 152, 0, 0.1)',

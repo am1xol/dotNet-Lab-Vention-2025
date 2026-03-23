@@ -191,5 +191,4 @@ export const AvailableSubscriptionsTab: React.FC<
   );
 };
 
-// Memoize to prevent unnecessary re-renders
 export default memo(AvailableSubscriptionsTab);

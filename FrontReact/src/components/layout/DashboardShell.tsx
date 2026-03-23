@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import FloatingIcons from '../shared/FloatingServiceIcons';
 import Header from './Header';
 import { NotificationWatcher } from '../shared/NotificationWatcher';
+import { translations } from '../../i18n/translations';
 
 interface DashboardShellProps {
   children: React.ReactNode;
@@ -82,8 +83,8 @@ const DashboardShell: React.FC<DashboardShellProps> = ({
                 boxShadow: '0 6px 20px rgba(126, 87, 194, 0.3)',
               },
             }}
-          >
-            Back to Home
+            >
+            {translations.nav.backToHome}
           </Button>
         </motion.div>
       </Box>

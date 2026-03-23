@@ -15,6 +15,7 @@ import { Star, Send } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { feedbackService } from '../../services/feedback-service';
 import { FeedbackDto, CreateFeedbackRequest } from '../../types/feedback';
+import { translations } from '../../i18n/translations';
 
 export const FeedbackTab: React.FC = () => {
   const [feedback, setFeedback] = useState<FeedbackDto | null>(null);
@@ -41,8 +42,8 @@ export const FeedbackTab: React.FC = () => {
         setComment(data.comment || '');
       }
     } catch (err: any) {
-      setError('Failed to load feedback');
-      enqueueSnackbar('Failed to load feedback', { variant: 'error' });
+      setError(translations.common.error);
+      enqueueSnackbar(translations.common.error, { variant: 'error' });
     } finally {
       setLoading(false);
     }
@@ -50,7 +51,7 @@ export const FeedbackTab: React.FC = () => {
 
   const handleSubmit = async () => {
     if (rating === 0) {
-      enqueueSnackbar('Please select a rating', { variant: 'warning' });
+      enqueueSnackbar(translations.profile.pleaseSelectRating, { variant: 'warning' });
       return;
     }
 
@@ -66,11 +67,11 @@ export const FeedbackTab: React.FC = () => {
 
       const updatedFeedback = await feedbackService.createOrUpdateFeedback(request);
       setFeedback(updatedFeedback);
-      setSuccessMessage(feedback ? 'Feedback updated successfully!' : 'Thank you for your feedback!');
-      enqueueSnackbar(successMessage || 'Feedback submitted successfully!', { variant: 'success' });
+      setSuccessMessage(feedback ? translations.profile.feedbackUpdated : translations.profile.thankYouFeedback);
+      enqueueSnackbar(translations.profile.feedbackSubmitted, { variant: 'success' });
     } catch (err: any) {
-      setError('Failed to submit feedback');
-      enqueueSnackbar('Failed to submit feedback', { variant: 'error' });
+      setError(translations.common.error);
+      enqueueSnackbar(translations.common.error, { variant: 'error' });
     } finally {
       setSubmitting(false);
     }
@@ -87,7 +88,7 @@ export const FeedbackTab: React.FC = () => {
   return (
     <Box>
       <Typography variant="h6" sx={{ mb: 3, color: 'text.secondary' }}>
-        Rate your experience with our service and share your feedback
+        {translations.profile.rateExperience}
       </Typography>
 
       {error && (
@@ -113,7 +114,7 @@ export const FeedbackTab: React.FC = () => {
         <CardContent>
           <Typography variant="subtitle1" fontWeight="600" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
             <Star sx={{ color: '#FFB400' }} />
-            Your Rating
+            {translations.profile.yourRating}
           </Typography>
           
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
@@ -133,19 +134,19 @@ export const FeedbackTab: React.FC = () => {
               }}
             />
             <Chip 
-              label={rating > 0 ? `${rating}/5` : 'Not rated'} 
+              label={rating > 0 ? `${rating}/5` : translations.profile.notRated} 
               color={rating >= 4 ? 'success' : rating >= 3 ? 'warning' : rating > 0 ? 'error' : 'default'}
               variant="outlined"
             />
           </Box>
 
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            {rating === 5 && 'Excellent! We\'re thrilled you love our service!'}
-            {rating === 4 && 'Great! We\'re glad you\'re satisfied.'}
-            {rating === 3 && 'Good! We appreciate your feedback.'}
-            {rating === 2 && 'Fair. We\'ll try to improve.'}
-            {rating === 1 && 'Poor. We\'re sorry to hear that.'}
-            {rating === 0 && 'Click on a star to rate your experience'}
+            {rating === 5 && translations.profile.ratingExcellent}
+            {rating === 4 && translations.profile.ratingGreat}
+            {rating === 3 && translations.profile.ratingGood}
+            {rating === 2 && translations.profile.ratingFair}
+            {rating === 1 && translations.profile.ratingPoor}
+            {rating === 0 && translations.profile.clickToRate}
           </Typography>
         </CardContent>
       </Card>
@@ -153,14 +154,14 @@ export const FeedbackTab: React.FC = () => {
       <Card variant="outlined" sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="subtitle1" fontWeight="600" sx={{ mb: 2 }}>
-            Your Feedback (Optional)
+            {translations.profile.yourFeedbackOptional}
           </Typography>
           
           <TextField
             fullWidth
             multiline
             rows={4}
-            placeholder="Tell us more about your experience..."
+            placeholder={translations.profile.feedbackPlaceholder}
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             sx={{
@@ -176,14 +177,14 @@ export const FeedbackTab: React.FC = () => {
           />
           
           <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-            Your feedback helps us improve our service
+            {translations.profile.feedbackHelpImprove}
           </Typography>
         </CardContent>
       </Card>
 
       {feedback && (
         <Alert severity="info" sx={{ mb: 3 }}>
-          Last updated: {new Date(feedback.updatedAt).toLocaleDateString('en-US', {
+          {translations.profile.lastUpdated} {new Date(feedback.updatedAt).toLocaleDateString('ru-RU', {
             year: 'numeric',
             month: 'long',
             day: 'numeric',
@@ -207,7 +208,7 @@ export const FeedbackTab: React.FC = () => {
           py: 1.5,
         }}
       >
-        {submitting ? 'Submitting...' : feedback ? 'Update Feedback' : 'Submit Feedback'}
+        {submitting ? translations.profile.submitting : feedback ? translations.profile.updateFeedback : translations.profile.submitFeedback}
       </Button>
     </Box>
   );

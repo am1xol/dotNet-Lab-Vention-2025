@@ -3,6 +3,9 @@ import { useSnackbar } from 'notistack';
 import { notificationService } from '../../services/notification-service';
 import { useAuthStore } from '../../store/auth-store';
 import { Notification } from '../../types/notification';
+import { translations } from '../../i18n/translations';
+
+const t = translations.notifications;
 
 export const NotificationWatcher: React.FC = () => {
   const { isAuthenticated } = useAuthStore();
@@ -22,11 +25,16 @@ export const NotificationWatcher: React.FC = () => {
         );
 
         if (unreadOnes.length > 0) {
-          enqueueSnackbar(`You have ${unreadOnes.length} new notification(s)`, {
-            variant: 'info',
-            anchorOrigin: { vertical: 'top', horizontal: 'right' },
-            autoHideDuration: 5000,
-          });
+          enqueueSnackbar(
+            unreadOnes.length === 1
+              ? t.newNotification
+              : t.youHaveNewNotifications.replace('{count}', String(unreadOnes.length)),
+            {
+              variant: 'info',
+              anchorOrigin: { vertical: 'top', horizontal: 'right' },
+              autoHideDuration: 5000,
+            }
+          );
 
           unreadOnes.forEach((n: Notification) => shownIds.current.add(n.id));
         }

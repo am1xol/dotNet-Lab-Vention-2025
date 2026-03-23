@@ -25,6 +25,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
 import { Notification, NotificationType } from '../../types/notification';
 import { notificationService } from '../../services/notification-service';
+import { translations } from '../../i18n/translations';
 
 export const NotificationsTab: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -132,9 +133,9 @@ export const NotificationsTab: React.FC = () => {
     return (
       <Box sx={{ textAlign: 'center', py: 8, color: 'text.secondary' }}>
         <NotificationsIcon sx={{ fontSize: 60, mb: 2, opacity: 0.3 }} />
-        <Typography variant="h6">No notifications yet</Typography>
+        <Typography variant="h6">{translations.profile.noNotifications}</Typography>
         <Typography variant="body2">
-          News about subscriptions and payments will be displayed here
+          {translations.profile.noNotificationsDescription}
         </Typography>
       </Box>
     );
@@ -149,7 +150,7 @@ export const NotificationsTab: React.FC = () => {
         mb={3}
       >
         <Typography variant="h6" color="#7E57C2" fontWeight="600">
-          Notification history ({totalCount})
+          {translations.profile.notificationHistory} ({totalCount})
         </Typography>
         <Stack direction="row" spacing={1}>
           <Button
@@ -159,10 +160,10 @@ export const NotificationsTab: React.FC = () => {
             disabled={notifications.every((n) => n.isRead)}
             sx={{ color: '#7E57C2' }}
           >
-            Read all
+            {translations.profile.readAll}
           </Button>
           <Button size="small" onClick={initLoad} sx={{ color: '#7E57C2' }}>
-            Update
+            {translations.common.refresh}
           </Button>
         </Stack>
       </Stack>
@@ -225,7 +226,7 @@ export const NotificationsTab: React.FC = () => {
                         </Typography>
                         {!notification.isRead && (
                           <Chip
-                            label="New"
+                            label={translations.profile.new}
                             size="small"
                             color="secondary"
                             sx={{ height: 20, fontSize: '0.65rem' }}
@@ -277,7 +278,7 @@ export const NotificationsTab: React.FC = () => {
             {loadingMore ? (
               <CircularProgress size={24} sx={{ color: '#7E57C2' }} />
             ) : (
-              'Load more'
+              translations.common.loadMore
             )}
           </Button>
         </Box>

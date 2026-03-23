@@ -18,6 +18,7 @@ import {
 import { Send as SendIcon, Close as CloseIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 import chatService from '../../services/chat-service';
 import { ChatConversationDto, ChatMessageDto } from '../../types/chat';
+import { translations } from '../../i18n/translations';
 
 export const AdminChatPanel: React.FC = () => {
   const [conversations, setConversations] = useState<ChatConversationDto[]>([]);
@@ -104,10 +105,10 @@ export const AdminChatPanel: React.FC = () => {
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffMins < 1) return translations.adminChat.justNow;
+    if (diffMins < 60) return translations.adminChat.minutesAgo.replace('{count}', String(diffMins));
+    if (diffHours < 24) return translations.adminChat.hoursAgo.replace('{count}', String(diffHours));
+    if (diffDays < 7) return translations.adminChat.daysAgo.replace('{count}', String(diffDays));
     return date.toLocaleDateString();
   };
 
@@ -127,7 +128,7 @@ export const AdminChatPanel: React.FC = () => {
         <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
             <Typography variant="h6">
-              Chat Conversations
+              {translations.adminChat.chatConversations}
             </Typography>
             <IconButton size="small" onClick={() => loadConversations()}>
               <RefreshIcon fontSize="small" />
@@ -139,21 +140,21 @@ export const AdminChatPanel: React.FC = () => {
               variant={filter === 'all' ? 'contained' : 'outlined'}
               onClick={() => setFilter('all')}
             >
-              All
+              {translations.adminChat.all}
             </Button>
             <Button
               size="small"
               variant={filter === 'Open' ? 'contained' : 'outlined'}
               onClick={() => setFilter('Open')}
             >
-              Open
+              {translations.adminChat.open}
             </Button>
             <Button
               size="small"
               variant={filter === 'Closed' ? 'contained' : 'outlined'}
               onClick={() => setFilter('Closed')}
             >
-              Closed
+              {translations.adminChat.closed}
             </Button>
           </Box>
         </Box>
@@ -162,8 +163,8 @@ export const AdminChatPanel: React.FC = () => {
           {conversations.length === 0 ? (
             <ListItem>
               <ListItemText
-                primary="No conversations"
-                secondary="New chats will appear here"
+                primary={translations.adminChat.noConversations}
+                secondary={translations.adminChat.newChatsAppearHere}
               />
             </ListItem>
           ) : (
@@ -239,7 +240,7 @@ export const AdminChatPanel: React.FC = () => {
               color: 'text.secondary',
             }}
           >
-            <Typography>Select a conversation to view messages</Typography>
+            <Typography>{translations.adminChat.selectConversationToView}</Typography>
           </Box>
         ) : (
           <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -346,7 +347,7 @@ export const AdminChatPanel: React.FC = () => {
                 <TextField
                   fullWidth
                   size="small"
-                  placeholder="Type a reply..."
+                  placeholder={translations.adminChat.typingReplyPlaceholder}
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyPress={handleKeyPress}

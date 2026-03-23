@@ -18,6 +18,7 @@ import { motion } from 'framer-motion';
 import { authService } from '../../services/auth-service';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { enqueueSnackbar } from 'notistack';
+import { translations } from '../../i18n/translations';
 
 const GlassCard = styled(Card)(({ theme }) => ({
   display: 'flex',
@@ -191,20 +192,20 @@ export const ResetPasswordForm: React.FC = () => {
     if (!resetToken || resetToken.length !== 6) {
       setResetTokenError(true);
       setResetTokenErrorMessage(
-        'Please enter the 6-digit code from your email.'
+        translations.auth.enter6DigitCode
       );
       isValid = false;
     }
 
     if (!newPassword || newPassword.length < 6) {
       setPasswordError(true);
-      setPasswordErrorMessage('Password must be at least 6 characters long.');
+      setPasswordErrorMessage(translations.auth.passwordMustBe);
       isValid = false;
     }
 
     if (newPassword !== confirmPassword) {
       setConfirmPasswordError(true);
-      setError('Passwords do not match.');
+      setError(translations.auth.passwordsDoNotMatch);
       isValid = false;
     }
 
@@ -229,7 +230,7 @@ export const ResetPasswordForm: React.FC = () => {
       });
 
       setSuccess(true);
-      enqueueSnackbar('Password reset successfully!', { variant: 'success' });
+      enqueueSnackbar(translations.auth.passwordResetSuccess, { variant: 'success' });
 
       setTimeout(() => {
         navigate('/auth/signin');
@@ -238,7 +239,7 @@ export const ResetPasswordForm: React.FC = () => {
       const errorMessage =
         err.response?.data?.title ||
         err.response?.data?.error ||
-        'Failed to reset password';
+        translations.common.error;
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -301,7 +302,7 @@ export const ResetPasswordForm: React.FC = () => {
                     mb: 2,
                   }}
                 >
-                  Password Reset!
+                  {translations.auth.resetPasswordSuccess}
                 </Typography>
                 <Alert
                   severity="success"
@@ -312,8 +313,7 @@ export const ResetPasswordForm: React.FC = () => {
                     border: '1px solid rgba(76, 175, 80, 0.2)',
                   }}
                 >
-                  Your password has been reset successfully. You can now sign in
-                  with your new password.
+                  {translations.auth.emailVerifiedSuccess}
                 </Alert>
               </Box>
 
@@ -335,7 +335,7 @@ export const ResetPasswordForm: React.FC = () => {
                   },
                 }}
               >
-                Sign In
+                {translations.common.signIn}
               </Button>
             </AnimatedCardContent>
           </GlassCard>
@@ -428,7 +428,7 @@ export const ResetPasswordForm: React.FC = () => {
                 WebkitTextFillColor: 'transparent',
               }}
             >
-              Create New Password
+              {translations.auth.createNewPassword}
             </Typography>
 
             <Typography
@@ -441,8 +441,7 @@ export const ResetPasswordForm: React.FC = () => {
                 lineHeight: 1.6,
               }}
             >
-              Enter the 6-digit code sent to <strong>{email}</strong> and your
-              new password.
+              {translations.auth.enterCodeAndPassword.replace('{email}', email)}
             </Typography>
 
             {error && (
@@ -474,7 +473,7 @@ export const ResetPasswordForm: React.FC = () => {
                 <FormLabel
                   sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}
                 >
-                  Reset Code
+                  {translations.auth.resetCode}
                 </FormLabel>
                 <StyledTextField
                   error={resetTokenError}
@@ -499,7 +498,7 @@ export const ResetPasswordForm: React.FC = () => {
                 <FormLabel
                   sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}
                 >
-                  New Password
+                  {translations.auth.newPassword}
                 </FormLabel>
                 <StyledTextField
                   error={passwordError}
@@ -520,13 +519,13 @@ export const ResetPasswordForm: React.FC = () => {
               <FormControl>
                 <FormLabel
                   sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}
-                >
-                  Confirm Password
+                  >
+                  {translations.auth.confirmNewPassword}
                 </FormLabel>
                 <StyledTextField
                   error={confirmPasswordError}
                   helperText={
-                    confirmPasswordError ? 'Passwords do not match' : ''
+                    confirmPasswordError ? translations.auth.passwordsDoNotMatch : ''
                   }
                   placeholder="••••••"
                   type="password"
@@ -547,7 +546,7 @@ export const ResetPasswordForm: React.FC = () => {
                 disabled={loading}
                 size="large"
               >
-                {loading ? <CircularProgress size={24} /> : 'Reset Password'}
+                {loading ? <CircularProgress size={24} /> : translations.auth.resetPasswordTitle}
               </GradientButton>
             </Box>
 
@@ -562,7 +561,7 @@ export const ResetPasswordForm: React.FC = () => {
                   fontWeight: 600,
                 }}
               >
-                Back
+                {translations.auth.back}
               </Link>
               <Link
                 to="/auth/signin"
@@ -572,7 +571,7 @@ export const ResetPasswordForm: React.FC = () => {
                   fontWeight: 600,
                 }}
               >
-                Sign In
+                {translations.auth.signInLink}
               </Link>
             </Box>
           </AnimatedCardContent>

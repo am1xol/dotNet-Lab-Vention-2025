@@ -12,6 +12,7 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { PaymentInfo } from '../../types/payment';
+import { translations } from '../../i18n/translations';
 
 interface PaymentFormProps {
   open: boolean;
@@ -46,26 +47,26 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
       !formData.cardNumber ||
       !/^\d{16}$/.test(formData.cardNumber.replace(/\s/g, ''))
     ) {
-      newErrors.cardNumber = 'Please enter a valid 16-digit card number';
+      newErrors.cardNumber = translations.payments.invalidCardNumber;
     }
 
     if (
       !formData.expiryMonth ||
       !/^(0[1-9]|1[0-2])$/.test(formData.expiryMonth)
     ) {
-      newErrors.expiryMonth = 'Please enter a valid month (01-12)';
+      newErrors.expiryMonth = translations.payments.invalidMonth;
     }
 
     if (!formData.expiryYear || !/^\d{4}$/.test(formData.expiryYear)) {
-      newErrors.expiryYear = 'Please enter a valid year';
+      newErrors.expiryYear = translations.payments.invalidYear;
     }
 
     if (!formData.cvc || !/^\d{3,4}$/.test(formData.cvc)) {
-      newErrors.cvc = 'Please enter a valid CVC';
+      newErrors.cvc = translations.payments.invalidCvc;
     }
 
     if (!formData.cardholderName.trim()) {
-      newErrors.cardholderName = 'Please enter cardholder name';
+      newErrors.cardholderName = translations.payments.enterCardholderName;
     }
 
     setErrors(newErrors);
@@ -130,14 +131,14 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
       <DialogTitle>
         <Box>
           <Typography variant="h5" component="div" fontWeight="bold">
-            Payment Information
+            {translations.payments.paymentInformation}
           </Typography>
           <Typography
             variant="subtitle1"
             component="div"
             color="text.secondary"
           >
-            Subscribe to {subscriptionName} - ${price}
+            {translations.payments.subscribeTo} {subscriptionName} - {price} BYN
           </Typography>
         </Box>
       </DialogTitle>
@@ -148,12 +149,12 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
             <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
-                label="Cardholder Name"
+                label={translations.payments.cardHolder}
                 value={formData.cardholderName}
                 onChange={handleInputChange('cardholderName')}
                 error={!!errors.cardholderName}
                 helperText={errors.cardholderName}
-                placeholder="John Doe"
+                placeholder="Иван Иванов"
                 required
               />
             </Grid>
@@ -161,7 +162,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
             <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
-                label="Card Number"
+                label={translations.payments.cardNumber}
                 value={formData.cardNumber}
                 onChange={handleInputChange('cardNumber')}
                 error={!!errors.cardNumber}
@@ -174,7 +175,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
             <Grid size={{ xs: 6 }}>
               <TextField
                 fullWidth
-                label="Expiry Month"
+                label={translations.payments.expiryMonth}
                 value={formData.expiryMonth}
                 onChange={handleInputChange('expiryMonth')}
                 error={!!errors.expiryMonth}
@@ -187,7 +188,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
             <Grid size={{ xs: 6 }}>
               <TextField
                 fullWidth
-                label="Expiry Year"
+                label={translations.payments.expiryYear}
                 value={formData.expiryYear}
                 onChange={handleInputChange('expiryYear')}
                 error={!!errors.expiryYear}
@@ -200,7 +201,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
             <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
-                label="CVC"
+                label={translations.payments.cvv}
                 value={formData.cvc}
                 onChange={handleInputChange('cvc')}
                 error={!!errors.cvc}
@@ -214,7 +215,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
 
         <DialogActions sx={{ p: 3, gap: 1 }}>
           <Button onClick={handleClose} disabled={loading}>
-            Cancel
+            {translations.common.cancel}
           </Button>
           <Button
             type="submit"
@@ -226,7 +227,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
               minWidth: 120,
             }}
           >
-            {loading ? 'Processing...' : 'Pay & Subscribe'}
+            {loading ? translations.payments.processing : translations.payments.payAndSubscribe}
           </Button>
         </DialogActions>
       </form>

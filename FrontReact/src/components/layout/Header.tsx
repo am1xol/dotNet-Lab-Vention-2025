@@ -11,6 +11,7 @@ import { useSnackbar } from 'notistack';
 import { useAuthStore } from '../../store/auth-store';
 import { useNavigate } from 'react-router-dom';
 import { notificationService } from '../../services/notification-service';
+import { translations } from '../../i18n/translations';
 
 const Header: React.FC = () => {
   const { isAuthenticated, logout, user } = useAuthStore();
@@ -44,7 +45,7 @@ const Header: React.FC = () => {
 
   const handleLogout = () => {
     logout();
-    enqueueSnackbar('You have been successfully signed out', {
+    enqueueSnackbar(translations.messages.signedOut, {
       variant: 'info',
       anchorOrigin: {
         vertical: 'top',
@@ -139,7 +140,7 @@ const Header: React.FC = () => {
                   fontSize: '1rem',
                 }}
               >
-                Welcome, {user?.email}!
+                {translations.common.welcome}, {user?.email}!
               </Typography>
               <Button
                 variant="outlined"
@@ -160,7 +161,7 @@ const Header: React.FC = () => {
                   },
                 }}
               >
-                Profile
+                {translations.common.profile}
               </Button>
               {user?.role === 'Admin' && (
                 <Button
@@ -182,7 +183,7 @@ const Header: React.FC = () => {
                     },
                   }}
                 >
-                  Admin Panel
+                  {translations.common.adminPanel}
                 </Button>
               )}
               <Button
@@ -204,7 +205,7 @@ const Header: React.FC = () => {
                   },
                 }}
               >
-                Logout
+                {translations.common.logout}
               </Button>
             </>
           ) : (
@@ -228,7 +229,7 @@ const Header: React.FC = () => {
                   },
                 }}
               >
-                Sign In
+                {translations.common.signIn}
               </Button>
               <Button
                 variant="contained"
@@ -250,7 +251,7 @@ const Header: React.FC = () => {
                   },
                 }}
               >
-                Sign Up
+                {translations.common.signUp}
               </Button>
             </>
           )}

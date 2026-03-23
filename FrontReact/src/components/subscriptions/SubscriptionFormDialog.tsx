@@ -20,6 +20,7 @@ import {
   UpdateSubscriptionRequest,
 } from '../../types/subscription';
 import { RichTextEditor } from './RichTextEditor';
+import { translations } from '../../i18n/translations';
 
 type SubscriptionFormData =
   | CreateSubscriptionRequest
@@ -102,12 +103,12 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      setFileUploadError('Please select an image file');
+      setFileUploadError(translations.subscriptions.pleaseSelectImage);
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      setFileUploadError('File size should be less than 5MB');
+      setFileUploadError(translations.subscriptions.fileSizeLimit);
       return;
     }
 
@@ -119,7 +120,7 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
       const result = await fileService.uploadFile(file);
       handleInputChange('iconFileId', result.fileId);
     } catch (err: any) {
-      setFileUploadError(err.message || 'Failed to upload file');
+      setFileUploadError(err.message || translations.subscriptions.failedToUpload);
       handleInputChange('iconFileId', undefined);
       setSelectedFile(null);
     } finally {
@@ -172,14 +173,14 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
-        {isEditMode ? 'Edit Subscription' : 'Create New Subscription'}
+        {isEditMode ? translations.subscriptions.editSubscription : translations.subscriptions.createNewSubscription}
       </DialogTitle>
       <DialogContent>
         <Grid container spacing={3} sx={{ mt: 1 }}>
           <Grid size={{ xs: 12 }}>
             <TextField
               fullWidth
-              label="Subscription Name"
+              label={translations.subscriptions.subscriptionName}
               value={formData.name}
               onChange={(e) => handleInputChange('name', e.target.value)}
               required
@@ -189,12 +190,12 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
           <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
-              label="Short Description"
+              label={translations.subscriptions.shortDescription}
               multiline
               rows={2}
               value={formData.description}
               onChange={(e) => handleInputChange('description', e.target.value)}
-              helperText="Brief text shown on the card (optional if detailed description is provided)"
+              helperText={translations.subscriptions.briefDescriptionHint}
             />
           </Grid>
 
@@ -216,7 +217,7 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
                   fullWidth
                   sx={{ height: '56px' }}
                 >
-                  {isUploading ? 'Uploading...' : 'Upload Icon'}
+                  {isUploading ? translations.subscriptions.uploading : translations.subscriptions.uploadIcon}
                 </Button>
               </label>
               {(selectedFile || initialData?.iconUrl) && (
@@ -224,7 +225,7 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
                   sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}
                 >
                   <Typography variant="body2" noWrap>
-                    {selectedFile?.name || 'Current icon'}
+                    {selectedFile?.name || translations.subscriptions.currentIcon}
                   </Typography>
                   <IconButton
                     size="small"
@@ -252,13 +253,13 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
             <TextField
               fullWidth
               select
-              label="Base Price (per month)"
+              label={translations.subscriptions.basePricePerMonth}
               value={formData.price || ''}
               onChange={(e) =>
                 handleInputChange('price', parseFloat(e.target.value))
               }
               required
-              helperText="Select base monthly price"
+              helperText={translations.subscriptions.selectBaseMonthlyPrice}
             >
               {ALLOWED_PRICES.map((price) => (
                 <MenuItem key={price} value={price}>
@@ -272,13 +273,13 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
             <TextField
               fullWidth
               select
-              label="Category"
+              label={translations.subscriptions.category}
               value={formData.category}
               onChange={(e) => handleInputChange('category', e.target.value)}
               required
             >
               <MenuItem value="">
-                <em>Select category</em>
+                <em>{translations.subscriptions.selectCategory}</em>
               </MenuItem>
               {categories.map((category) => (
                 <MenuItem key={category} value={category}>
@@ -290,29 +291,29 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
 
           <Grid size={{ xs: 12 }}>
             <Typography variant="h6" gutterBottom sx={{ mt: 1 }}>
-              Detailed Description
+              {translations.subscriptions.detailedDescription}
             </Typography>
             <RichTextEditor
               value={formData.descriptionMarkdown || ''}
               onChange={(value) =>
                 handleInputChange('descriptionMarkdown', value)
               }
-              label="Features & Details"
-              placeholder="Describe what's included in this subscription..."
+              label={translations.subscriptions.featuresAndDetails}
+              placeholder={translations.subscriptions.describeIncluded}
             />
           </Grid>
         </Grid>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} disabled={uploading}>
-          Cancel
+          {translations.common.cancel}
         </Button>
         <Button
           onClick={handleSave}
           variant="contained"
           disabled={!isFormValid || isUploading || uploading}
         >
-          {isEditMode ? 'Update' : 'Create'}
+          {isEditMode ? translations.subscriptions.edit : translations.common.create}
         </Button>
       </DialogActions>
     </Dialog>

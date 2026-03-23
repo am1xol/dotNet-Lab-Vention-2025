@@ -30,6 +30,7 @@ import {
   Subscription,
   SubscriptionPrice,
 } from '../../types/subscription';
+import { translations } from '../../i18n/translations';
 
 interface ManagePricesDialogProps {
   open: boolean;
@@ -50,7 +51,6 @@ export const ManagePricesDialog: React.FC<ManagePricesDialogProps> = ({
   const [selectedPeriodId, setSelectedPeriodId] = useState('');
   const [newPrice, setNewPrice] = useState<number>(0);
 
-  // Загрузка периодов и существующих цен
   useEffect(() => {
     if (!open || !subscription) return;
 
@@ -65,7 +65,7 @@ export const ManagePricesDialog: React.FC<ManagePricesDialogProps> = ({
         setPeriods(periodsData);
         setPrices(pricesData);
       } catch (err: any) {
-        setError(err.message || 'Failed to load data');
+        setError(err.message || translations.subscriptions.failedToLoadData);
       } finally {
         setLoading(false);
       }
@@ -74,13 +74,10 @@ export const ManagePricesDialog: React.FC<ManagePricesDialogProps> = ({
     loadData();
   }, [open, subscription]);
 
-  // Вычисление предлагаемой цены при выборе периода
   useEffect(() => {
     if (!selectedPeriodId || !subscription) return;
     const period = periods.find((p) => p.id === selectedPeriodId);
     if (period) {
-      // Базовая цена * количество месяцев (можно применить коэффициент)
-      // Коэффициент можно добавить позже, пока 1.0
       const suggestedPrice = subscription.price * period.monthsCount;
       setNewPrice(suggestedPrice);
     }
@@ -98,7 +95,6 @@ export const ManagePricesDialog: React.FC<ManagePricesDialogProps> = ({
         finalPrice: newPrice,
       };
       await subscriptionPriceService.createPrice(request);
-      // Перезагружаем цены
       const updatedPrices = await subscriptionPriceService.getPrices(
         subscription.id
       );
@@ -106,7 +102,7 @@ export const ManagePricesDialog: React.FC<ManagePricesDialogProps> = ({
       setSelectedPeriodId('');
       setNewPrice(0);
     } catch (err: any) {
-      setError(err.message || 'Failed to add price');
+      setError(err.message || translations.subscriptions.failedToAddPrice);
     } finally {
       setLoading(false);
     }
@@ -124,7 +120,7 @@ export const ManagePricesDialog: React.FC<ManagePricesDialogProps> = ({
       );
       setPrices(updatedPrices);
     } catch (err: any) {
-      setError(err.message || 'Failed to delete price');
+      setError(err.message || translations.subscriptions.failedToDeletePrice);
     } finally {
       setLoading(false);
     }
@@ -139,9 +135,9 @@ export const ManagePricesDialog: React.FC<ManagePricesDialogProps> = ({
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
-        Manage Prices for "{subscription.name}"
+        {translations.subscriptions.managePricesFor} "{subscription.name}"
         <Typography variant="subtitle2" color="text.secondary">
-          Base price: {subscription.price} BYN/month
+          {translations.subscriptions.basePricePerMonth}: {subscription.price} BYN
         </Typography>
       </DialogTitle>
       <DialogContent>
@@ -161,7 +157,7 @@ export const ManagePricesDialog: React.FC<ManagePricesDialogProps> = ({
         {prices.length > 0 && (
           <Box sx={{ mb: 4 }}>
             <Typography variant="h6" gutterBottom>
-              Existing Prices
+              {translations.subscriptions.existingPrices}
             </Typography>
             <List>
               {prices.map((price) => {
@@ -195,20 +191,20 @@ export const ManagePricesDialog: React.FC<ManagePricesDialogProps> = ({
         {availablePeriods.length > 0 && (
           <Box>
             <Typography variant="h6" gutterBottom>
-              Add New Price
+              {translations.subscriptions.addNewPrice}
             </Typography>
             <Grid container spacing={2} alignItems="center">
               <Grid size={{ xs: 12, sm: 5 }}>
                 <FormControl fullWidth size="small">
-                  <InputLabel>Period</InputLabel>
+                  <InputLabel>{translations.subscriptions.period}</InputLabel>
                   <Select
                     value={selectedPeriodId}
                     onChange={(e) => setSelectedPeriodId(e.target.value)}
-                    label="Period"
+                    label={translations.subscriptions.period}
                   >
                     {availablePeriods.map((period) => (
                       <MenuItem key={period.id} value={period.id}>
-                        {period.name} ({period.monthsCount} months)
+                        {period.name} ({period.monthsCount} мес.)
                       </MenuItem>
                     ))}
                   </Select>
@@ -218,7 +214,7 @@ export const ManagePricesDialog: React.FC<ManagePricesDialogProps> = ({
                 <TextField
                   fullWidth
                   size="small"
-                  label="Final Price"
+                  label={translations.subscriptions.finalPrice}
                   type="number"
                   value={newPrice}
                   onChange={(e) => setNewPrice(Number(e.target.value))}
@@ -233,7 +229,7 @@ export const ManagePricesDialog: React.FC<ManagePricesDialogProps> = ({
                   onClick={handleAddPrice}
                   disabled={loading || !selectedPeriodId || newPrice <= 0}
                 >
-                  Add
+                  {translations.subscriptions.add}
                 </Button>
               </Grid>
             </Grid>
@@ -242,13 +238,13 @@ export const ManagePricesDialog: React.FC<ManagePricesDialogProps> = ({
 
         {availablePeriods.length === 0 && prices.length > 0 && (
           <Typography color="text.secondary" align="center" sx={{ mt: 2 }}>
-            All periods have prices configured.
+            {translations.subscriptions.allPeriodsConfigured}
           </Typography>
         )}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} disabled={loading}>
-          Close
+          {translations.subscriptions.close}
         </Button>
       </DialogActions>
     </Dialog>

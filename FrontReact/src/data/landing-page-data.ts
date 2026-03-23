@@ -3,54 +3,54 @@ import { Dashboard, Analytics, Payment, Category } from '@mui/icons-material';
 export const features = [
   {
     icon: Dashboard,
-    title: 'Centralized Dashboard',
+    title: 'Централизованная панель',
     description:
-      'Manage all your subscriptions from one beautiful, intuitive interface',
+      'Управляйте всеми подписками из одного красивого и интуитивного интерфейса',
     color: '#7E57C2',
   },
   {
     icon: Analytics,
-    title: 'Smart Analytics',
+    title: 'Умная аналитика',
     description:
-      'Track spending patterns and get insights to optimize your subscription budget',
+      'Отслеживайте расходы и получайте советы по оптимизации бюджета подписок',
     color: '#4CAF50',
   },
   {
     icon: Payment,
-    title: 'Payment Tracking',
+    title: 'Отслеживание платежей',
     description:
-      'Monitor all transactions and payment history in one secure location',
+      'Мониторинг всех транзакций и истории платежей в одном безопасном месте',
     color: '#2196F3',
   },
   {
     icon: Category,
-    title: 'Organized Categories',
+    title: 'Организованные категории',
     description:
-      'Categorize subscriptions for better organization and insights',
+      'Категоризируйте подписки для лучшей организации и аналитики',
     color: '#9C27B0',
   },
 ];
 
 export const stats = [
-  { value: '50+', label: 'Subscription Types' },
-  { value: '1K+', label: 'Active Users' },
-  { value: '99%', label: 'Satisfaction Rate' },
+  { value: '50+', label: 'Типов подписок' },
+  { value: '1K+', label: 'Активных пользователей' },
+  { value: '99%', label: 'Удовлетворённость' },
 ];
 
 export const steps = [
   {
     step: 1,
-    title: 'Sign Up',
-    description: 'Create your account in seconds',
+    title: 'Регистрация',
+    description: 'Создайте аккаунт за секунды',
   },
   {
     step: 2,
-    title: 'Add Subscriptions',
-    description: 'Import or manually add your subscriptions',
+    title: 'Добавьте подписки',
+    description: 'Импортируйте или добавьте подписки вручную',
   },
   {
     step: 3,
-    title: 'Track & Manage',
-    description: 'Monitor spending and get insights',
+    title: 'Отслеживайте и управляйте',
+    description: 'Контролируйте расходы и получайте insights',
   },
 ];

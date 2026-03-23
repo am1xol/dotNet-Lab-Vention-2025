@@ -36,6 +36,7 @@ import { userSubscriptionService } from '../services/user-subscription-service';
 import { useAuthStore } from '../store/auth-store';
 import { Subscription, UserSubscription } from '../types/subscription';
 import { PaymentInitiationResult } from '../types/payment';
+import { translations } from '../i18n/translations';
 
 declare const BeGateway: new (options: any) => {
   createWidget: () => void;
@@ -60,7 +61,6 @@ const PageContainer = styled(Box)(({ theme }) => ({
   },
 }));
 
-// Simplified floating circles - CSS only, with light blur
 const FloatingCircle = styled(Box)(({ theme }) => ({
   position: 'absolute',
   borderRadius: '50%',
@@ -68,7 +68,6 @@ const FloatingCircle = styled(Box)(({ theme }) => ({
   animation: 'float 12s ease-in-out infinite',
   zIndex: 0,
   willChange: 'transform',
-  // Light blur for visual appeal
   filter: 'blur(20px)',
   '@keyframes float': {
     '0%, 100%': {
@@ -91,9 +90,9 @@ const ContentContainer = styled(Box)(({ theme }) => ({
 
 const PERIODS = ['monthly', 'quarterly', 'yearly', 'lifetime'];
 const SORT_OPTIONS = [
-  { value: 'createdAt', label: 'By creation date' },
-  { value: 'name', label: 'By name' },
-  { value: 'price', label: 'By price' },
+  { value: 'createdAt', label: translations.categorySubscriptions.byCreationDate },
+  { value: 'name', label: translations.categorySubscriptions.byName },
+  { value: 'price', label: translations.categorySubscriptions.byPrice },
 ];
 
 export const CategorySubscriptionsPage: React.FC = () => {
@@ -381,7 +380,7 @@ export const CategorySubscriptionsPage: React.FC = () => {
       <PageContainer>
         <ContentContainer>
           <Box sx={{ p: 3, textAlign: 'center' }}>
-            <Typography variant="h6">Category not found</Typography>
+            <Typography variant="h6">{translations.categorySubscriptions.categoryNotFoundMessage}</Typography>
           </Box>
         </ContentContainer>
       </PageContainer>
@@ -445,7 +444,7 @@ export const CategorySubscriptionsPage: React.FC = () => {
               onClick={() => navigate(-1)}
               sx={{ mb: 2 }}
             >
-              Back
+              {translations.categorySubscriptions.backButton}
             </Button>
 
             <Typography
@@ -460,13 +459,13 @@ export const CategorySubscriptionsPage: React.FC = () => {
                 color="text.secondary"
                 sx={{ ml: 2 }}
               >
-                ({totalCount} subscriptions)
+                ({totalCount} {translations.categorySubscriptions.subscriptions})
               </Typography>
             </Typography>
 
             {!isAuthenticated && (
               <Alert severity="info" sx={{ mt: 2 }}>
-                You need to log in to subscribe to services
+                {translations.categorySubscriptions.loginToSubscribeAlert}
               </Alert>
             )}
           </Box>
@@ -497,7 +496,7 @@ export const CategorySubscriptionsPage: React.FC = () => {
               alignItems="center"
             >
               <TextField
-                placeholder="Search subscriptions..."
+                placeholder={translations.categorySubscriptions.searchPlaceholder}
                 value={search}
                 onChange={handleSearchChange}
                 InputProps={{
@@ -519,11 +518,11 @@ export const CategorySubscriptionsPage: React.FC = () => {
               </IconButton>
 
               <FormControl size="small" sx={{ minWidth: 200 }}>
-                <InputLabel>Sort by</InputLabel>
+                <InputLabel>{translations.categorySubscriptions.sortByLabel}</InputLabel>
                 <Select
                   value={sortBy}
                   onChange={handleSortChange}
-                  label="Sort by"
+                  label={translations.categorySubscriptions.sortByLabel}
                 >
                   {SORT_OPTIONS.map((option) => (
                     <MenuItem key={option.value} value={option.value}>
@@ -543,7 +542,7 @@ export const CategorySubscriptionsPage: React.FC = () => {
               </IconButton>
 
               <Button onClick={resetFilters} variant="outlined" size="small">
-                Reset
+                {translations.categorySubscriptions.reset}
               </Button>
             </Stack>
 
@@ -559,7 +558,7 @@ export const CategorySubscriptionsPage: React.FC = () => {
                 <Grid container spacing={3}>
                   <Grid size={{ xs: 12, md: 6 }}>
                     <Typography variant="subtitle2" gutterBottom>
-                      Period
+                      {translations.categorySubscriptions.period}
                     </Typography>
                     <Stack
                       direction="row"
@@ -590,7 +589,7 @@ export const CategorySubscriptionsPage: React.FC = () => {
 
                   <Grid size={{ xs: 12, md: 6 }}>
                     <Typography variant="subtitle2" gutterBottom>
-                      Price: from {priceRange[0]} to {priceRange[1]} RUB
+                      {translations.categorySubscriptions.priceRange.replace('{min}', String(priceRange[0])).replace('{max}', String(priceRange[1]))}
                     </Typography>
                     <Slider
                       value={priceRange}
@@ -623,10 +622,10 @@ export const CategorySubscriptionsPage: React.FC = () => {
               sx={{ p: 4, textAlign: 'center', borderRadius: 2, boxShadow: 2 }}
             >
               <Typography variant="h6" color="text.secondary">
-                No subscriptions found
+                {translations.categorySubscriptions.noSubscriptionsFoundMessage}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                Try changing search parameters
+                {translations.categorySubscriptions.tryChangingParamsMessage}
               </Typography>
             </Card>
           ) : (
@@ -679,10 +678,10 @@ export const CategorySubscriptionsPage: React.FC = () => {
                     {loadingMore ? (
                       <>
                         <CircularProgress size={20} sx={{ mr: 1 }} />
-                        Loading...
+                        {translations.categorySubscriptions.loadingMore}
                       </>
                     ) : (
-                      'Show more'
+                      translations.categorySubscriptions.showMoreButton
                     )}
                   </Button>
                 </Box>

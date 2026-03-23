@@ -22,6 +22,7 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { UserStatistics as UserStatisticsType } from '../../types/payment';
+import { translations } from '../../i18n/translations';
 
 interface UserStatisticsProps {
   statistics: UserStatisticsType;
@@ -363,7 +364,7 @@ export const UserStatistics: React.FC<UserStatisticsProps> = memo(({
                     color="text.secondary"
                     component="div"
                   >
-                    Due {formatDate(upcoming.nextBillingDate)}
+                    {translations.statistics.dueDate} {formatDate(upcoming.nextBillingDate)}
                   </Typography>
                 </Box>
               </Box>
@@ -405,16 +406,16 @@ export const UserStatistics: React.FC<UserStatisticsProps> = memo(({
             mb: 4,
           }}
         >
-          Financial Overview
+          {translations.statistics.financialOverview}
         </Typography>
       </motion.div>
 
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
           <StatCard
-            title="Total Spent"
+            title={translations.statistics.totalSpentTitle}
             value={formatCurrency(statistics.totalSpent)}
-            subtitle="All time payments"
+            subtitle={translations.statistics.totalSpentSubtitle}
             icon={Payment}
             color="#7E57C2"
             delay={0.1}
@@ -423,9 +424,9 @@ export const UserStatistics: React.FC<UserStatisticsProps> = memo(({
 
         <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
           <StatCardVariant
-            title="Active Subs"
+            title={translations.statistics.activeSubscriptionsTitle}
             value={statistics.activeSubscriptionsCount.toString()}
-            subtitle="Current subscriptions"
+            subtitle={translations.statistics.activeSubscriptionsSubtitle}
             icon={Subscriptions}
             color="#4CAF50"
             delay={0.2}
@@ -435,9 +436,9 @@ export const UserStatistics: React.FC<UserStatisticsProps> = memo(({
 
         <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
           <StatCard
-            title="Total Subs"
+            title={translations.statistics.totalSubscriptionsTitle}
             value={statistics.totalSubscriptionsCount.toString()}
-            subtitle="All subscriptions"
+            subtitle={translations.statistics.totalSubscriptionsSubtitle}
             icon={TrendingUp}
             color="#2196F3"
             delay={0.3}
@@ -446,13 +447,13 @@ export const UserStatistics: React.FC<UserStatisticsProps> = memo(({
 
         <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
           <StatCardVariant
-            title="Next Bill"
+            title={translations.statistics.nextBill}
             value={
               statistics.nextBillingDate
                 ? formatDate(statistics.nextBillingDate)
                 : '—'
             }
-            subtitle="Upcoming payment"
+            subtitle={translations.statistics.nextBillSubtitle}
             icon={CalendarToday}
             color="#FF9800"
             delay={0.4}
@@ -487,7 +488,7 @@ export const UserStatistics: React.FC<UserStatisticsProps> = memo(({
                     }}
                   />
                   <Typography variant="h6" fontWeight="700" color="#7E57C2">
-                    Recent Payments
+                    {translations.statistics.recentPayments}
                   </Typography>
                 </Box>
 
@@ -511,7 +512,7 @@ export const UserStatistics: React.FC<UserStatisticsProps> = memo(({
                             color="text.secondary"
                             textAlign="center"
                           >
-                            No payments yet
+                            {translations.statistics.noPaymentsYet}
                           </Typography>
                         }
                         secondary={
@@ -520,7 +521,7 @@ export const UserStatistics: React.FC<UserStatisticsProps> = memo(({
                             color="text.secondary"
                             textAlign="center"
                           >
-                            Your payment history will appear here
+                            {translations.statistics.paymentHistoryWillAppearHere}
                           </Typography>
                         }
                       />
@@ -557,7 +558,7 @@ export const UserStatistics: React.FC<UserStatisticsProps> = memo(({
                     }}
                   />
                   <Typography variant="h6" fontWeight="700" color="#FF9800">
-                    Upcoming Payments
+                    {translations.statistics.upcomingPaymentsTitle}
                   </Typography>
                 </Box>
 
@@ -579,7 +580,7 @@ export const UserStatistics: React.FC<UserStatisticsProps> = memo(({
                             color="text.secondary"
                             textAlign="center"
                           >
-                            No upcoming payments
+                            {translations.statistics.noUpcomingPayments}
                           </Typography>
                         }
                         secondary={
@@ -588,7 +589,7 @@ export const UserStatistics: React.FC<UserStatisticsProps> = memo(({
                             color="text.secondary"
                             textAlign="center"
                           >
-                            Your upcoming bills will appear here
+                            {translations.statistics.upcomingBillsWillAppearHere}
                           </Typography>
                         }
                       />

@@ -20,6 +20,9 @@ import { debounce } from 'lodash';
 import { User } from '../../types/auth';
 import { userService } from '../../services/user-service';
 import { Block, CheckCircleOutline, Person, Search } from '@mui/icons-material';
+import { translations } from '../../i18n/translations';
+
+const t = translations.adminUsers;
 
 export const AdminUsersPanel: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -107,11 +110,11 @@ export const AdminUsersPanel: React.FC = () => {
         }}
       >
         <Typography variant="h6" sx={{ fontWeight: 700, color: '#7E57C2' }}>
-          User Management
+          {t.title}
         </Typography>
         <TextField
           size="small"
-          placeholder="Search by ID, Name or Email..."
+          placeholder={t.searchPlaceholder}
           value={inputValue}
           onChange={handleSearchChange}
           sx={{
@@ -153,28 +156,28 @@ export const AdminUsersPanel: React.FC = () => {
               <TableCell
                 sx={{ fontWeight: 700, bgcolor: 'rgba(126, 87, 194, 0.05)' }}
               >
-                User
+                {t.user}
               </TableCell>
               <TableCell
                 sx={{ fontWeight: 700, bgcolor: 'rgba(126, 87, 194, 0.05)' }}
               >
-                ID / Email
+                {t.idEmail}
               </TableCell>
               <TableCell
                 sx={{ fontWeight: 700, bgcolor: 'rgba(126, 87, 194, 0.05)' }}
               >
-                Role
+                {t.role}
               </TableCell>
               <TableCell
                 sx={{ fontWeight: 700, bgcolor: 'rgba(126, 87, 194, 0.05)' }}
               >
-                Status
+                {t.status}
               </TableCell>
               <TableCell
                 sx={{ fontWeight: 700, bgcolor: 'rgba(126, 87, 194, 0.05)' }}
                 align="right"
               >
-                Actions
+                {t.actions}
               </TableCell>
             </TableRow>
           </TableHead>
@@ -211,7 +214,7 @@ export const AdminUsersPanel: React.FC = () => {
                 </TableCell>
                 <TableCell>
                   <Chip
-                    label={user.isBlocked ? 'Blocked' : 'Active'}
+                    label={user.isBlocked ? t.blocked : t.active}
                     color={user.isBlocked ? 'error' : 'success'}
                     size="small"
                   />
@@ -228,7 +231,7 @@ export const AdminUsersPanel: React.FC = () => {
                       onClick={() => handleToggleBlock(user)}
                       sx={{ borderRadius: 2, textTransform: 'none' }}
                     >
-                      {user.isBlocked ? 'Unblock' : 'Block'}
+                      {user.isBlocked ? t.unblock : t.block}
                     </Button>
                   )}
                 </TableCell>

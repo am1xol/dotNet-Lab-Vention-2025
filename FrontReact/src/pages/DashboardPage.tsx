@@ -18,6 +18,7 @@ import {
 import DashboardShell from '../components/layout/DashboardShell';
 import { DashboardHeader } from '../components/dashboard/DashboardHeader';
 import { DashboardTabs } from '../components/dashboard/DashboardTabs';
+import { translations } from '../i18n/translations';
 
 declare const BeGateway: new (options: any) => {
   createWidget: () => void;
@@ -61,7 +62,7 @@ export const DashboardPage: React.FC = () => {
       }
     } catch (err) {
       console.error('Error loading data:', err);
-      setError('Failed to load subscriptions');
+      setError(translations.payments.failedToLoadSubscriptions);
     } finally {
       setLoading(false);
     }
@@ -115,7 +116,7 @@ export const DashboardPage: React.FC = () => {
     } catch (err: any) {
       setError(
         err.response?.data?.message ||
-          'Не удалось инициировать платеж. Попробуйте еще раз.'
+          translations.payments.failedToInitiatePayment
       );
     } finally {
       setActionLoading(null);
@@ -128,7 +129,7 @@ export const DashboardPage: React.FC = () => {
       await userSubscriptionService.subscribe(subscriptionId);
       await loadData();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to subscribe');
+      setError(err.response?.data?.message || translations.payments.failedToSubscribe);
     } finally {
       setActionLoading(null);
     }
@@ -152,7 +153,7 @@ export const DashboardPage: React.FC = () => {
       }));
       await loadData();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to unsubscribe');
+      setError(err.response?.data?.message || translations.payments.failedToUnsubscribe);
     } finally {
       setActionLoading(null);
     }
@@ -199,7 +200,7 @@ export const DashboardPage: React.FC = () => {
 
         {statistics && (
           <motion.div
-            key="statistics-loaded" // Prevents re-animation on tab switches
+            key="statistics-loaded" 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}

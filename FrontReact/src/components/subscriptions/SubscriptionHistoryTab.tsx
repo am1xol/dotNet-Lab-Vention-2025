@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import { UserSubscription } from '../../types/subscription';
 import { userSubscriptionService } from '../../services/user-subscription-service';
+import { translations } from '../../i18n/translations';
 
 interface PagedUserSubscriptionResponse {
   items: UserSubscription[];
@@ -54,7 +55,7 @@ export const SubscriptionHistoryTab: React.FC = () => {
 
       setHasMore(newItems.length === pageSize);
     } catch (err) {
-      setError('Failed to load subscription history');
+      setError(translations.payments.loadSubscriptionHistoryError);
       console.error('Error loading subscription history:', err);
     } finally {
       setLoading(false);
@@ -104,7 +105,7 @@ export const SubscriptionHistoryTab: React.FC = () => {
         gutterBottom
         sx={{ color: '#7E57C2', fontWeight: 700 }}
       >
-        Subscription History
+        {translations.payments.subscriptionHistory}
       </Typography>
 
       {error && (
@@ -118,10 +119,10 @@ export const SubscriptionHistoryTab: React.FC = () => {
           {subscriptions.length === 0 && !loading ? (
             <Box textAlign="center" py={4}>
               <Typography variant="h6" color="text.secondary">
-                No subscription history found
+                {translations.payments.noSubscriptionHistoryFound}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Your subscriptions (active and past) will appear here.
+                {translations.payments.subscriptionHistoryWillAppearHere}
               </Typography>
             </Box>
           ) : (
@@ -145,11 +146,11 @@ export const SubscriptionHistoryTab: React.FC = () => {
                                 variant="body2"
                                 color="text.secondary"
                               >
-                                Period: {sub.periodName} • Started:{' '}
+                                {translations.payments.period}: {sub.periodName} • {translations.payments.started}:{' '}
                                 {formatDate(sub.startDate)}{' '}
                                 {sub.validUntil && (
                                   <>
-                                    • Valid until: {formatDate(sub.validUntil)}
+                                    • {translations.payments.validUntil}: {formatDate(sub.validUntil)}
                                   </>
                                 )}
                               </Typography>
@@ -157,12 +158,12 @@ export const SubscriptionHistoryTab: React.FC = () => {
                                 variant="body2"
                                 color="text.secondary"
                               >
-                                Price: {sub.finalPrice} BYN
+                                {translations.common.price}: {sub.finalPrice} BYN
                               </Typography>
                             </Box>
                             <Box textAlign="right">
                               <Chip
-                                label={sub.status || (sub.isActive ? 'Active' : 'Inactive')}
+                                label={sub.status || (sub.isActive ? translations.common.active : translations.common.inactive)}
                                 size="small"
                                 color={getStatusColor(sub.status || undefined)}
                                 sx={{ mt: 1 }}
@@ -184,7 +185,7 @@ export const SubscriptionHistoryTab: React.FC = () => {
                     disabled={loading}
                     variant="outlined"
                   >
-                    {loading ? <CircularProgress size={24} /> : 'Load More'}
+                    {loading ? <CircularProgress size={24} /> : translations.common.loadMore}
                   </Button>
                 </Box>
               )}

@@ -18,6 +18,7 @@ import { motion } from 'framer-motion';
 import { authService } from '../../services/auth-service';
 import { Link, useNavigate } from 'react-router-dom';
 import { enqueueSnackbar } from 'notistack';
+import { translations } from '../../i18n/translations';
 
 const GlassCard = styled(Card)(({ theme }) => ({
   display: 'flex',
@@ -160,7 +161,7 @@ export const ForgotPasswordForm: React.FC = () => {
 
     if (!email || !/\S+@\S+\.\S+/.test(email)) {
       setEmailError(true);
-      setEmailErrorMessage('Please enter a valid email address.');
+      setEmailErrorMessage(translations.auth.emailRequired);
       return false;
     }
     return true;
@@ -178,7 +179,7 @@ export const ForgotPasswordForm: React.FC = () => {
       await authService.forgotPassword(email);
 
       setSuccess(true);
-      enqueueSnackbar('Reset code sent to your email!', { variant: 'success' });
+      enqueueSnackbar(translations.auth.resetCodeSent, { variant: 'success' });
 
       setTimeout(() => {
         navigate('/auth/reset-password', { state: { email } });
@@ -187,7 +188,7 @@ export const ForgotPasswordForm: React.FC = () => {
       const errorMessage =
         err.response?.data?.title ||
         err.response?.data?.error ||
-        'Failed to send reset code';
+        translations.common.error;
       setError(errorMessage);
       enqueueSnackbar(errorMessage, { variant: 'error' });
     } finally {
@@ -251,7 +252,7 @@ export const ForgotPasswordForm: React.FC = () => {
                     mb: 2,
                   }}
                 >
-                  Check Your Email
+                  {translations.auth.checkYourEmail}
                 </Typography>
                 <Alert
                   severity="success"
@@ -262,8 +263,7 @@ export const ForgotPasswordForm: React.FC = () => {
                     border: '1px solid rgba(76, 175, 80, 0.2)',
                   }}
                 >
-                  We sent a password reset code to <strong>{email}</strong>.
-                  Please check your email and enter the code on the next screen.
+                  {translations.auth.enterEmailForReset.replace('{email}', email)}
                 </Alert>
 
                 <Typography
@@ -275,7 +275,7 @@ export const ForgotPasswordForm: React.FC = () => {
                     fontSize: '0.9rem',
                   }}
                 >
-                  Redirecting to reset form...
+                  {translations.auth.redirectingToReset}
                 </Typography>
               </Box>
             </AnimatedCardContent>
@@ -372,7 +372,7 @@ export const ForgotPasswordForm: React.FC = () => {
                 WebkitTextFillColor: 'transparent',
               }}
             >
-              Reset Password
+              {translations.auth.resetPasswordTitle}
             </Typography>
 
             <Typography
@@ -385,8 +385,7 @@ export const ForgotPasswordForm: React.FC = () => {
                 lineHeight: 1.6,
               }}
             >
-              Enter your email address and we'll send you a code to reset your
-              password.
+              {translations.auth.forgotPasswordSubtitle}
             </Typography>
 
             {error && (
@@ -418,14 +417,14 @@ export const ForgotPasswordForm: React.FC = () => {
                 <FormLabel
                   sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}
                 >
-                  Email Address
+                  {translations.auth.emailAddress}
                 </FormLabel>
                 <StyledTextField
                   error={emailError}
                   helperText={emailErrorMessage}
                   type="email"
                   name="email"
-                  placeholder="your@email.com"
+                  placeholder={translations.auth.enterEmail}
                   autoComplete="email"
                   value={email}
                   onChange={handleEmailChange}
@@ -443,7 +442,7 @@ export const ForgotPasswordForm: React.FC = () => {
                 disabled={loading}
                 size="large"
               >
-                {loading ? <CircularProgress size={24} /> : 'Send Reset Code'}
+                {loading ? <CircularProgress size={24} /> : translations.auth.sendResetCode}
               </GradientButton>
             </Box>
 
@@ -456,7 +455,7 @@ export const ForgotPasswordForm: React.FC = () => {
                   fontWeight: 600,
                 }}
               >
-                Back to Sign In
+                {translations.auth.backToSignIn}
               </Link>
             </Box>
           </AnimatedCardContent>

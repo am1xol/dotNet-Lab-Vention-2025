@@ -1,7 +1,6 @@
 import React, { memo, useMemo } from 'react';
 import { Box } from '@mui/material';
 
-// Memoized service data to prevent recreation on every render
 const services = [
   { name: 'Netflix', color: '#E50914', size: 110 },
   { name: 'YouTube', color: '#FF0000', size: 105 },
@@ -12,7 +11,6 @@ const services = [
   { name: 'Google', color: '#4285F4', size: 104 },
 ];
 
-// Pre-computed static positions (no random regeneration)
 const positions = [
   { x: '10%', y: '15%', rotation: -5 },
   { x: '24%', y: '33%', rotation: 3 },
@@ -23,7 +21,6 @@ const positions = [
   { x: '94%', y: '40%', rotation: -4 },
 ];
 
-// Background circles with light blur
 const backgroundCircles = [
   { size: 300, x: '10%', y: '10%', color: 'rgba(179, 157, 219, 0.15)' },
   { size: 200, x: '85%', y: '15%', color: 'rgba(206, 147, 216, 0.12)' },
@@ -31,7 +28,6 @@ const backgroundCircles = [
   { size: 180, x: '80%', y: '75%', color: 'rgba(179, 157, 219, 0.10)' },
 ];
 
-// CSS-only animation styles (more performant than JS animations)
 const animationStyles = `
   @keyframes float {
     0%, 100% { transform: translateY(0); }
@@ -52,7 +48,6 @@ const animationStyles = `
 `;
 
 const FloatingServiceIcons: React.FC = () => {
-  // Memoize service icons array to prevent recreation
   const serviceIcons = useMemo(() => services.map((service, index) => ({
     ...service,
     position: positions[index],
@@ -74,7 +69,6 @@ const FloatingServiceIcons: React.FC = () => {
           zIndex: 0,
         }}
       >
-        {/* Background circles with light blur */}
         {backgroundCircles.map((circle, index) => (
           <Box
             key={`circle-${index}`}
@@ -87,14 +81,12 @@ const FloatingServiceIcons: React.FC = () => {
               top: circle.y,
               borderRadius: '50%',
               background: circle.color,
-              // Light blur for visual appeal (optimized)
               filter: 'blur(25px)',
               animationDelay: `${index * 1.5}s`,
             }}
           />
         ))}
 
-        {/* Service icons with CSS-only animation */}
         {serviceIcons.map((service) => (
           <Box
             key={service.name}
@@ -109,7 +101,6 @@ const FloatingServiceIcons: React.FC = () => {
               transform: `rotate(${service.position.rotation}deg)`,
               animationDelay: `${service.delay}s`,
               zIndex: 1,
-              // Light drop shadow for depth
               filter: 'drop-shadow(0 4px 12px rgba(126, 87, 194, 0.3))',
             }}
           >

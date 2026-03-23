@@ -3,6 +3,7 @@ import { Typography, Button, Stack } from '@mui/material';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { StatsSection } from './StatsSection';
+import { translations } from '../../../i18n/translations';
 
 export const UnauthenticatedHero: React.FC = () => {
   const navigate = useNavigate();
@@ -27,7 +28,7 @@ export const UnauthenticatedHero: React.FC = () => {
             lineHeight: 1.1,
           }}
         >
-          Take Control of
+          Управляйте всеми
         </Typography>
         <Typography
           variant="h1"
@@ -39,7 +40,7 @@ export const UnauthenticatedHero: React.FC = () => {
             lineHeight: 1.1,
           }}
         >
-          Your Subscriptions
+          Вашими подписками
         </Typography>
       </motion.div>
 
@@ -58,9 +59,9 @@ export const UnauthenticatedHero: React.FC = () => {
             lineHeight: 1.6,
           }}
         >
-          Stop subscription chaos. Track, manage, and optimize all your
-          recurring payments from one beautiful, secure dashboard. Save money
-          and never miss a payment again.
+          Забудьте о хаосе подписок. Отслеживайте, управляйте и оптимизируйте все
+          ваши регулярные платежи из одной красивой и безопасной панели. Экономьте деньги
+          и никогда не пропускайте платежи.
         </Typography>
       </motion.div>
 
@@ -90,7 +91,7 @@ export const UnauthenticatedHero: React.FC = () => {
               },
             }}
           >
-            Get Started Free
+            {translations.landing.getStarted}
           </Button>
           <Button
             variant="outlined"
@@ -112,7 +113,7 @@ export const UnauthenticatedHero: React.FC = () => {
               },
             }}
           >
-            Sign In
+            {translations.common.signIn}
           </Button>
         </Stack>
       </motion.div>

@@ -29,6 +29,7 @@ import { authService } from '../../services/auth-service';
 import { LoginRequest } from '../../types/auth';
 import { useSnackbar } from 'notistack';
 import { Link, useNavigate } from 'react-router-dom';
+import { translations } from '../../i18n/translations';
 
 const GlassCard = styled(Card)(({ theme }) => ({
   display: 'flex',
@@ -183,13 +184,13 @@ export const SignIn: React.FC = () => {
 
     if (!formData.email || !/\S+@\S+\.\S+/.test(formData.email)) {
       setEmailError(true);
-      setEmailErrorMessage('Please enter a valid email address.');
+      setEmailErrorMessage(translations.validation.invalidEmail);
       isValid = false;
     }
 
     if (!formData.password || formData.password.length < 1) {
       setPasswordError(true);
-      setPasswordErrorMessage('Password is required.');
+      setPasswordErrorMessage(translations.validation.passwordRequired);
       isValid = false;
     }
 
@@ -209,7 +210,7 @@ export const SignIn: React.FC = () => {
     try {
       await authService.login(formData);
 
-      enqueueSnackbar('Successfully signed in!', { variant: 'success' });
+      enqueueSnackbar(translations.messages.signedIn, { variant: 'success' });
       setTimeout(() => {
         navigate('/dashboard');
       }, 1000);
@@ -219,7 +220,7 @@ export const SignIn: React.FC = () => {
 
       if (serverError === 'Please verify your email before logging in') {
         enqueueSnackbar(
-          'Your email is not verified. Redirecting to verification.',
+          translations.auth.emailNotVerified + '. ' + translations.auth.redirectingToVerification,
           { variant: 'warning' }
         );
 
@@ -232,7 +233,7 @@ export const SignIn: React.FC = () => {
         return;
       }
 
-      setError(serverError || 'Login failed');
+      setError(serverError || translations.auth.loginFailed);
     } finally {
       setLoading(false);
     }
@@ -297,21 +298,21 @@ export const SignIn: React.FC = () => {
                   WebkitBackgroundClip: 'text',
                   color: 'transparent',
                 }}
-              >
-                Welcome Back
-              </Typography>
+                >
+                  {translations.auth.signInTitle}
+                </Typography>
 
-              <Typography
-                variant="body1"
-                sx={{
-                  textAlign: 'center',
-                  color: 'text.secondary',
-                  mb: 4,
-                  fontSize: '1.1rem',
-                }}
-              >
-                Sign in to manage your subscriptions
-              </Typography>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    textAlign: 'center',
+                    color: 'text.secondary',
+                    mb: 4,
+                    fontSize: '1.1rem',
+                  }}
+                >
+                  {translations.auth.signInSubtitle}
+                </Typography>
 
               {error && (
                 <Alert
@@ -343,14 +344,14 @@ export const SignIn: React.FC = () => {
                   <FormLabel
                     sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}
                   >
-                    Email Address
+                    {translations.auth.emailAddress}
                   </FormLabel>
                   <StyledTextField
                     error={emailError}
                     helperText={emailErrorMessage}
                     type="email"
                     name="email"
-                    placeholder="your@email.com"
+                    placeholder={translations.auth.enterEmail}
                     autoComplete="email"
                     value={formData.email}
                     onChange={handleChange}
@@ -368,13 +369,13 @@ export const SignIn: React.FC = () => {
                   <FormLabel
                     sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}
                   >
-                    Password
+                    {translations.common.password}
                   </FormLabel>
                   <StyledTextField
                     error={passwordError}
                     helperText={passwordErrorMessage}
                     name="password"
-                    placeholder="Enter your password"
+                    placeholder={translations.auth.passwordRequired}
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="current-password"
                     value={formData.password}
@@ -415,7 +416,7 @@ export const SignIn: React.FC = () => {
                         }}
                       />
                     }
-                    label="Remember me"
+                    label={translations.common.rememberMe}
                   />
                   <MuiLink
                     component={Link}
@@ -428,7 +429,7 @@ export const SignIn: React.FC = () => {
                       '&:hover': { textDecoration: 'underline' },
                     }}
                   >
-                    Forgot password?
+                    {translations.common.forgotPassword}
                   </MuiLink>
                 </Box>
 
@@ -438,7 +439,7 @@ export const SignIn: React.FC = () => {
                   disabled={loading}
                   size="large"
                 >
-                  {loading ? <CircularProgress size={24} /> : 'Sign In'}
+                  {loading ? <CircularProgress size={24} /> : translations.common.signIn}
                 </GradientButton>
               </Box>
 
@@ -447,7 +448,7 @@ export const SignIn: React.FC = () => {
                   variant="body2"
                   sx={{ color: 'text.secondary', px: 2 }}
                 >
-                  Don't have an account?
+                  {translations.auth.dontHaveAccount}
                 </Typography>
               </Divider>
 
@@ -470,7 +471,7 @@ export const SignIn: React.FC = () => {
                   },
                 }}
               >
-                Create Account
+                {translations.auth.createAccount}
               </Button>
             </Box>
           </Fade>

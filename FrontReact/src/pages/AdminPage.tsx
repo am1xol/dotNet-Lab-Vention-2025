@@ -9,6 +9,7 @@ import { AdminUsersPanel } from '../components/subscriptions/AdminUsersPanel';
 import { AdminReportsPanel } from '../components/reports/AdminReportsPanel';
 import { AdminChatPanel } from '../components/chat/AdminChatPanel';
 import { DashboardHeader } from '../components/dashboard/DashboardHeader';
+import { translations } from '../i18n/translations';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -93,7 +94,7 @@ export const AdminPage: React.FC = () => {
                 color: '#7E57C2',
               }}
             >
-              Admin Panel
+              {translations.admin.title}
             </Typography>
             <Tabs
               value={tabValue}
@@ -113,10 +114,10 @@ export const AdminPage: React.FC = () => {
                 },
               }}
             >
-              <Tab label="Manage Subscriptions" />
-              <Tab label="Users Management" />
-              <Tab label="Reports" />
-              <Tab label="Chat Support" />
+              <Tab label={translations.admin.manageSubscriptions} />
+              <Tab label={translations.admin.manageUsers} />
+              <Tab label={translations.admin.reports} />
+              <Tab label={translations.admin.supportChat} />
             </Tabs>
           </Box>
 

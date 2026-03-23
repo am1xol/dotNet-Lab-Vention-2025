@@ -21,6 +21,7 @@ import { SubscriptionFormDialog } from './SubscriptionFormDialog';
 import { AdminSubscriptionDeleteDialog } from './AdminSubscriptionDeleteDialog';
 import { AdminSubscriptionCard } from './AdminSubscriptionCard';
 import { ManagePricesDialog } from './ManagePricesDialog';
+import { translations } from '../../i18n/translations';
 
 interface AdminSubscriptionPanelProps {
   onSubscriptionCreated: () => void;
@@ -54,7 +55,7 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
       const allSubscriptions = Object.values(data).flat();
       setSubscriptions(allSubscriptions);
     } catch (err) {
-      setError('Failed to load subscriptions');
+      setError(translations.admin.failedToLoadSubscriptions);
       console.error('Error loading subscriptions:', err);
     } finally {
       setLoading(false);
@@ -65,7 +66,6 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
     loadSubscriptions();
   }, [loadSubscriptions]);
 
-  // Изменённый handleCreate – теперь только создаёт подписку без цены
   const handleCreate = async (formData: CreateSubscriptionRequest) => {
     try {
       await subscriptionService.createSubscription(formData);
@@ -74,7 +74,7 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
       onSubscriptionCreated();
       await loadSubscriptions();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create subscription');
+      setError(err.response?.data?.message || translations.admin.failedToCreateSubscription);
     }
   };
 
@@ -96,7 +96,7 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
       onSubscriptionUpdated();
       await loadSubscriptions();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to update subscription');
+      setError(err.response?.data?.message || translations.admin.failedToUpdateSubscription);
     }
   };
 
@@ -111,7 +111,7 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
       onSubscriptionDeleted();
       await loadSubscriptions();
     } catch (err: any) {
-      const errorMessage = err.message || 'Failed to delete subscription';
+      const errorMessage = err.message || translations.admin.failedToDeleteSubscription;
       setError(errorMessage);
     }
   };
@@ -121,7 +121,7 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
       const newActiveStatus = !subscription.isActive;
 
       if (!newActiveStatus) {
-        const confirmMessage = `Deactivating "${subscription.name}" will automatically unsubscribe all users at the end of their billing period. Continue?`;
+        const confirmMessage = translations.admin.confirmDeactivate.replace('{name}', subscription.name);
         if (!window.confirm(confirmMessage)) {
           return;
         }
@@ -142,14 +142,14 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
 
       if (!newActiveStatus) {
         setError(
-          `Subscription "${subscription.name}" deactivated. Users will be unsubscribed at the end of their billing periods.`
+          translations.admin.subscriptionDeactivated.replace('{name}', subscription.name)
         );
       } else {
         setError(null);
       }
     } catch (err: any) {
       setError(
-        err.response?.data?.message || 'Failed to update subscription status'
+        err.response?.data?.message || translations.admin.failedToUpdateStatus
       );
       await loadSubscriptions();
     }
@@ -174,7 +174,7 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" py={8}>
-        <Typography>Loading subscriptions...</Typography>
+        <Typography>{translations.common.loading}</Typography>
       </Box>
     );
   }
@@ -203,10 +203,10 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
             variant="h4"
             sx={{ color: '#7E57C2', fontWeight: 600, mb: 1 }}
           >
-            Subscription Management
+            {translations.admin.manageSubscriptions}
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Create, edit, and manage all subscriptions
+            {translations.admin.subscriptionManagement}
           </Typography>
         </Box>
         <Button
@@ -221,7 +221,7 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
             py: 1.5,
           }}
         >
-          Create New
+          {translations.subscriptions.addSubscription}
         </Button>
       </Box>
 
@@ -238,8 +238,7 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
         }}
       >
         <Typography variant="body2" color="text.secondary">
-          Showing {filteredSubscriptions.length} of {subscriptions.length}{' '}
-          subscriptions
+          {translations.admin.shownCount.replace('{count}', filteredSubscriptions.length.toString()).replace('{total}', subscriptions.length.toString())}
         </Typography>
         <FormControlLabel
           control={
@@ -249,7 +248,7 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
               color="primary"
             />
           }
-          label="Show only active"
+          label={translations.admin.showOnlyActive}
         />
       </Box>
 
@@ -268,8 +267,8 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
         >
           <Typography variant="h6" color="text.secondary">
             {showOnlyActive
-              ? 'No active subscriptions found'
-              : 'No subscriptions found'}
+              ? translations.admin.noActiveSubscriptions
+              : translations.admin.subscriptionsNotFound}
           </Typography>
         </Box>
       ) : (

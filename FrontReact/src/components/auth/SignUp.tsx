@@ -27,6 +27,7 @@ import { RegisterRequest } from '../../types/auth';
 import { motion } from 'framer-motion';
 import { useSnackbar } from 'notistack';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { translations } from '../../i18n/translations';
 
 const GlassCard = styled(Card)(({ theme }) => ({
   display: 'flex',
@@ -203,11 +204,11 @@ export const SignUp: React.FC = () => {
       await authService.resendVerificationCode(formData.email);
 
       setResendTimer(RESEND_INTERVAL);
-      enqueueSnackbar('A new verification code has been sent to your email.', {
+      enqueueSnackbar(translations.auth.codeResent, {
         variant: 'info',
       });
     } catch (err: any) {
-      const errorMsg = err.response?.data?.title || 'Failed to resend code.';
+      const errorMsg = err.response?.data?.title || translations.messages.error;
       enqueueSnackbar(errorMsg, { variant: 'error' });
       setError(errorMsg);
     } finally {
@@ -248,13 +249,13 @@ export const SignUp: React.FC = () => {
 
     if (!formData.email || !/\S+@\S+\.\S+/.test(formData.email)) {
       setEmailError(true);
-      setEmailErrorMessage('Please enter a valid email address.');
+      setEmailErrorMessage(translations.validation.invalidEmail);
       isValid = false;
     }
 
     if (!formData.password || formData.password.length < 6) {
       setPasswordError(true);
-      setPasswordErrorMessage('Password must be at least 6 characters long.');
+      setPasswordErrorMessage(translations.validation.passwordMinLength);
       isValid = false;
     }
 
@@ -303,7 +304,7 @@ export const SignUp: React.FC = () => {
       const errorMessage =
         err.response?.data?.title ||
         err.response?.data?.error ||
-        'Registration failed';
+        translations.auth.accountCreated;
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -324,7 +325,7 @@ export const SignUp: React.FC = () => {
     try {
       await authService.verifyEmail(formData.email, verificationCode);
 
-      enqueueSnackbar('Email verified successfully!', { variant: 'success' });
+      enqueueSnackbar(translations.auth.emailVerified, { variant: 'success' });
 
       setSuccess(true);
 
@@ -332,7 +333,7 @@ export const SignUp: React.FC = () => {
         navigate('/auth/signin');
       }, 2000);
     } catch (err: any) {
-      setError(err.response?.data?.title || 'Verification failed');
+      setError(err.response?.data?.title || translations.auth.invalidCode);
     } finally {
       setLoading(false);
     }
@@ -394,7 +395,7 @@ export const SignUp: React.FC = () => {
                     mb: 2,
                   }}
                 >
-                  Email Verified!
+                  {translations.auth.emailVerified}
                 </Typography>
                 <Alert
                   severity="success"
@@ -404,8 +405,7 @@ export const SignUp: React.FC = () => {
                     background: 'rgba(76, 175, 80, 0.05)',
                   }}
                 >
-                  Your email has been successfully verified! You can now sign in
-                  to your account.
+                  {translations.auth.emailVerifiedSuccess}
                 </Alert>
               </Box>
 
@@ -427,7 +427,7 @@ export const SignUp: React.FC = () => {
                   },
                 }}
               >
-                Sign In
+                {translations.common.signIn}
               </Button>
             </AnimatedCardContent>
           </GlassCard>
@@ -491,7 +491,7 @@ export const SignUp: React.FC = () => {
                   WebkitTextFillColor: 'transparent',
                 }}
               >
-                Verify Email
+                {translations.auth.verifyEmail}
               </Typography>
 
               <Typography
@@ -502,9 +502,9 @@ export const SignUp: React.FC = () => {
                   mb: 4,
                   fontSize: '1.1rem',
                 }}
-              >
-                Enter the verification code sent to {formData.email}
-              </Typography>
+                >
+                  {translations.auth.enterVerificationCode.replace('{email}', formData.email)}
+                </Typography>
 
               {error && (
                 <Alert
@@ -534,16 +534,16 @@ export const SignUp: React.FC = () => {
                   <FormLabel
                     sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}
                   >
-                    Verification Code
+                    {translations.auth.verificationCode}
                   </FormLabel>
                   <StyledTextField
                     error={verificationCodeError}
                     helperText={
                       verificationCodeError
-                        ? 'Verification code is required'
+                        ? translations.validation.required
                         : ''
                     }
-                    placeholder="Enter the 6-digit code"
+                    placeholder={translations.auth.enterVerificationCode}
                     value={verificationCode}
                     onChange={handleVerificationCodeChange}
                     required
@@ -577,7 +577,7 @@ export const SignUp: React.FC = () => {
                       fontWeight: 500,
                     }}
                   >
-                    Didn't receive the code?
+                    {translations.auth.codeExpired}
                   </Typography>
                   <Button
                     onClick={handleResendCode}
@@ -606,10 +606,10 @@ export const SignUp: React.FC = () => {
                     }}
                   >
                     {resendTimer > 0
-                      ? `Resend in ${resendTimer}s`
+                      ? `${resendTimer}s`
                       : resendLoading
-                        ? 'Sending...'
-                        : 'Resend Code'}
+                        ? translations.common.loading
+                        : translations.auth.resendCode}
                   </Button>
                 </Stack>
 
@@ -620,7 +620,7 @@ export const SignUp: React.FC = () => {
                   size="large"
                   sx={{ mt: 2 }}
                 >
-                  {loading ? <CircularProgress size={24} /> : 'Verify Email'}
+                  {loading ? <CircularProgress size={24} /> : translations.auth.verifyEmail}
                 </GradientButton>
               </Box>
 
@@ -629,7 +629,7 @@ export const SignUp: React.FC = () => {
                   variant="body2"
                   sx={{ color: 'text.secondary', px: 2 }}
                 >
-                  Already have an account?
+                  {translations.auth.alreadyHaveAccount}
                 </Typography>
               </Divider>
 
@@ -654,7 +654,7 @@ export const SignUp: React.FC = () => {
                   transition: 'all 0.3s ease',
                 }}
               >
-                Sign In
+                {translations.common.signIn}
               </Button>
             </AnimatedCardContent>
           </GlassCard>
@@ -725,7 +725,7 @@ export const SignUp: React.FC = () => {
                 WebkitTextFillColor: 'transparent',
               }}
             >
-              Create Account
+              {translations.auth.signUpTitle}
             </Typography>
 
             <Typography
@@ -737,7 +737,7 @@ export const SignUp: React.FC = () => {
                 fontSize: '1.1rem',
               }}
             >
-              Join us to manage your subscriptions
+              {translations.auth.signUpSubtitle}
             </Typography>
 
             {error && (
@@ -769,13 +769,13 @@ export const SignUp: React.FC = () => {
                   <FormLabel
                     sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}
                   >
-                    First Name
+                    {translations.profile.firstName}
                   </FormLabel>
                   <StyledTextField
                     error={firstNameError}
-                    helperText={firstNameError ? 'First name is required' : ''}
+                    helperText={firstNameError ? translations.validation.required : ''}
                     name="firstName"
-                    placeholder="John"
+                    placeholder={translations.profile.firstName}
                     autoComplete="given-name"
                     value={formData.firstName}
                     onChange={handleChange}
@@ -791,13 +791,13 @@ export const SignUp: React.FC = () => {
                   <FormLabel
                     sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}
                   >
-                    Last Name
+                    {translations.profile.lastName}
                   </FormLabel>
                   <StyledTextField
                     error={lastNameError}
-                    helperText={lastNameError ? 'Last name is required' : ''}
+                    helperText={lastNameError ? translations.validation.required : ''}
                     name="lastName"
-                    placeholder="Doe"
+                    placeholder={translations.profile.lastName}
                     autoComplete="family-name"
                     value={formData.lastName}
                     onChange={handleChange}
@@ -810,14 +810,14 @@ export const SignUp: React.FC = () => {
                 <FormLabel
                   sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}
                 >
-                  Email Address
+                  {translations.auth.emailAddress}
                 </FormLabel>
                 <StyledTextField
                   error={emailError}
                   helperText={emailErrorMessage}
                   type="email"
                   name="email"
-                  placeholder="your@email.com"
+                  placeholder={translations.auth.enterEmail}
                   autoComplete="email"
                   value={formData.email}
                   onChange={handleChange}
@@ -833,7 +833,7 @@ export const SignUp: React.FC = () => {
                 <FormLabel
                   sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}
                 >
-                  Password
+                  {translations.common.password}
                 </FormLabel>
                 <StyledTextField
                   error={passwordError}
@@ -867,7 +867,7 @@ export const SignUp: React.FC = () => {
                 disabled={loading}
                 size="large"
               >
-                {loading ? <CircularProgress size={24} /> : 'Create Account'}
+                {loading ? <CircularProgress size={24} /> : translations.auth.createAccount}
               </GradientButton>
             </Box>
 
@@ -876,7 +876,7 @@ export const SignUp: React.FC = () => {
                 variant="body2"
                 sx={{ color: 'text.secondary', px: 2 }}
               >
-                Already have an account?
+                {translations.auth.alreadyHaveAccount}
               </Typography>
             </Divider>
 
@@ -901,7 +901,7 @@ export const SignUp: React.FC = () => {
                 transition: 'all 0.3s ease',
               }}
             >
-              Sign In
+              {translations.common.signIn}
             </Button>
           </AnimatedCardContent>
         </GlassCard>

@@ -5,6 +5,7 @@ import chatService from '../../services/chat-service';
 import { ChatMessageDto } from '../../types/chat';
 import { useAuthStore } from '../../store/auth-store';
 import { translations } from '../../i18n/translations';
+import { formatTime } from '../../utils/date-utils';
 
 const POLL_INTERVAL = 10000;
 const t = translations.userChat;
@@ -114,11 +115,6 @@ const UserChatWidget: React.FC = () => {
       e.preventDefault();
       handleSendMessage();
     }
-  };
-
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   if (!isAuthenticated) {

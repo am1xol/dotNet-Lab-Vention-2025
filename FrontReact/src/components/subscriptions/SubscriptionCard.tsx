@@ -17,6 +17,7 @@ import { ExpandMore, ExpandLess } from '@mui/icons-material';
 import DOMPurify from 'dompurify';
 import { Subscription, SubscriptionPrice } from '../../types/subscription';
 import { translations } from '../../i18n/translations';
+import { formatDate } from '../../utils/date-utils';
 
 interface SubscriptionCardProps {
   subscription: Subscription;
@@ -78,15 +79,10 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   }, []);
 
   const formatPrice = useMemo(() => (price: number) => `${price} BYN`, []);
-  
-  const formatDate = useMemo(() => (dateString: string | undefined) => {
+
+  const formatDateLocalized = useMemo(() => (dateString: string | undefined) => {
     if (!dateString) return translations.common.noData;
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ru-RU', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    return formatDate(dateString);
   }, []);
 
   const status = useMemo(() => {
@@ -107,11 +103,11 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
     if (status === translations.subscriptions.cancelled) {
       const untilDate = unsubscribeInfo?.validUntil || validUntil;
       return untilDate
-        ? `${translations.subscriptions.cancelled} (${translations.subscriptions.until} ${formatDate(untilDate)})`
+        ? `${translations.subscriptions.cancelled} (${translations.subscriptions.until} ${formatDateLocalized(untilDate)})`
         : translations.subscriptions.cancelled;
     }
     return status;
-  }, [status, unsubscribeInfo?.validUntil, validUntil, formatDate]);
+  }, [status, unsubscribeInfo?.validUntil, validUntil, formatDateLocalized]);
 
   const finalLoadingState = loading || paymentLoading;
   const hasMarkdownContent = subscription.descriptionMarkdown?.trim().length > 0;
@@ -329,7 +325,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
             >
               <Typography variant="body2" color="warning.dark" align="center">
                 <strong>{translations.subscriptions.activeUntil}:</strong>{' '}
-                {formatDate(unsubscribeInfo?.validUntil || validUntil || '')}
+                {formatDateLocalized(unsubscribeInfo?.validUntil || validUntil || '')}
                 <br />
                 <Typography variant="caption">
                   {translations.subscriptions.youWillLoseAccess}

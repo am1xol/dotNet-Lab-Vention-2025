@@ -16,6 +16,7 @@ import { useSnackbar } from 'notistack';
 import { feedbackService } from '../../services/feedback-service';
 import { FeedbackDto, CreateFeedbackRequest } from '../../types/feedback';
 import { translations } from '../../i18n/translations';
+import { formatDateTime } from '../../utils/date-utils';
 
 export const FeedbackTab: React.FC = () => {
   const [feedback, setFeedback] = useState<FeedbackDto | null>(null);
@@ -184,13 +185,7 @@ export const FeedbackTab: React.FC = () => {
 
       {feedback && (
         <Alert severity="info" sx={{ mb: 3 }}>
-          {translations.profile.lastUpdated} {new Date(feedback.updatedAt).toLocaleDateString('ru-RU', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-          })}
+          {translations.profile.lastUpdated} {formatDateTime(feedback.updatedAt)}
         </Alert>
       )}
 

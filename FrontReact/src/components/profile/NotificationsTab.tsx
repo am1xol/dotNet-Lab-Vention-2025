@@ -22,7 +22,7 @@ import {
   MarkEmailRead,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
-import { formatDistanceToNow } from 'date-fns';
+import { formatRelativeTime } from '../../utils/date-utils';
 import { Notification, NotificationType } from '../../types/notification';
 import { notificationService } from '../../services/notification-service';
 import { translations } from '../../i18n/translations';
@@ -244,10 +244,7 @@ export const NotificationsTab: React.FC = () => {
                           {notification.message}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {formatDistanceToNow(
-                            new Date(notification.createdAt),
-                            { addSuffix: true }
-                          )}
+                          {formatRelativeTime(notification.createdAt, true)}
                         </Typography>
                       </>
                     }

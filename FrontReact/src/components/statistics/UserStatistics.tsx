@@ -22,6 +22,7 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { UserStatistics as UserStatisticsType } from '../../types/payment';
+import { formatDate, formatDateNumeric } from '../../utils/date-utils';
 import { translations } from '../../i18n/translations';
 
 interface UserStatisticsProps {
@@ -36,14 +37,6 @@ export const UserStatistics: React.FC<UserStatisticsProps> = memo(({
       style: 'currency',
       currency: 'BYN',
     }).format(amount);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
   };
 
   const generateRandomCircles = (count: number) => {
@@ -450,7 +443,7 @@ export const UserStatistics: React.FC<UserStatisticsProps> = memo(({
             title={translations.statistics.nextBill}
             value={
               statistics.nextBillingDate
-                ? formatDate(statistics.nextBillingDate)
+                ? formatDateNumeric(statistics.nextBillingDate)
                 : '—'
             }
             subtitle={translations.statistics.nextBillSubtitle}

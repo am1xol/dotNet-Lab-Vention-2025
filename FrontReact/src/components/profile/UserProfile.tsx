@@ -28,6 +28,7 @@ import {
 } from '@mui/icons-material';
 import { UserProfile as UserProfileType } from '../../types/user';
 import { userService } from '../../services/user-service';
+import { formatDate } from '../../utils/date-utils';
 import Header from '../layout/Header';
 import FloatingIcons from '../shared/FloatingServiceIcons';
 import { ProfileForm } from './ProfileForm';
@@ -79,14 +80,6 @@ export const UserProfile: React.FC = () => {
 
   const handleProfileUpdated = (updatedUser: UserProfileType) => {
     setUser(updatedUser);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
   };
 
   const getUserInitials = (user: UserProfileType) => {

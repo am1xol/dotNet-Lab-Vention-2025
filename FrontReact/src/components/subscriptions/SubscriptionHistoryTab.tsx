@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import { UserSubscription } from '../../types/subscription';
 import { userSubscriptionService } from '../../services/user-subscription-service';
+import { formatDate } from '../../utils/date-utils';
 import { translations } from '../../i18n/translations';
 
 interface PagedUserSubscriptionResponse {
@@ -66,15 +67,6 @@ export const SubscriptionHistoryTab: React.FC = () => {
     const nextPage = page + 1;
     setPage(nextPage);
     loadHistory(nextPage);
-  };
-
-  const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
   };
 
   const getStatusColor = (status?: string) => {

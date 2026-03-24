@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import { Payment } from '../../types/payment';
 import { userSubscriptionService } from '../../services/user-subscription-service';
+import { formatDateTime } from '../../utils/date-utils';
 import { translations } from '../../i18n/translations';
 
 interface PagedPaymentResponse {
@@ -78,13 +79,7 @@ export const PaymentHistoryTab: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return formatDateTime(dateString);
   };
 
   if (loading && payments.length === 0) {

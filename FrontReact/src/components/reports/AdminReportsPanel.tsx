@@ -35,6 +35,7 @@ import {
   UserSubscriptionReportItem,
 } from '../../types/report';
 import { translations } from '../../i18n/translations';
+import { formatDateShort } from '../../utils/date-utils';
 
 type ReportType =
   | 'activeByPlan'
@@ -423,11 +424,11 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
                 <TableCell>{row.periodName}</TableCell>
                 <TableCell>{row.finalPrice.toFixed(2)}</TableCell>
                 <TableCell>
-                  {new Date(row.startDate).toLocaleDateString()}
+                  {formatDateShort(row.startDate)}
                 </TableCell>
                 <TableCell>
                   {row.validUntil
-                    ? new Date(row.validUntil).toLocaleDateString()
+                    ? formatDateShort(row.validUntil)
                     : '-'}
                 </TableCell>
                 <TableCell>{row.isActive ? translations.admin.activeStatus : translations.admin.inactiveStatus}</TableCell>

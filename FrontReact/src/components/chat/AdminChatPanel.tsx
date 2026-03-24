@@ -17,6 +17,7 @@ import {
 } from '@mui/material';
 import { Send as SendIcon, Close as CloseIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 import chatService from '../../services/chat-service';
+import { formatRelativeTime } from '../../utils/date-utils';
 import { ChatConversationDto, ChatMessageDto } from '../../types/chat';
 import { translations } from '../../i18n/translations';
 
@@ -98,18 +99,7 @@ export const AdminChatPanel: React.FC = () => {
   };
 
   const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return translations.adminChat.justNow;
-    if (diffMins < 60) return translations.adminChat.minutesAgo.replace('{count}', String(diffMins));
-    if (diffHours < 24) return translations.adminChat.hoursAgo.replace('{count}', String(diffHours));
-    if (diffDays < 7) return translations.adminChat.daysAgo.replace('{count}', String(diffDays));
-    return date.toLocaleDateString();
+    return formatRelativeTime(dateString, true);
   };
 
   return (

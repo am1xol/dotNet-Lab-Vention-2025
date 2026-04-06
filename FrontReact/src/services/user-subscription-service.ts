@@ -60,6 +60,51 @@ export const userSubscriptionService = {
     return response.data as { message: string; validUntil: string };
   },
 
+  async freezeSubscription(
+    subscriptionId: string,
+    freezeMonths: number = 1
+  ): Promise<{
+    message: string;
+    frozenUntil: string;
+    nextBillingDate: string;
+    validUntil?: string;
+  }> {
+    const response = await api.post(
+      `${API_BASE_URL}/UserSubscriptions/freeze/${subscriptionId}`,
+      { freezeMonths }
+    );
+    return response.data as {
+      message: string;
+      frozenUntil: string;
+      nextBillingDate: string;
+      validUntil?: string;
+    };
+  },
+
+  async resumeSubscription(subscriptionId: string): Promise<{
+    message: string;
+    nextBillingDate: string;
+    validUntil?: string;
+  }> {
+    const response = await api.post(
+      `${API_BASE_URL}/UserSubscriptions/resume/${subscriptionId}`
+    );
+    return response.data as {
+      message: string;
+      nextBillingDate: string;
+      validUntil?: string;
+    };
+  },
+
+  async restoreCancelledSubscription(subscriptionId: string): Promise<{
+    message: string;
+  }> {
+    const response = await api.post(
+      `${API_BASE_URL}/UserSubscriptions/restore-cancelled/${subscriptionId}`
+    );
+    return response.data as { message: string };
+  },
+
   async getStatistics(): Promise<UserStatistics> {
     const response = await api.get(
       `${API_BASE_URL}/UserSubscriptions/statistics`

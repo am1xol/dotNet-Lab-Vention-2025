@@ -9,6 +9,10 @@ import {
   UserSubscription,
   SubscriptionsByCategory,
 } from '../../types/subscription';
+import {
+  canFreezeUserSubscription,
+  canRestoreCancelledUserSubscription,
+} from '../../utils/subscription-utils';
 
 interface UnsubscribeInfo {
   validUntil: string;
@@ -25,6 +29,8 @@ interface AvailableSubscriptionsTabProps {
     reason?: string,
     customReason?: string
   ) => Promise<void>;
+  handleFreeze: (subscriptionId: string, freezeMonths: number) => Promise<void>;
+  handleRestoreCancelled: (subscriptionId: string) => Promise<void>;
 }
 
 const PAGE_SIZE = 3;
@@ -38,6 +44,8 @@ export const AvailableSubscriptionsTab: React.FC<
   handleSubscribe,
   handleInitiatePayment,
   handleUnsubscribe,
+  handleFreeze,
+  handleRestoreCancelled,
 }) => {
   const [categoriesData, setCategoriesData] = useState<SubscriptionsByCategory>(
     {}
@@ -139,6 +147,8 @@ export const AvailableSubscriptionsTab: React.FC<
                 {data.items.map((subscription) => {
                   if (!subscription || !subscription.id) return null;
                   const userSub = getUserSubscription(subscription.id);
+                  const canFreeze = canFreezeUserSubscription(userSub);
+                  const canRestore = canRestoreCancelledUserSubscription(userSub);
                   return (
                     <Grid key={subscription.id} size={{ xs: 12, md: 6, lg: 4 }}>
                       <motion.div
@@ -149,8 +159,12 @@ export const AvailableSubscriptionsTab: React.FC<
                         <SubscriptionCard
                           subscription={subscription}
                           prices={subscription.prices}
-                          isSubscribed={!!userSub?.isActive}
-                          isCancelled={!!userSub?.cancelledAt}
+                          isSubscribed={!!userSub}
+                          isCancelled={!!userSub?.cancelledAt && !userSub?.isFrozen}
+                          isFrozen={!!userSub?.isFrozen}
+                          frozenUntil={userSub?.frozenUntil}
+                          canFreezeAndUnsubscribe={canFreeze}
+                          canRestoreCancelled={canRestore}
                           validUntil={userSub?.validUntil}
                           unsubscribeInfo={unsubscribeData?.[subscription.id]}
                           onSubscribe={handleSubscribe}
@@ -158,6 +172,8 @@ export const AvailableSubscriptionsTab: React.FC<
                           onUnsubscribe={(id) =>
                             handleOpenUnsubscribeDialog(id, subscription.name)
                           }
+                          onFreeze={handleFreeze}
+                          onRestoreCancelled={handleRestoreCancelled}
                           loading={actionLoading === subscription.id}
                         />
                       </motion.div>

@@ -19,6 +19,7 @@ import DashboardShell from '../components/layout/DashboardShell';
 import { DashboardHeader } from '../components/dashboard/DashboardHeader';
 import { DashboardTabs } from '../components/dashboard/DashboardTabs';
 import { translations } from '../i18n/translations';
+import { matchesUserSubscriptionCatalog } from '../utils/subscription-utils';
 
 declare const BeGateway: new (options: any) => {
   createWidget: () => void;
@@ -159,6 +160,30 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
+  const handleFreeze = async (subscriptionId: string, freezeMonths: number) => {
+    try {
+      setActionLoading(subscriptionId);
+      await userSubscriptionService.freezeSubscription(subscriptionId, freezeMonths);
+      await loadData();
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Не удалось приостановить подписку');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRestoreCancelled = async (subscriptionId: string) => {
+    try {
+      setActionLoading(subscriptionId);
+      await userSubscriptionService.restoreCancelledSubscription(subscriptionId);
+      await loadData();
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Не удалось восстановить подписку');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleTabChange = (newValue: number) => {
     setTabValue(newValue);
   };
@@ -168,8 +193,8 @@ export const DashboardPage: React.FC = () => {
   ): UserSubscription | undefined => {
     if (!mySubscriptions) return undefined;
     const allUserSubscriptions = Object.values(mySubscriptions).flat();
-    return allUserSubscriptions.find(
-      (us) => us.subscription.id === subscriptionId && us.isActive
+    return allUserSubscriptions.find((us) =>
+      matchesUserSubscriptionCatalog(us, subscriptionId)
     );
   };
 
@@ -220,6 +245,8 @@ export const DashboardPage: React.FC = () => {
           handleSubscribe={handleSubscribe}
           handleInitiatePayment={handleInitiatePayment}
           handleUnsubscribe={handleUnsubscribe}
+          handleFreeze={handleFreeze}
+          handleRestoreCancelled={handleRestoreCancelled}
         />
       </Stack>
     </DashboardShell>

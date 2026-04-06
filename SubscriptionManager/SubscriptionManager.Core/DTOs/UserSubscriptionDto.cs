@@ -11,6 +11,9 @@
         public DateTime? CancelledAt { get; set; }
         public DateTime? ValidUntil { get; set; }
         public bool IsActive { get; set; }
+        public bool IsFrozen { get; set; }
+        public DateTime? FrozenAt { get; set; }
+        public DateTime? FrozenUntil { get; set; }
         public bool IsValid { get; set; }
         public string? Status { get; set; }
         public SubscriptionDto Subscription { get; set; } = null!;
@@ -38,5 +41,10 @@
     {
         public string? Reason { get; set; }
         public string? CustomReason { get; set; }
+    }
+
+    public class FreezeSubscriptionRequest
+    {
+        public int FreezeMonths { get; set; } = 1;
     }
 }

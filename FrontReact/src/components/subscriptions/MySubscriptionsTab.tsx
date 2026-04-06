@@ -8,6 +8,10 @@ import {
   UserSubscription,
 } from '../../types/subscription';
 import { translations } from '../../i18n/translations';
+import {
+  canFreezeUserSubscription,
+  canRestoreCancelledUserSubscription,
+} from '../../utils/subscription-utils';
 
 interface UnsubscribeInfo {
   validUntil: string;
@@ -24,6 +28,8 @@ interface MySubscriptionsTabProps {
     reason?: string,
     customReason?: string
   ) => Promise<void>;
+  handleFreeze: (subscriptionId: string, freezeMonths: number) => Promise<void>;
+  handleRestoreCancelled: (subscriptionId: string) => Promise<void>;
 }
 
 const PAGE_SIZE = 3;
@@ -35,6 +41,8 @@ export const MySubscriptionsTab: React.FC<MySubscriptionsTabProps> = ({
   handleSubscribe,
   handleInitiatePayment,
   handleUnsubscribe,
+  handleFreeze,
+  handleRestoreCancelled,
 }) => {
   const [displayData, setDisplayData] = useState<any>({});
   const [unsubscribeDialogOpen, setUnsubscribeDialogOpen] = useState(false);
@@ -45,7 +53,9 @@ export const MySubscriptionsTab: React.FC<MySubscriptionsTabProps> = ({
     const initialData: any = {};
 
     Object.entries(mySubscriptions).forEach(([category, subs]) => {
-      const activeSubs = subs.filter((s) => s.isActive);
+      const activeSubs = subs.filter(
+        (s) => s.isActive || s.isFrozen || !!s.cancelledAt
+      );
       if (activeSubs.length > 0) {
         initialData[category] = {
           allLines: activeSubs,
@@ -134,7 +144,11 @@ export const MySubscriptionsTab: React.FC<MySubscriptionsTabProps> = ({
               <Grid container spacing={3}>
                 <AnimatePresence mode="popLayout">
                   {data.visibleItems.map(
-                    (userSubscription: UserSubscription) => (
+                    (userSubscription: UserSubscription) => {
+                      const canFreeze = canFreezeUserSubscription(userSubscription);
+                      const canRestore =
+                        canRestoreCancelledUserSubscription(userSubscription);
+                      return (
                       <Grid
                         key={userSubscription.id}
                         size={{ xs: 12, md: 6, lg: 4 }}
@@ -152,8 +166,15 @@ export const MySubscriptionsTab: React.FC<MySubscriptionsTabProps> = ({
                             }
                             periodName={userSubscription.periodName}
                             finalPrice={userSubscription.finalPrice}
-                            isSubscribed={userSubscription.isActive}
-                            isCancelled={!!userSubscription.cancelledAt}
+                            isSubscribed
+                            isCancelled={
+                              !!userSubscription.cancelledAt &&
+                              !userSubscription.isFrozen
+                            }
+                            isFrozen={!!userSubscription.isFrozen}
+                            frozenUntil={userSubscription.frozenUntil}
+                            canFreezeAndUnsubscribe={canFreeze}
+                            canRestoreCancelled={canRestore}
                             validUntil={userSubscription.validUntil}
                             unsubscribeInfo={
                               unsubscribedData[userSubscription.subscription.id]
@@ -166,13 +187,16 @@ export const MySubscriptionsTab: React.FC<MySubscriptionsTabProps> = ({
                                 userSubscription.subscription.name
                               )
                             }
+                            onFreeze={handleFreeze}
+                            onRestoreCancelled={handleRestoreCancelled}
                             loading={
                               actionLoading === userSubscription.subscription.id
                             }
                           />
                         </motion.div>
                       </Grid>
-                    )
+                    );
+                    }
                   )}
                 </AnimatePresence>
               </Grid>

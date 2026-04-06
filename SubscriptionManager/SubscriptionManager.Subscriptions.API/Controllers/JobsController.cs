@@ -20,5 +20,12 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             var deletedCount = await _jobService.CleanupStuckPaymentsAsync(CancellationToken.None);
             return Ok(new { message = "Cleanup completed", recordsAffected = deletedCount });
         }
+
+        [HttpPost("run-freeze-expiry")]
+        public async Task<IActionResult> ManualFreezeExpiry()
+        {
+            var n = await _jobService.ProcessExpiredFreezesAsync(CancellationToken.None);
+            return Ok(new { message = "Freeze expiry processed", subscriptionsResumed = n });
+        }
     }
 }

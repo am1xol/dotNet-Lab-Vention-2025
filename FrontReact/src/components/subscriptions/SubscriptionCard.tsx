@@ -18,6 +18,7 @@ import DOMPurify from 'dompurify';
 import { Subscription, SubscriptionPrice } from '../../types/subscription';
 import { translations } from '../../i18n/translations';
 import { formatDate } from '../../utils/date-utils';
+import { FreezeSubscriptionDialog } from './FreezeSubscriptionDialog';
 
 interface SubscriptionCardProps {
   subscription: Subscription;
@@ -27,11 +28,17 @@ interface SubscriptionCardProps {
   prices?: SubscriptionPrice[];
   isSubscribed?: boolean;
   isCancelled?: boolean;
+  isFrozen?: boolean;
+  frozenUntil?: string;
+  canFreezeAndUnsubscribe?: boolean;
+  canRestoreCancelled?: boolean;
   validUntil?: string;
   unsubscribeInfo?: { validUntil: string };
   onSubscribe: (id: string) => void;
   onInitiatePayment: (id: string) => Promise<void>;
   onUnsubscribe: (subscriptionId: string) => void;
+  onFreeze?: (subscriptionId: string, freezeMonths: number) => Promise<void>;
+  onRestoreCancelled?: (subscriptionId: string) => Promise<void>;
   userRole?: string;
   loading?: boolean;
 }
@@ -44,16 +51,23 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   prices,
   isSubscribed = false,
   isCancelled = false,
+  isFrozen = false,
+  frozenUntil,
+  canFreezeAndUnsubscribe = false,
+  canRestoreCancelled = false,
   validUntil,
   unsubscribeInfo,
   onInitiatePayment,
   onUnsubscribe,
   onSubscribe,
+  onFreeze,
+  onRestoreCancelled,
   userRole,
   loading = false,
 }) => {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [freezeDialogOpen, setFreezeDialogOpen] = useState(false);
 
   const handleInitiatePayment = useCallback(async (priceId: string) => {
     setPaymentLoading(true);
@@ -86,20 +100,25 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   }, []);
 
   const status = useMemo(() => {
+    if (isFrozen) return translations.subscriptions.frozen;
     if (isCancelled) return translations.subscriptions.cancelled;
     if (isSubscribed) return translations.subscriptions.active;
     return translations.subscriptions.available;
-  }, [isCancelled, isSubscribed]);
+  }, [isCancelled, isSubscribed, isFrozen]);
 
   const statusColor = useMemo(() => {
     switch (status) {
       case translations.subscriptions.active: return 'success';
       case translations.subscriptions.cancelled: return 'warning';
+      case translations.subscriptions.frozen: return 'info';
       default: return 'default';
     }
   }, [status]);
 
   const statusText = useMemo(() => {
+    if (isFrozen && frozenUntil) {
+      return `${translations.subscriptions.frozen} (${translations.subscriptions.until} ${formatDateLocalized(frozenUntil)})`;
+    }
     if (status === translations.subscriptions.cancelled) {
       const untilDate = unsubscribeInfo?.validUntil || validUntil;
       return untilDate
@@ -107,7 +126,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
         : translations.subscriptions.cancelled;
     }
     return status;
-  }, [status, unsubscribeInfo?.validUntil, validUntil, formatDateLocalized]);
+  }, [status, isFrozen, frozenUntil, unsubscribeInfo?.validUntil, validUntil, formatDateLocalized]);
 
   const finalLoadingState = loading || paymentLoading;
   const hasMarkdownContent = subscription.descriptionMarkdown?.trim().length > 0;
@@ -130,7 +149,9 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
         backdropFilter: 'blur(10px)',
         border: isCancelled
           ? '2px solid #ffd54f'
-          : '1px solid rgba(255, 255, 255, 0.3)',
+          : isFrozen
+            ? '2px solid #90caf9'
+            : '1px solid rgba(255, 255, 255, 0.3)',
         borderRadius: 3,
         boxShadow: '0 4px 20px rgba(126, 87, 194, 0.1)',
         '&:hover': {
@@ -138,7 +159,9 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
           boxShadow: '0 16px 40px rgba(126, 87, 194, 0.15)',
           border: isCancelled
             ? '2px solid #ffd54f'
-            : '1px solid rgba(126, 87, 194, 0.2)',
+            : isFrozen
+              ? '2px solid #90caf9'
+              : '1px solid rgba(126, 87, 194, 0.2)',
         },
       }}
     >
@@ -186,7 +209,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                 label={statusText}
                 size="small"
                 color={statusColor}
-                variant={status === 'Active' ? 'filled' : 'outlined'}
+                variant={status === translations.subscriptions.active ? 'filled' : 'outlined'}
               />
             </Box>
           </Box>
@@ -311,7 +334,26 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
           </Box>
         )}
 
-        {status === 'Cancelled' &&
+        {isFrozen && frozenUntil && (
+            <Box
+              sx={{
+                mt: 2,
+                p: 1.5,
+                bgcolor: 'info.light',
+                borderRadius: 1,
+                border: '1px solid',
+                borderColor: 'info.main',
+              }}
+            >
+              <Typography variant="body2" color="info.dark" align="center">
+                <strong>{translations.subscriptions.resumeSubscription}:</strong>{' '}
+                {formatDateLocalized(frozenUntil)}
+              </Typography>
+            </Box>
+          )}
+
+        {!isFrozen &&
+          status === translations.subscriptions.cancelled &&
           (unsubscribeInfo?.validUntil || validUntil) && (
             <Box
               sx={{
@@ -359,7 +401,32 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
           </Box>
         ) : (
           <>
-            {isCancelled ? (
+            {canRestoreCancelled && onRestoreCancelled ? (
+              <Button
+                size="large"
+                variant="contained"
+                color="primary"
+                fullWidth
+                onClick={() => onRestoreCancelled(subscription.id)}
+                disabled={finalLoadingState}
+              >
+                {translations.subscriptions.restoreSubscription}
+              </Button>
+            ) : isFrozen ? (
+              <Tooltip title={translations.subscriptions.frozen} arrow>
+                <span style={{ width: '100%' }}>
+                  <Button
+                    size="large"
+                    variant="outlined"
+                    color="info"
+                    fullWidth
+                    disabled
+                  >
+                    {translations.subscriptions.frozen}
+                  </Button>
+                </span>
+              </Tooltip>
+            ) : isCancelled ? (
               <Tooltip title={translations.subscriptions.subscriptionCancelled} arrow>
                 <span style={{ width: '100%' }}>
                   <Button
@@ -374,20 +441,49 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                 </span>
               </Tooltip>
             ) : isSubscribed ? (
-              <Tooltip title={translations.subscriptions.cancelSubscription} arrow>
-                <span style={{ width: '100%' }}>
+              canFreezeAndUnsubscribe && onFreeze ? (
+                <Stack direction="row" spacing={1} width="100%">
                   <Button
                     size="large"
                     variant="outlined"
-                    color="error"
+                    color="info"
                     fullWidth
-                    onClick={handleUnsubscribeClick}
+                    onClick={() => setFreezeDialogOpen(true)}
                     disabled={finalLoadingState}
                   >
-                    {translations.subscriptions.unsubscribe}
+                    {translations.subscriptions.freezeSubscription}
                   </Button>
-                </span>
-              </Tooltip>
+                  <Tooltip title={translations.subscriptions.cancelSubscription} arrow>
+                    <span style={{ flex: 1, width: '100%' }}>
+                      <Button
+                        size="large"
+                        variant="outlined"
+                        color="error"
+                        fullWidth
+                        onClick={handleUnsubscribeClick}
+                        disabled={finalLoadingState}
+                      >
+                        {translations.subscriptions.unsubscribe}
+                      </Button>
+                    </span>
+                  </Tooltip>
+                </Stack>
+              ) : (
+                <Tooltip title={translations.subscriptions.cancelSubscription} arrow>
+                  <span style={{ width: '100%' }}>
+                    <Button
+                      size="large"
+                      variant="outlined"
+                      color="error"
+                      fullWidth
+                      onClick={handleUnsubscribeClick}
+                      disabled={finalLoadingState}
+                    >
+                      {translations.subscriptions.unsubscribe}
+                    </Button>
+                  </span>
+                </Tooltip>
+              )
             ) : (
               <>
                 {hasMultiplePrices ? (
@@ -450,6 +546,19 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
           </>
         )}
       </CardActions>
+
+      {onFreeze && (
+        <FreezeSubscriptionDialog
+          open={freezeDialogOpen}
+          onClose={() => setFreezeDialogOpen(false)}
+          onConfirm={async (freezeMonths) => {
+            await onFreeze(subscription.id, freezeMonths);
+            setFreezeDialogOpen(false);
+          }}
+          subscriptionName={subscription.name}
+          loading={finalLoadingState}
+        />
+      )}
     </Card>
   );
 };

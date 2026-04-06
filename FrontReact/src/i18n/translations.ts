@@ -343,6 +343,15 @@ export const translations = {
     failedToDeletePrice: 'Не удалось удалить цену',
     loadMore: 'Загрузить ещё',
     noActiveSubscriptions: 'Нет активных подписок',
+    frozen: 'Приостановлена',
+    freezeSubscription: 'Приостановить',
+    resumeSubscription: 'Возобновить',
+    restoreSubscription: 'Восстановить',
+    freezeDialogTitle: 'Приостановка подписки',
+    freezeDialogDescription:
+      'Доступ будет отключён на выбранный срок. Срок действия и следующий платёж будут сдвинуты на это же время.',
+    freezeMonthsLabel: 'На сколько месяцев',
+    freezeConfirm: 'Приостановить',
   },
 
   // Платежи

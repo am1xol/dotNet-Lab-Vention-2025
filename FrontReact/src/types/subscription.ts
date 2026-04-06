@@ -56,6 +56,9 @@ export interface UserSubscription {
   cancelledAt?: string;
   validUntil?: string;
   isActive: boolean;
+  isFrozen?: boolean;
+  frozenAt?: string;
+  frozenUntil?: string;
   isValid: boolean;
   status?: string;
   subscription: Subscription;

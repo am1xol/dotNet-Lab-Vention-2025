@@ -12,6 +12,7 @@ namespace SubscriptionManager.Subscriptions.API.Services
     {
         Task<int> CleanupStuckPaymentsAsync(CancellationToken ct);
         Task CheckExpiringSubscriptionsAsync(CancellationToken ct);
+        Task<int> ProcessExpiredFreezesAsync(CancellationToken ct);
     }
 
     public class PaymentJobService : IPaymentJobService
@@ -116,6 +117,16 @@ namespace SubscriptionManager.Subscriptions.API.Services
                     _logger.LogError(ex, "Error sending expiration notification to user {UserId}", userId);
                 }
             }
+        }
+
+        public async Task<int> ProcessExpiredFreezesAsync(CancellationToken ct)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            var row = await connection.QueryFirstOrDefaultAsync<dynamic>(
+                "sp_UserSubscriptions_ProcessExpiredFreezes",
+                commandType: CommandType.StoredProcedure);
+            if (row == null) return 0;
+            return (int)row.RowsAffected;
         }
     }
 }

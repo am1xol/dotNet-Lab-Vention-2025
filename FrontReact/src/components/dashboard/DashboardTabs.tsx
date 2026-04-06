@@ -55,6 +55,8 @@ interface DashboardTabsProps {
   handleSubscribe: (subscriptionId: string) => Promise<void>;
   handleInitiatePayment: (subscriptionId: string) => Promise<void>;
   handleUnsubscribe: (subscriptionId: string) => Promise<void>;
+  handleFreeze: (subscriptionId: string, freezeMonths: number) => Promise<void>;
+  handleRestoreCancelled: (subscriptionId: string) => Promise<void>;
 }
 
 export const DashboardTabs: React.FC<DashboardTabsProps> = memo(({
@@ -67,6 +69,8 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = memo(({
   handleSubscribe,
   handleInitiatePayment,
   handleUnsubscribe,
+  handleFreeze,
+  handleRestoreCancelled,
 }) => {
   return (
     <motion.div
@@ -128,6 +132,8 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = memo(({
             handleSubscribe={handleSubscribe}
             handleInitiatePayment={handleInitiatePayment}
             handleUnsubscribe={handleUnsubscribe}
+            handleFreeze={handleFreeze}
+            handleRestoreCancelled={handleRestoreCancelled}
           />
         </TabPanel>
 
@@ -140,6 +146,8 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = memo(({
             handleSubscribe={handleSubscribe}
             handleInitiatePayment={handleInitiatePayment}
             handleUnsubscribe={handleUnsubscribe}
+            handleFreeze={handleFreeze}
+            handleRestoreCancelled={handleRestoreCancelled}
           />
         </TabPanel>
 

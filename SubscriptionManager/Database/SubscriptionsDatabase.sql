@@ -42,10 +42,17 @@ CREATE TABLE [UserSubscriptions] (
     [ValidUntil] DATETIME2 NULL,
     [IsActive] BIT NOT NULL DEFAULT 1,
     [CreatedAt] DATETIME2 NOT NULL,
-    [UpdatedAt] DATETIME2 NOT NULL
+    [UpdatedAt] DATETIME2 NOT NULL,
+    [FrozenAt] DATETIME2 NULL,
+    [FrozenUntil] DATETIME2 NULL
 );
 GO
 CREATE INDEX [IX_UserSubscriptions_UserId] ON [UserSubscriptions] ([UserId]);
+GO
+IF COL_LENGTH('dbo.UserSubscriptions', 'FrozenAt') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[UserSubscriptions] ADD [FrozenAt] DATETIME2 NULL, [FrozenUntil] DATETIME2 NULL;
+END
 GO
 
 CREATE TABLE [SubscriptionCancellationReasons] (
@@ -383,7 +390,10 @@ AS
 BEGIN
     SET NOCOUNT ON;
     IF NOT EXISTS (SELECT 1 FROM SubscriptionPrices WHERE Id = @Id) RETURN 404;
-    IF EXISTS (SELECT 1 FROM UserSubscriptions WHERE SubscriptionPriceId = @Id AND IsActive = 1) RETURN 400;
+    IF EXISTS (
+        SELECT 1 FROM UserSubscriptions WHERE SubscriptionPriceId = @Id
+        AND (IsActive = 1 OR (FrozenUntil IS NOT NULL AND FrozenUntil > GETUTCDATE()))
+    ) RETURN 400;
 
     DELETE FROM SubscriptionPrices WHERE Id = @Id;
     RETURN 204;
@@ -399,12 +409,16 @@ CREATE OR ALTER PROCEDURE [sp_UserSubscriptions_GetActiveByUserId]
     @UserId UNIQUEIDENTIFIER
 AS
 BEGIN
-    SELECT us.*, sp.FinalPrice, p.Name AS PeriodName, p.MonthsCount, s.Name AS SubscriptionName, s.Category, s.IconUrl
+    SELECT us.*, sp.FinalPrice, p.Name AS PeriodName, p.MonthsCount, s.Name AS SubscriptionName, s.Category, s.IconUrl,
+        CASE WHEN us.FrozenUntil IS NOT NULL AND us.FrozenUntil > GETUTCDATE() THEN 1 ELSE 0 END AS IsFrozen
     FROM [UserSubscriptions] us
     INNER JOIN [SubscriptionPrices] sp ON us.[SubscriptionPriceId] = sp.[Id]
     INNER JOIN [Subscriptions] s ON sp.[SubscriptionId] = s.[Id]
     INNER JOIN [Periods] p ON sp.[PeriodId] = p.[Id]
-    WHERE us.[UserId] = @UserId AND us.[IsActive] = 1;
+    WHERE us.[UserId] = @UserId AND (
+        (us.[IsActive] = 1 AND (us.[CancelledAt] IS NULL OR us.[ValidUntil] >= GETUTCDATE()))
+        OR (us.[FrozenUntil] IS NOT NULL AND us.[FrozenUntil] > GETUTCDATE() AND us.[CancelledAt] IS NULL)
+    );
 END
 GO
 
@@ -416,14 +430,23 @@ BEGIN
     SELECT @TotalCount = COUNT(*) FROM [UserSubscriptions] us
     INNER JOIN [SubscriptionPrices] sp ON us.[SubscriptionPriceId] = sp.[Id]
     INNER JOIN [Subscriptions] s ON sp.[SubscriptionId] = s.[Id]
-    WHERE us.[UserId] = @UserId AND us.[IsActive] = 1 AND (us.[CancelledAt] IS NULL OR us.[ValidUntil] >= GETUTCDATE()) AND (@Category IS NULL OR s.[Category] = @Category);
+    WHERE us.[UserId] = @UserId AND (
+        (us.[IsActive] = 1 AND (us.[CancelledAt] IS NULL OR us.[ValidUntil] >= GETUTCDATE()))
+        OR (us.[FrozenUntil] IS NOT NULL AND us.[FrozenUntil] > GETUTCDATE() AND us.[CancelledAt] IS NULL)
+    ) AND (@Category IS NULL OR s.[Category] = @Category);
 
-    SELECT us.Id, us.UserId, us.SubscriptionPriceId, us.StartDate, us.NextBillingDate, us.CancelledAt, us.ValidUntil, us.IsActive, us.CreatedAt, us.UpdatedAt, sp.FinalPrice, per.Name AS PeriodName, s.Id AS SubscriptionId, s.Name AS SubscriptionName, s.Category, s.Price, s.IconFileId, s.IconUrl, s.Description, s.DescriptionMarkdown, s.IsActive AS SubscriptionIsActive, s.CreatedAt AS SubscriptionCreatedAt, s.UpdatedAt AS SubscriptionUpdatedAt
+    SELECT us.Id, us.UserId, us.SubscriptionPriceId, us.StartDate, us.NextBillingDate, us.CancelledAt, us.ValidUntil, us.IsActive, us.CreatedAt, us.UpdatedAt,
+        us.FrozenAt, us.FrozenUntil,
+        CASE WHEN us.FrozenUntil IS NOT NULL AND us.FrozenUntil > GETUTCDATE() THEN 1 ELSE 0 END AS IsFrozen,
+        sp.FinalPrice, per.Name AS PeriodName, s.Id AS SubscriptionId, s.Name AS SubscriptionName, s.Category, s.Price, s.IconFileId, s.IconUrl, s.Description, s.DescriptionMarkdown, s.IsActive AS SubscriptionIsActive, s.CreatedAt AS SubscriptionCreatedAt, s.UpdatedAt AS SubscriptionUpdatedAt
     FROM [UserSubscriptions] us
     INNER JOIN [SubscriptionPrices] sp ON us.[SubscriptionPriceId] = sp.[Id]
     INNER JOIN [Subscriptions] s ON sp.[SubscriptionId] = s.[Id]
     INNER JOIN [Periods] per ON sp.[PeriodId] = per.[Id]
-    WHERE us.[UserId] = @UserId AND us.[IsActive] = 1 AND (us.[CancelledAt] IS NULL OR us.[ValidUntil] >= GETUTCDATE()) AND (@Category IS NULL OR s.[Category] = @Category)
+    WHERE us.[UserId] = @UserId AND (
+        (us.[IsActive] = 1 AND (us.[CancelledAt] IS NULL OR us.[ValidUntil] >= GETUTCDATE()))
+        OR (us.[FrozenUntil] IS NOT NULL AND us.[FrozenUntil] > GETUTCDATE() AND us.[CancelledAt] IS NULL)
+    ) AND (@Category IS NULL OR s.[Category] = @Category)
     ORDER BY us.[StartDate] DESC OFFSET ((@PageNumber - 1) * @PageSize) ROWS FETCH NEXT @PageSize ROWS ONLY;
 END
 GO
@@ -439,8 +462,10 @@ BEGIN
     SELECT @TotalCount = COUNT(*) FROM [UserSubscriptions] us WHERE us.[UserId] = @UserId;
 
     SELECT us.Id, us.UserId, us.SubscriptionPriceId, sp.SubscriptionId, us.StartDate, us.NextBillingDate, us.CancelledAt, us.ValidUntil, us.IsActive,
-        CASE WHEN us.IsActive = 1 AND (us.ValidUntil IS NULL OR us.ValidUntil >= SYSUTCDATETIME()) THEN 1 ELSE 0 END AS IsValid,
-        CASE WHEN us.IsActive = 1 AND (us.ValidUntil IS NULL OR us.ValidUntil >= SYSUTCDATETIME()) THEN 'Active' WHEN us.CancelledAt IS NOT NULL THEN 'Cancelled' WHEN us.ValidUntil IS NOT NULL AND us.ValidUntil < SYSUTCDATETIME() THEN 'Expired' ELSE 'Unknown' END AS Status,
+        us.FrozenAt, us.FrozenUntil,
+        CASE WHEN us.FrozenUntil IS NOT NULL AND us.FrozenUntil > SYSUTCDATETIME() THEN 1 ELSE 0 END AS IsFrozen,
+        CASE WHEN us.FrozenUntil IS NOT NULL AND us.FrozenUntil > SYSUTCDATETIME() THEN 0 WHEN us.IsActive = 1 AND (us.ValidUntil IS NULL OR us.ValidUntil >= SYSUTCDATETIME()) THEN 1 ELSE 0 END AS IsValid,
+        CASE WHEN us.FrozenUntil IS NOT NULL AND us.FrozenUntil > SYSUTCDATETIME() THEN 'Frozen' WHEN us.IsActive = 1 AND (us.ValidUntil IS NULL OR us.ValidUntil >= SYSUTCDATETIME()) THEN 'Active' WHEN us.CancelledAt IS NOT NULL THEN 'Cancelled' WHEN us.ValidUntil IS NOT NULL AND us.ValidUntil < SYSUTCDATETIME() THEN 'Expired' ELSE 'Unknown' END AS Status,
         s.Name AS SubscriptionName, s.Category, s.Price, s.IconFileId, s.IconUrl, s.IsActive AS SubscriptionIsActive, s.CreatedAt AS SubscriptionCreatedAt, s.UpdatedAt AS SubscriptionUpdatedAt, s.Description, s.DescriptionMarkdown, p.Name AS PeriodName, sp.FinalPrice
     FROM [UserSubscriptions] us
     INNER JOIN [SubscriptionPrices] sp ON us.[SubscriptionPriceId] = sp.[Id]
@@ -482,7 +507,14 @@ BEGIN
 
     IF @SubscriptionId IS NULL RETURN 404;
     IF @IsActive = 0 RETURN 400;
-    IF EXISTS (SELECT 1 FROM UserSubscriptions us INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id WHERE us.UserId = @UserId AND sp.SubscriptionId = @SubscriptionId AND us.IsActive = 1) RETURN 409;
+    IF EXISTS (
+        SELECT 1 FROM UserSubscriptions us INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id
+        WHERE us.UserId = @UserId AND sp.SubscriptionId = @SubscriptionId
+        AND (
+            (us.IsActive = 1 AND (us.CancelledAt IS NULL OR us.ValidUntil >= GETUTCDATE()))
+            OR (us.FrozenUntil IS NOT NULL AND us.FrozenUntil > GETUTCDATE())
+        )
+    ) RETURN 409;
 
     BEGIN TRY
         DECLARE @NewId UNIQUEIDENTIFIER = NEWID(), @Now DATETIME2 = GETUTCDATE();
@@ -514,13 +546,18 @@ BEGIN
     SELECT TOP 1 @UserSubId = us.Id, @NextBillingDate = us.NextBillingDate 
     FROM UserSubscriptions us
     INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id 
-    WHERE us.UserId = @UserId AND sp.SubscriptionId = @SubscriptionId AND us.IsActive = 1;
+    WHERE us.UserId = @UserId AND sp.SubscriptionId = @SubscriptionId AND us.CancelledAt IS NULL
+        AND (us.IsActive = 1 OR (us.FrozenUntil IS NOT NULL AND us.FrozenUntil > @Now));
 
     IF @UserSubId IS NULL RETURN 404;
 
     UPDATE UserSubscriptions 
     SET CancelledAt = @Now, 
-        ValidUntil = @NextBillingDate
+        ValidUntil = @NextBillingDate,
+        FrozenAt = NULL,
+        FrozenUntil = NULL,
+        IsActive = 1,
+        UpdatedAt = GETUTCDATE()
     WHERE Id = @UserSubId;
     
     IF @Reason IS NOT NULL
@@ -582,7 +619,14 @@ BEGIN
 
     IF @FinalPrice IS NULL THROW 50404, 'Subscription price not found', 1;
     IF @IsActive = 0 THROW 50001, 'Subscription is not active', 1;
-    IF EXISTS (SELECT 1 FROM UserSubscriptions us INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id WHERE us.UserId = @UserId AND sp.SubscriptionId = @SubscriptionId AND us.IsActive = 1) THROW 50002, 'User already subscribed to this service', 1;
+    IF EXISTS (
+        SELECT 1 FROM UserSubscriptions us INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id
+        WHERE us.UserId = @UserId AND sp.SubscriptionId = @SubscriptionId
+        AND (
+            (us.IsActive = 1 AND (us.CancelledAt IS NULL OR us.ValidUntil >= GETUTCDATE()))
+            OR (us.FrozenUntil IS NOT NULL AND us.FrozenUntil > GETUTCDATE())
+        )
+    ) THROW 50002, 'User already subscribed to this service', 1;
 
     BEGIN TRY
         BEGIN TRANSACTION;
@@ -839,5 +883,129 @@ BEGIN
     INNER JOIN AuthDb.dbo.Users u ON us.UserId = u.Id
     WHERE u.Email = @Email 
     ORDER BY us.StartDate DESC;
+END
+GO
+
+CREATE OR ALTER PROCEDURE [sp_UserSubscriptions_Freeze]
+    @UserId UNIQUEIDENTIFIER,
+    @SubscriptionId UNIQUEIDENTIFIER,
+    @Now DATETIME2,
+    @FreezeMonths INT = 1
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @FreezeMonths < 1 SET @FreezeMonths = 1;
+    IF @FreezeMonths > 12 SET @FreezeMonths = 12;
+
+    DECLARE @UserSubId UNIQUEIDENTIFIER;
+    SELECT TOP 1 @UserSubId = us.Id
+    FROM UserSubscriptions us
+    INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id
+    WHERE us.UserId = @UserId AND sp.SubscriptionId = @SubscriptionId
+        AND us.CancelledAt IS NULL
+        AND us.IsActive = 1
+        AND (us.FrozenUntil IS NULL OR us.FrozenUntil <= @Now);
+
+    IF @UserSubId IS NULL RETURN 404;
+
+    DECLARE @FreezeEnd DATETIME2 = DATEADD(MONTH, @FreezeMonths, @Now);
+
+    UPDATE UserSubscriptions
+    SET FrozenAt = @Now,
+        FrozenUntil = @FreezeEnd,
+        NextBillingDate = DATEADD(MONTH, @FreezeMonths, NextBillingDate),
+        ValidUntil = CASE WHEN ValidUntil IS NULL THEN NULL ELSE DATEADD(MONTH, @FreezeMonths, ValidUntil) END,
+        IsActive = 0,
+        UpdatedAt = GETUTCDATE()
+    WHERE Id = @UserSubId;
+
+    SELECT FrozenUntil, NextBillingDate, ValidUntil FROM UserSubscriptions WHERE Id = @UserSubId;
+    RETURN 200;
+END
+GO
+
+CREATE OR ALTER PROCEDURE [sp_UserSubscriptions_Resume]
+    @UserId UNIQUEIDENTIFIER,
+    @SubscriptionId UNIQUEIDENTIFIER,
+    @Now DATETIME2
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF EXISTS (
+        SELECT 1
+        FROM UserSubscriptions us
+        INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id
+        WHERE us.UserId = @UserId
+            AND sp.SubscriptionId = @SubscriptionId
+            AND us.FrozenUntil IS NOT NULL
+            AND us.FrozenUntil > @Now
+            AND us.CancelledAt IS NULL
+    ) RETURN 409;
+
+    DECLARE @UserSubId UNIQUEIDENTIFIER;
+    SELECT TOP 1 @UserSubId = us.Id
+    FROM UserSubscriptions us
+    INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id
+    WHERE us.UserId = @UserId AND sp.SubscriptionId = @SubscriptionId
+        AND us.FrozenUntil IS NOT NULL AND us.FrozenUntil <= @Now AND us.CancelledAt IS NULL;
+
+    IF @UserSubId IS NULL RETURN 404;
+
+    UPDATE UserSubscriptions
+    SET IsActive = 1,
+        FrozenAt = NULL,
+        FrozenUntil = NULL,
+        UpdatedAt = GETUTCDATE()
+    WHERE Id = @UserSubId;
+
+    SELECT NextBillingDate, ValidUntil FROM UserSubscriptions WHERE Id = @UserSubId;
+    RETURN 200;
+END
+GO
+
+CREATE OR ALTER PROCEDURE [sp_UserSubscriptions_ProcessExpiredFreezes]
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE UserSubscriptions
+    SET IsActive = 1,
+        FrozenAt = NULL,
+        FrozenUntil = NULL,
+        UpdatedAt = GETUTCDATE()
+    WHERE FrozenUntil IS NOT NULL
+        AND FrozenUntil <= GETUTCDATE()
+        AND FrozenAt IS NOT NULL
+        AND CancelledAt IS NULL;
+
+    SELECT @@ROWCOUNT AS RowsAffected;
+END
+GO
+
+CREATE OR ALTER PROCEDURE [sp_UserSubscriptions_RestoreCancelled]
+    @UserId UNIQUEIDENTIFIER,
+    @SubscriptionId UNIQUEIDENTIFIER,
+    @Now DATETIME2
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @UserSubId UNIQUEIDENTIFIER;
+    SELECT TOP 1 @UserSubId = us.Id
+    FROM UserSubscriptions us
+    INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id
+    WHERE us.UserId = @UserId AND sp.SubscriptionId = @SubscriptionId
+        AND us.CancelledAt IS NOT NULL
+        AND us.ValidUntil IS NOT NULL
+        AND us.ValidUntil >= @Now
+        AND (us.FrozenUntil IS NULL OR us.FrozenUntil <= @Now);
+
+    IF @UserSubId IS NULL RETURN 404;
+
+    UPDATE UserSubscriptions
+    SET CancelledAt = NULL,
+        ValidUntil = NULL,
+        UpdatedAt = GETUTCDATE()
+    WHERE Id = @UserSubId;
+
+    RETURN 200;
 END
 GO

@@ -267,6 +267,9 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 CancelledAt = r.CancelledAt,
                 ValidUntil = r.ValidUntil,
                 IsActive = r.IsActive,
+                FrozenAt = r.FrozenAt,
+                FrozenUntil = r.FrozenUntil,
+                IsFrozen = r.IsFrozen != null && Convert.ToInt32(r.IsFrozen) == 1,
                 PeriodName = r.PeriodName,
                 FinalPrice = r.FinalPrice,
                 Subscription = new SubscriptionDto
@@ -341,6 +344,9 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 CancelledAt = r.CancelledAt,
                 ValidUntil = r.ValidUntil,
                 IsActive = r.IsActive,
+                FrozenAt = r.FrozenAt,
+                FrozenUntil = r.FrozenUntil,
+                IsFrozen = r.IsFrozen != null && Convert.ToInt32(r.IsFrozen) == 1,
                 IsValid = r.IsValid != null ? (int)r.IsValid == 1 : false,
                 Status = r.Status,
                 PeriodName = r.PeriodName,
@@ -400,6 +406,104 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 Message = "Subscription cancelled successfully", 
                 ValidUntil = validUntil 
             });
+        }
+
+        [HttpPost("freeze/{subscriptionId}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> FreezeSubscription(Guid subscriptionId, [FromBody] FreezeSubscriptionRequest? request)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+                return Unauthorized();
+
+            using var connection = new SqlConnection(_connectionString);
+            var parameters = new DynamicParameters();
+            parameters.Add("@UserId", userId);
+            parameters.Add("@SubscriptionId", subscriptionId);
+            parameters.Add("@Now", DateTime.UtcNow);
+            parameters.Add("@FreezeMonths", Math.Clamp(request?.FreezeMonths ?? 1, 1, 12));
+            parameters.Add("@ReturnValue", dbType: DbType.Int32, direction: ParameterDirection.ReturnValue);
+
+            var row = await connection.QueryFirstOrDefaultAsync<dynamic>(
+                "sp_UserSubscriptions_Freeze",
+                parameters,
+                commandType: CommandType.StoredProcedure);
+
+            if (parameters.Get<int>("@ReturnValue") == 404)
+                return NotFound("Active subscription not found or cannot be frozen");
+
+            return Ok(new
+            {
+                Message = "Subscription frozen",
+                frozenUntil = row?.FrozenUntil,
+                nextBillingDate = row?.NextBillingDate,
+                validUntil = row?.ValidUntil
+            });
+        }
+
+        [HttpPost("resume/{subscriptionId}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> ResumeSubscription(Guid subscriptionId)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+                return Unauthorized();
+
+            using var connection = new SqlConnection(_connectionString);
+            var parameters = new DynamicParameters();
+            parameters.Add("@UserId", userId);
+            parameters.Add("@SubscriptionId", subscriptionId);
+            parameters.Add("@Now", DateTime.UtcNow);
+            parameters.Add("@ReturnValue", dbType: DbType.Int32, direction: ParameterDirection.ReturnValue);
+
+            var row = await connection.QueryFirstOrDefaultAsync<dynamic>(
+                "sp_UserSubscriptions_Resume",
+                parameters,
+                commandType: CommandType.StoredProcedure);
+
+            var result = parameters.Get<int>("@ReturnValue");
+
+            if (result == 409)
+                return BadRequest("Freeze period is not over yet");
+
+            if (result == 404)
+                return NotFound("Frozen subscription not found");
+
+            return Ok(new
+            {
+                Message = "Subscription resumed",
+                nextBillingDate = row?.NextBillingDate,
+                validUntil = row?.ValidUntil
+            });
+        }
+
+        [HttpPost("restore-cancelled/{subscriptionId}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> RestoreCancelledSubscription(Guid subscriptionId)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+                return Unauthorized();
+
+            using var connection = new SqlConnection(_connectionString);
+            var parameters = new DynamicParameters();
+            parameters.Add("@UserId", userId);
+            parameters.Add("@SubscriptionId", subscriptionId);
+            parameters.Add("@Now", DateTime.UtcNow);
+            parameters.Add("@ReturnValue", dbType: DbType.Int32, direction: ParameterDirection.ReturnValue);
+
+            await connection.ExecuteAsync(
+                "sp_UserSubscriptions_RestoreCancelled",
+                parameters,
+                commandType: CommandType.StoredProcedure);
+
+            if (parameters.Get<int>("@ReturnValue") == 404)
+                return NotFound("Cancelled subscription not found or cannot be restored");
+
+            return Ok(new { Message = "Subscription restored" });
         }
 
         [HttpPost("admin/expire/{userSubscriptionId}")]

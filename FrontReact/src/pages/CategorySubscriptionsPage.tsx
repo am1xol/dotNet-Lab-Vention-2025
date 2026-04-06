@@ -37,6 +37,11 @@ import { useAuthStore } from '../store/auth-store';
 import { Subscription, UserSubscription } from '../types/subscription';
 import { PaymentInitiationResult } from '../types/payment';
 import { translations } from '../i18n/translations';
+import {
+  canFreezeUserSubscription,
+  canRestoreCancelledUserSubscription,
+  matchesUserSubscriptionCatalog,
+} from '../utils/subscription-utils';
 
 declare const BeGateway: new (options: any) => {
   createWidget: () => void;
@@ -220,8 +225,8 @@ export const CategorySubscriptionsPage: React.FC = () => {
     subscriptionId: string
   ): UserSubscription | undefined => {
     if (!isAuthenticated || !mySubscriptions) return undefined;
-    return mySubscriptions.find(
-      (us) => us.subscription.id === subscriptionId && us.isActive
+    return mySubscriptions.find((us) =>
+      matchesUserSubscriptionCatalog(us, subscriptionId)
     );
   };
 
@@ -332,6 +337,38 @@ export const CategorySubscriptionsPage: React.FC = () => {
     if (selectedSubscriptionId) {
       await handleUnsubscribe(selectedSubscriptionId, reason, customReason);
       handleCloseUnsubscribeDialog();
+    }
+  };
+
+  const handleFreeze = async (subscriptionId: string, freezeMonths: number) => {
+    if (!isAuthenticated) {
+      navigate('/auth/signin');
+      return;
+    }
+    try {
+      setActionLoading(subscriptionId);
+      await userSubscriptionService.freezeSubscription(subscriptionId, freezeMonths);
+      await loadMySubscriptions();
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Не удалось приостановить подписку');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRestoreCancelled = async (subscriptionId: string) => {
+    if (!isAuthenticated) {
+      navigate('/auth/signin');
+      return;
+    }
+    try {
+      setActionLoading(subscriptionId);
+      await userSubscriptionService.restoreCancelledSubscription(subscriptionId);
+      await loadMySubscriptions();
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Не удалось восстановить подписку');
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -633,6 +670,8 @@ export const CategorySubscriptionsPage: React.FC = () => {
               <Grid container spacing={3}>
                 {subscriptions.map((subscription) => {
                   const userSub = getUserSubscription(subscription.id);
+                  const canFreeze = canFreezeUserSubscription(userSub);
+                  const canRestore = canRestoreCancelledUserSubscription(userSub);
                   return (
                     <Grid
                       key={subscription.id}
@@ -645,8 +684,12 @@ export const CategorySubscriptionsPage: React.FC = () => {
                       >
                         <SubscriptionCard
                           subscription={subscription}
-                          isSubscribed={!!userSub?.isActive}
-                          isCancelled={!!userSub?.cancelledAt}
+                          isSubscribed={!!userSub}
+                          isCancelled={!!userSub?.cancelledAt && !userSub?.isFrozen}
+                          isFrozen={!!userSub?.isFrozen}
+                          frozenUntil={userSub?.frozenUntil}
+                          canFreezeAndUnsubscribe={canFreeze}
+                          canRestoreCancelled={canRestore}
                           validUntil={userSub?.validUntil}
                           unsubscribeInfo={
                             unsubscribedData
@@ -658,6 +701,8 @@ export const CategorySubscriptionsPage: React.FC = () => {
                           onUnsubscribe={(id) =>
                             handleOpenUnsubscribeDialog(id, subscription.name)
                           }
+                          onFreeze={handleFreeze}
+                          onRestoreCancelled={handleRestoreCancelled}
                           loading={actionLoading === subscription.id}
                         />
                       </motion.div>

@@ -12,13 +12,13 @@ const services = [
 ];
 
 const positions = [
-  { x: '10%', y: '15%', rotation: -5 },
-  { x: '24%', y: '33%', rotation: 3 },
-  { x: '38%', y: '51%', rotation: -8 },
-  { x: '52%', y: '69%', rotation: 6 },
-  { x: '66%', y: '87%', rotation: -2 },
-  { x: '80%', y: '22%', rotation: 7 },
-  { x: '94%', y: '40%', rotation: -4 },
+  { x: '12%', y: '18%', rotation: -7 },
+  { x: '74%', y: '14%', rotation: 4 },
+  { x: '28%', y: '42%', rotation: -5 },
+  { x: '86%', y: '38%', rotation: 8 },
+  { x: '18%', y: '72%', rotation: 3 },
+  { x: '56%', y: '80%', rotation: -6 },
+  { x: '70%', y: '58%', rotation: 2 },
 ];
 
 const backgroundCircles = [
@@ -90,31 +90,36 @@ const FloatingServiceIcons: React.FC = () => {
         {serviceIcons.map((service) => (
           <Box
             key={service.name}
-            className="service-icon"
             sx={{
               position: 'absolute',
-              width: service.size,
-              height: service.size,
               left: service.position.x,
               top: service.position.y,
-              opacity: 0.75,
-              transform: `rotate(${service.position.rotation}deg)`,
-              animationDelay: `${service.delay}s`,
+              transform: `translate(-50%, -50%) rotate(${service.position.rotation}deg)`,
               zIndex: 1,
-              filter: 'drop-shadow(0 4px 12px rgba(126, 87, 194, 0.3))',
             }}
           >
-            <img
-              src={`/icons/${service.name.toLowerCase().replace(' ', '-')}.png`}
-              alt={service.name}
-              loading="lazy"
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'contain',
-                borderRadius: '12px',
+            <Box
+              className="service-icon"
+              sx={{
+                width: service.size,
+                height: service.size,
+                opacity: 0.75,
+                animationDelay: `${service.delay}s`,
+                filter: 'drop-shadow(0 4px 12px rgba(126, 87, 194, 0.3))',
               }}
-            />
+            >
+              <img
+                src={`/icons/${service.name.toLowerCase().replace(' ', '-')}.png`}
+                alt={service.name}
+                loading="lazy"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  borderRadius: '12px',
+                }}
+              />
+            </Box>
           </Box>
         ))}
       </Box>

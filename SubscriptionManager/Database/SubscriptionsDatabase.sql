@@ -807,11 +807,29 @@ CREATE OR ALTER PROCEDURE [sp_UserStatistics_Get]
 AS
 BEGIN
     DECLARE @TotalSpent DECIMAL(18,2), @ActiveCount INT, @TotalCount INT, @NextBilling DATETIME2;
+    DECLARE @Now DATETIME2 = GETUTCDATE();
 
     SELECT @TotalSpent = ISNULL(SUM(Amount), 0) FROM [Payments] WHERE [UserId] = @UserId AND [Status] = 1;
-    SELECT @ActiveCount = COUNT(*) FROM [UserSubscriptions] WHERE [UserId] = @UserId AND [IsActive] = 1 AND ([CancelledAt] IS NULL OR [ValidUntil] >= GETUTCDATE());
-    SELECT @TotalCount = COUNT(*) FROM [UserSubscriptions] WHERE [UserId] = @UserId AND [IsActive] = 1;
-    SELECT TOP 1 @NextBilling = [NextBillingDate] FROM [UserSubscriptions] WHERE [UserId] = @UserId AND [IsActive] = 1 AND [CancelledAt] IS NULL ORDER BY [NextBillingDate];
+    SELECT @ActiveCount = COUNT(*)
+    FROM [UserSubscriptions]
+    WHERE [UserId] = @UserId
+      AND [IsActive] = 1
+      AND [CancelledAt] IS NULL
+      AND ([ValidUntil] IS NULL OR [ValidUntil] >= @Now);
+
+    SELECT @TotalCount = COUNT(*)
+    FROM [UserSubscriptions]
+    WHERE [UserId] = @UserId
+      AND [CancelledAt] IS NULL
+      AND ([ValidUntil] IS NULL OR [ValidUntil] >= @Now);
+
+    SELECT TOP 1 @NextBilling = [NextBillingDate]
+    FROM [UserSubscriptions]
+    WHERE [UserId] = @UserId
+      AND [IsActive] = 1
+      AND [CancelledAt] IS NULL
+      AND ([ValidUntil] IS NULL OR [ValidUntil] >= @Now)
+    ORDER BY [NextBillingDate];
 
     SELECT @TotalSpent AS TotalSpent, @ActiveCount AS ActiveSubscriptionsCount, @TotalCount AS TotalSubscriptionsCount, @NextBilling AS NextBillingDate;
 END

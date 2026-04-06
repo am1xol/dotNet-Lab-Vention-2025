@@ -557,6 +557,7 @@ export const translations = {
     categories: 'Категории',
     // Навигация
     manageUsers: 'Управление пользователями',
+    analytics: 'Аналитика',
     supportChat: 'Чат поддержки',
     // Отчёты админ-панели
     reportsTitle: 'Отчёты',
@@ -598,6 +599,29 @@ export const translations = {
     topPopular: 'Топ популярных',
     byMonth: 'По месяцам',
     byUser: 'По пользователю',
+    // Новая аналитическая панель
+    analyticsTitle: 'Аналитическая панель',
+    analyticsSubtitle: 'Обзор активных пользователей, подписок и статусов платежей.',
+    analyticsPeriodDays: 'Период, дней',
+    analyticsExpiringDays: 'Истекают через, дней',
+    analyticsUpdated: 'Обновлено',
+    analyticsActiveUsers: 'Активные пользователи',
+    analyticsNewSubscriptions: 'Новые подписки',
+    analyticsCancelledSubscriptions: 'Отменённые подписки',
+    analyticsPaidSubscriptions: 'Оплаченные подписки',
+    analyticsExpiringSubscriptions: 'Истекающие подписки',
+    analyticsSuccessfulPayments: 'Успешные платежи',
+    analyticsFailedPayments: 'Ошибки в оплате',
+    analyticsNewSubscriptionsShort: 'Новые',
+    analyticsCancelledSubscriptionsShort: 'Отменённые',
+    analyticsPaidSubscriptionsShort: 'Оплаченные',
+    analyticsExpiringSubscriptionsShort: 'Истекающие',
+    analyticsSuccessfulPaymentsShort: 'Успешные',
+    analyticsFailedPaymentsShort: 'Ошибки',
+    analyticsSubscriptionsMonitoring: 'Мониторинг подписок',
+    analyticsPaymentStatuses: 'Статусы платежей',
+    analyticsCategoryDistribution: 'Распределение подписок по категориям',
+    failedToLoadAnalyticsDashboard: 'Не удалось загрузить аналитическую панель',
   },
 
   // Landing Page

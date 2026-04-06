@@ -113,5 +113,41 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
 
             return Ok(results);
         }
+
+        [HttpGet("analytics-dashboard")]
+        [ProducesResponseType(typeof(AdminAnalyticsDashboardDto), StatusCodes.Status200OK)]
+        public async Task<ActionResult<AdminAnalyticsDashboardDto>> GetAnalyticsDashboard(
+            [FromQuery] int periodDays = 30,
+            [FromQuery] int expiringWithinDays = 7)
+        {
+            var normalizedPeriodDays = Math.Clamp(periodDays, 1, 365);
+            var normalizedExpiringWithinDays = Math.Clamp(expiringWithinDays, 1, 90);
+            var periodStart = DateTime.UtcNow.AddDays(-normalizedPeriodDays);
+
+            using var connection = new SqlConnection(_connectionString);
+
+            using var multi = await connection.QueryMultipleAsync(
+                "sp_Report_AdminAnalyticsDashboard",
+                new
+                {
+                    PeriodStart = periodStart,
+                    ExpiringWithinDays = normalizedExpiringWithinDays
+                },
+                commandType: System.Data.CommandType.StoredProcedure);
+
+            var dto = new AdminAnalyticsDashboardDto
+            {
+                ActiveUsersCount = await multi.ReadFirstAsync<int>(),
+                NewSubscriptionsCount = await multi.ReadFirstAsync<int>(),
+                CancelledSubscriptionsCount = await multi.ReadFirstAsync<int>(),
+                PaidSubscriptionsCount = await multi.ReadFirstAsync<int>(),
+                ExpiringSubscriptionsCount = await multi.ReadFirstAsync<int>(),
+                SuccessfulPaymentsCount = await multi.ReadFirstAsync<int>(),
+                FailedPaymentsCount = await multi.ReadFirstAsync<int>(),
+                CategoryDistribution = (await multi.ReadAsync<CategoryDistributionItemDto>()).ToList()
+            };
+
+            return Ok(dto);
+        }
     }
 }

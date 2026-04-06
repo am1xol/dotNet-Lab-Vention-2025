@@ -53,5 +53,23 @@ namespace SubscriptionManager.Core.DTOs
         public DateTime? ValidUntil { get; set; }
         public bool IsActive { get; set; }
     }
+
+    public class AdminAnalyticsDashboardDto
+    {
+        public int ActiveUsersCount { get; set; }
+        public int NewSubscriptionsCount { get; set; }
+        public int CancelledSubscriptionsCount { get; set; }
+        public int PaidSubscriptionsCount { get; set; }
+        public int ExpiringSubscriptionsCount { get; set; }
+        public int SuccessfulPaymentsCount { get; set; }
+        public int FailedPaymentsCount { get; set; }
+        public List<CategoryDistributionItemDto> CategoryDistribution { get; set; } = new();
+    }
+
+    public class CategoryDistributionItemDto
+    {
+        public string Category { get; set; } = string.Empty;
+        public int SubscriptionsCount { get; set; }
+    }
 }
 

@@ -1,6 +1,7 @@
 import api from './api';
 import {
   ActiveSubscriptionsByPlan,
+  AdminAnalyticsDashboard,
   SubscriptionWithPlans,
   TopPopularSubscription,
   SubscriptionsByMonth,
@@ -66,5 +67,15 @@ export const reportService = {
       }
     );
     return response.data as UserSubscriptionReportItem[];
+  },
+
+  async getAnalyticsDashboard(
+    periodDays: number = 30,
+    expiringWithinDays: number = 7
+  ): Promise<AdminAnalyticsDashboard> {
+    const response = await api.get(`${SUBSCRIPTIONS_API_BASE}/analytics-dashboard`, {
+      params: { periodDays, expiringWithinDays },
+    });
+    return response.data as AdminAnalyticsDashboard;
   },
 };

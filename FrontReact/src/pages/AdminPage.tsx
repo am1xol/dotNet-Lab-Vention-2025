@@ -7,6 +7,7 @@ import DashboardShell from '../components/layout/DashboardShell';
 import { AdminSubscriptionPanel } from '../components/subscriptions/AdminSubscriptionPanel';
 import { AdminUsersPanel } from '../components/subscriptions/AdminUsersPanel';
 import { AdminReportsPanel } from '../components/reports/AdminReportsPanel';
+import { AdminAnalyticsPanel } from '../components/reports/AdminAnalyticsPanel';
 import { AdminChatPanel } from '../components/chat/AdminChatPanel';
 import { DashboardHeader } from '../components/dashboard/DashboardHeader';
 import { translations } from '../i18n/translations';
@@ -117,6 +118,7 @@ export const AdminPage: React.FC = () => {
               <Tab label={translations.admin.manageSubscriptions} />
               <Tab label={translations.admin.manageUsers} />
               <Tab label={translations.admin.reports} />
+              <Tab label={translations.admin.analytics} />
               <Tab label={translations.admin.supportChat} />
             </Tabs>
           </Box>
@@ -140,8 +142,13 @@ export const AdminPage: React.FC = () => {
             <AdminReportsPanel />
           </TabPanel>
 
-          {/* Chat Support Tab */}
+          {/* Analytics Tab */}
           <TabPanel value={tabValue} index={3}>
+            <AdminAnalyticsPanel />
+          </TabPanel>
+
+          {/* Chat Support Tab */}
+          <TabPanel value={tabValue} index={4}>
             <AdminChatPanel />
           </TabPanel>
         </Paper>

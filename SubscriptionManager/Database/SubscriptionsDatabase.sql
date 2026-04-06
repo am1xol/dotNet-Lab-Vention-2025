@@ -886,6 +886,66 @@ BEGIN
 END
 GO
 
+CREATE OR ALTER PROCEDURE [sp_Report_AdminAnalyticsDashboard]
+    @PeriodStart DATETIME2,
+    @ExpiringWithinDays INT = 7
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @Now DATETIME2 = SYSUTCDATETIME();
+    DECLARE @ExpiringUntil DATETIME2 = DATEADD(DAY, @ExpiringWithinDays, @Now);
+
+    SELECT COUNT(DISTINCT us.UserId) AS ActiveUsersCount
+    FROM UserSubscriptions us
+    WHERE (
+            (us.IsActive = 1 AND us.CancelledAt IS NULL AND (us.ValidUntil IS NULL OR us.ValidUntil >= @Now))
+            OR (us.FrozenUntil IS NOT NULL AND us.FrozenUntil > @Now AND us.CancelledAt IS NULL)
+          );
+
+    SELECT COUNT(*) AS NewSubscriptionsCount
+    FROM UserSubscriptions us
+    WHERE us.StartDate >= @PeriodStart;
+
+    SELECT COUNT(*) AS CancelledSubscriptionsCount
+    FROM UserSubscriptions us
+    WHERE us.CancelledAt IS NOT NULL
+      AND us.CancelledAt >= @PeriodStart;
+
+    SELECT COUNT(DISTINCT p.UserSubscriptionId) AS PaidSubscriptionsCount
+    FROM Payments p
+    WHERE p.Status = 1
+      AND p.PaymentDate >= @PeriodStart;
+
+    SELECT COUNT(*) AS ExpiringSubscriptionsCount
+    FROM UserSubscriptions us
+    WHERE us.CancelledAt IS NULL
+      AND us.NextBillingDate >= @Now
+      AND us.NextBillingDate <= @ExpiringUntil;
+
+    SELECT COUNT(*) AS SuccessfulPaymentsCount
+    FROM Payments p
+    WHERE p.Status = 1
+      AND p.PaymentDate >= @PeriodStart;
+
+    SELECT COUNT(*) AS FailedPaymentsCount
+    FROM Payments p
+    WHERE p.Status = 2
+      AND p.PaymentDate >= @PeriodStart;
+
+    SELECT s.Category, COUNT(*) AS SubscriptionsCount
+    FROM UserSubscriptions us
+    INNER JOIN SubscriptionPrices sp ON sp.Id = us.SubscriptionPriceId
+    INNER JOIN Subscriptions s ON s.Id = sp.SubscriptionId
+    WHERE (
+            (us.IsActive = 1 AND us.CancelledAt IS NULL AND (us.ValidUntil IS NULL OR us.ValidUntil >= @Now))
+            OR (us.FrozenUntil IS NOT NULL AND us.FrozenUntil > @Now AND us.CancelledAt IS NULL)
+          )
+    GROUP BY s.Category
+    ORDER BY SubscriptionsCount DESC, s.Category ASC;
+END
+GO
+
 CREATE OR ALTER PROCEDURE [sp_UserSubscriptions_Freeze]
     @UserId UNIQUEIDENTIFIER,
     @SubscriptionId UNIQUEIDENTIFIER,

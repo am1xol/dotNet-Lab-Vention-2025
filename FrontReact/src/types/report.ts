@@ -47,3 +47,19 @@ export interface UserSubscriptionReportItem {
   isActive: boolean;
 }
 
+export interface CategoryDistributionItem {
+  category: string;
+  subscriptionsCount: number;
+}
+
+export interface AdminAnalyticsDashboard {
+  activeUsersCount: number;
+  categoryDistribution: CategoryDistributionItem[];
+  newSubscriptionsCount: number;
+  cancelledSubscriptionsCount: number;
+  paidSubscriptionsCount: number;
+  expiringSubscriptionsCount: number;
+  successfulPaymentsCount: number;
+  failedPaymentsCount: number;
+}
+

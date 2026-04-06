@@ -712,6 +712,7 @@ export const CategorySubscriptionsPage: React.FC = () => {
                       >
                         <SubscriptionCard
                           subscription={subscription}
+                          prices={subscription.prices}
                           isSubscribed={!!userSub}
                           isCancelled={!!userSub?.cancelledAt && !userSub?.isFrozen}
                           isFrozen={!!userSub?.isFrozen}

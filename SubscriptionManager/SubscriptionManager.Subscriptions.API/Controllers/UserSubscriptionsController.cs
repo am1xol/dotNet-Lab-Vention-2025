@@ -43,7 +43,9 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
 		[ProducesResponseType(StatusCodes.Status400BadRequest)]
 		[ProducesResponseType(StatusCodes.Status404NotFound)]
 		[ProducesResponseType(StatusCodes.Status401Unauthorized)]
-		public async Task<ActionResult<PaymentInitiationResult>> InitiateSubscriptionPayment([FromRoute] Guid subscriptionPriceId)
+		public async Task<ActionResult<PaymentInitiationResult>> InitiateSubscriptionPayment(
+            [FromRoute] Guid subscriptionPriceId,
+            [FromQuery] string? promoCode = null)
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
@@ -55,7 +57,12 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             {
                 var dbData = await connection.QueryFirstOrDefaultAsync<dynamic>(
                     "sp_Payments_Initiate",
-                    new { UserId = userId, SubscriptionPriceId = subscriptionPriceId },
+                    new
+                    {
+                        UserId = userId,
+                        SubscriptionPriceId = subscriptionPriceId,
+                        PromoCode = string.IsNullOrWhiteSpace(promoCode) ? null : promoCode.Trim()
+                    },
                     commandType: CommandType.StoredProcedure
                 );
 

@@ -123,6 +123,86 @@ CREATE TABLE [SubscriptionPrices] (
 );
 GO
 
+CREATE TABLE [PromoCodes] (
+    [Id] UNIQUEIDENTIFIER PRIMARY KEY,
+    [Code] NVARCHAR(50) NOT NULL,
+    [Title] NVARCHAR(150) NOT NULL,
+    [Description] NVARCHAR(500) NULL,
+    [DiscountType] INT NOT NULL,
+    [DiscountValue] DECIMAL(18, 2) NOT NULL,
+    [MaxDiscountAmount] DECIMAL(18, 2) NULL,
+    [ValidFrom] DATETIME2 NOT NULL,
+    [ValidTo] DATETIME2 NOT NULL,
+    [TotalUsageLimit] INT NULL,
+    [PerUserUsageLimit] INT NOT NULL DEFAULT 1,
+    [IsActive] BIT NOT NULL DEFAULT 1,
+    [CreatedAt] DATETIME2 NOT NULL,
+    [UpdatedAt] DATETIME2 NOT NULL
+);
+GO
+CREATE UNIQUE INDEX [IX_PromoCodes_Code] ON [PromoCodes] ([Code]);
+GO
+
+CREATE TABLE [PromoCodeConditions] (
+    [Id] UNIQUEIDENTIFIER PRIMARY KEY,
+    [PromoCodeId] UNIQUEIDENTIFIER NOT NULL,
+    [SubscriptionId] UNIQUEIDENTIFIER NULL,
+    [PeriodId] UNIQUEIDENTIFIER NULL,
+    [MinAmount] DECIMAL(18, 2) NULL,
+    [CreatedAt] DATETIME2 NOT NULL,
+    CONSTRAINT [FK_PromoCodeConditions_PromoCodes] FOREIGN KEY ([PromoCodeId])
+        REFERENCES [PromoCodes] ([Id]) ON DELETE CASCADE,
+    CONSTRAINT [FK_PromoCodeConditions_Subscriptions] FOREIGN KEY ([SubscriptionId])
+        REFERENCES [Subscriptions] ([Id]) ON DELETE SET NULL,
+    CONSTRAINT [FK_PromoCodeConditions_Periods] FOREIGN KEY ([PeriodId])
+        REFERENCES [Periods] ([Id]) ON DELETE SET NULL
+);
+GO
+CREATE INDEX [IX_PromoCodeConditions_PromoCodeId] ON [PromoCodeConditions] ([PromoCodeId]);
+GO
+
+CREATE TABLE [UserPromoCodes] (
+    [Id] UNIQUEIDENTIFIER PRIMARY KEY,
+    [PromoCodeId] UNIQUEIDENTIFIER NOT NULL,
+    [UserId] UNIQUEIDENTIFIER NOT NULL,
+    [AssignedAt] DATETIME2 NOT NULL,
+    [AssignedByAdminId] UNIQUEIDENTIFIER NULL,
+    [IsActive] BIT NOT NULL DEFAULT 1,
+    CONSTRAINT [FK_UserPromoCodes_PromoCodes] FOREIGN KEY ([PromoCodeId])
+        REFERENCES [PromoCodes] ([Id]) ON DELETE CASCADE
+);
+GO
+CREATE UNIQUE INDEX [IX_UserPromoCodes_UserId_PromoCodeId] ON [UserPromoCodes] ([UserId], [PromoCodeId]);
+GO
+
+CREATE TABLE [PromoCodeUsages] (
+    [Id] UNIQUEIDENTIFIER PRIMARY KEY,
+    [PromoCodeId] UNIQUEIDENTIFIER NOT NULL,
+    [UserId] UNIQUEIDENTIFIER NOT NULL,
+    [PaymentId] UNIQUEIDENTIFIER NOT NULL,
+    [UsedAt] DATETIME2 NOT NULL,
+    [DiscountAmount] DECIMAL(18, 2) NOT NULL,
+    CONSTRAINT [FK_PromoCodeUsages_PromoCodes] FOREIGN KEY ([PromoCodeId])
+        REFERENCES [PromoCodes] ([Id]) ON DELETE CASCADE,
+    CONSTRAINT [FK_PromoCodeUsages_Payments] FOREIGN KEY ([PaymentId])
+        REFERENCES [Payments] ([Id]) ON DELETE CASCADE
+);
+GO
+CREATE UNIQUE INDEX [IX_PromoCodeUsages_PaymentId] ON [PromoCodeUsages] ([PaymentId]);
+GO
+
+IF COL_LENGTH('dbo.Payments', 'AppliedPromoCodeId') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[Payments] ADD [AppliedPromoCodeId] UNIQUEIDENTIFIER NULL;
+END
+GO
+
+IF COL_LENGTH('dbo.Payments', 'DiscountAmount') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[Payments] ADD [DiscountAmount] DECIMAL(18,2) NOT NULL CONSTRAINT [DF_Payments_DiscountAmount] DEFAULT 0;
+END
+GO
+
 
 /* =========================================================================================
    УПРАВЛЕНИЕ ФАЙЛАМИ (STORED FILES)
@@ -609,15 +689,19 @@ GO
 
 CREATE OR ALTER PROCEDURE [sp_Payments_Initiate]
     @UserId UNIQUEIDENTIFIER,
-    @SubscriptionPriceId UNIQUEIDENTIFIER
+    @SubscriptionPriceId UNIQUEIDENTIFIER,
+    @PromoCode NVARCHAR(50) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
-    DECLARE @FinalPrice DECIMAL(18, 2), @SubscriptionId UNIQUEIDENTIFIER, @MonthsCount INT, @SubName NVARCHAR(100), @PeriodName NVARCHAR(100), @IsActive BIT;
-    SELECT @FinalPrice = sp.FinalPrice, @SubscriptionId = s.Id, @MonthsCount = p.MonthsCount, @SubName = s.Name, @PeriodName = p.Name, @IsActive = s.IsActive
+    DECLARE @BasePrice DECIMAL(18, 2), @FinalPrice DECIMAL(18, 2), @DiscountAmount DECIMAL(18, 2) = 0;
+    DECLARE @SubscriptionId UNIQUEIDENTIFIER, @PeriodId UNIQUEIDENTIFIER, @MonthsCount INT, @SubName NVARCHAR(100), @PeriodName NVARCHAR(100), @IsActive BIT;
+    DECLARE @PromoCodeId UNIQUEIDENTIFIER = NULL;
+
+    SELECT @BasePrice = sp.FinalPrice, @SubscriptionId = s.Id, @PeriodId = p.Id, @MonthsCount = p.MonthsCount, @SubName = s.Name, @PeriodName = p.Name, @IsActive = s.IsActive
     FROM SubscriptionPrices sp INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id INNER JOIN Periods p ON sp.PeriodId = p.Id WHERE sp.Id = @SubscriptionPriceId;
 
-    IF @FinalPrice IS NULL THROW 50404, 'Subscription price not found', 1;
+    IF @BasePrice IS NULL THROW 50404, 'Subscription price not found', 1;
     IF @IsActive = 0 THROW 50001, 'Subscription is not active', 1;
     IF EXISTS (
         SELECT 1 FROM UserSubscriptions us INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id
@@ -628,18 +712,455 @@ BEGIN
         )
     ) THROW 50002, 'User already subscribed to this service', 1;
 
+    IF @PromoCode IS NOT NULL AND LTRIM(RTRIM(@PromoCode)) <> ''
+    BEGIN
+        DECLARE @PromoNow DATETIME2 = GETUTCDATE(), @CodeTrimmed NVARCHAR(50) = UPPER(LTRIM(RTRIM(@PromoCode)));
+        DECLARE @DiscountType INT, @DiscountValue DECIMAL(18,2), @MaxDiscountAmount DECIMAL(18,2), @TotalUsageLimit INT, @PerUserUsageLimit INT;
+        DECLARE @ConditionSubscriptionId UNIQUEIDENTIFIER, @ConditionPeriodId UNIQUEIDENTIFIER, @ConditionMinAmount DECIMAL(18,2);
+        DECLARE @UserHasAssignment BIT = 0;
+        DECLARE @TotalUsages INT = 0, @UserUsages INT = 0;
+
+        SELECT TOP 1
+            @PromoCodeId = pc.Id,
+            @DiscountType = pc.DiscountType,
+            @DiscountValue = pc.DiscountValue,
+            @MaxDiscountAmount = pc.MaxDiscountAmount,
+            @TotalUsageLimit = pc.TotalUsageLimit,
+            @PerUserUsageLimit = pc.PerUserUsageLimit
+        FROM PromoCodes pc
+        WHERE UPPER(pc.Code) = @CodeTrimmed
+            AND pc.IsActive = 1
+            AND @PromoNow >= pc.ValidFrom
+            AND @PromoNow <= pc.ValidTo;
+
+        IF @PromoCodeId IS NULL THROW 50010, 'Promo code is invalid or expired', 1;
+
+        SELECT TOP 1
+            @ConditionSubscriptionId = SubscriptionId,
+            @ConditionPeriodId = PeriodId,
+            @ConditionMinAmount = MinAmount
+        FROM PromoCodeConditions
+        WHERE PromoCodeId = @PromoCodeId;
+
+        IF @ConditionSubscriptionId IS NOT NULL AND @ConditionSubscriptionId <> @SubscriptionId
+            THROW 50011, 'Promo code is not applicable for selected subscription', 1;
+
+        IF @ConditionPeriodId IS NOT NULL AND @ConditionPeriodId <> @PeriodId
+            THROW 50012, 'Promo code is not applicable for selected period', 1;
+
+        IF @ConditionMinAmount IS NOT NULL AND @BasePrice < @ConditionMinAmount
+            THROW 50013, 'Order amount does not satisfy promo code conditions', 1;
+
+        SELECT @UserHasAssignment =
+            CASE WHEN EXISTS (
+                SELECT 1
+                FROM UserPromoCodes upc
+                WHERE upc.PromoCodeId = @PromoCodeId AND upc.UserId = @UserId AND upc.IsActive = 1
+            ) THEN 1 ELSE 0 END;
+
+        IF @UserHasAssignment = 0 THROW 50014, 'Promo code is not assigned to this user', 1;
+
+        SELECT @TotalUsages = COUNT(*) FROM PromoCodeUsages WHERE PromoCodeId = @PromoCodeId;
+        SELECT @UserUsages = COUNT(*) FROM PromoCodeUsages WHERE PromoCodeId = @PromoCodeId AND UserId = @UserId;
+
+        IF @TotalUsageLimit IS NOT NULL AND @TotalUsages >= @TotalUsageLimit
+            THROW 50015, 'Promo code usage limit exceeded', 1;
+
+        IF @PerUserUsageLimit IS NOT NULL AND @UserUsages >= @PerUserUsageLimit
+            THROW 50016, 'You have already used this promo code', 1;
+
+        IF @DiscountType = 1
+        BEGIN
+            SET @DiscountAmount = ROUND((@BasePrice * @DiscountValue) / 100.0, 2);
+        END
+        ELSE
+        BEGIN
+            SET @DiscountAmount = @DiscountValue;
+        END
+
+        IF @MaxDiscountAmount IS NOT NULL AND @DiscountAmount > @MaxDiscountAmount
+            SET @DiscountAmount = @MaxDiscountAmount;
+
+        IF @DiscountAmount > @BasePrice
+            SET @DiscountAmount = @BasePrice;
+    END
+
+    SET @FinalPrice = @BasePrice - @DiscountAmount;
+
     BEGIN TRY
         BEGIN TRANSACTION;
         DECLARE @UserSubId UNIQUEIDENTIFIER = NEWID(), @PaymentId UNIQUEIDENTIFIER = NEWID(), @Now DATETIME2 = GETUTCDATE();
         DECLARE @NextBillingDate DATETIME2 = DATEADD(MONTH, @MonthsCount, @Now);
 
         INSERT INTO UserSubscriptions (Id, UserId, SubscriptionPriceId, StartDate, NextBillingDate, IsActive, CreatedAt, UpdatedAt) VALUES (@UserSubId, @UserId, @SubscriptionPriceId, @Now, @NextBillingDate, 0, @Now, @Now);
-        INSERT INTO Payments (Id, UserSubscriptionId, UserId, Amount, Currency, Status, PaymentDate, PeriodStart, PeriodEnd) VALUES (@PaymentId, @UserSubId, @UserId, @FinalPrice, 'BYN', 0, @Now, @Now, @NextBillingDate);
+        INSERT INTO Payments (Id, UserSubscriptionId, UserId, Amount, Currency, Status, PaymentDate, PeriodStart, PeriodEnd, AppliedPromoCodeId, DiscountAmount)
+        VALUES (@PaymentId, @UserSubId, @UserId, @FinalPrice, 'BYN', 0, @Now, @Now, @NextBillingDate, @PromoCodeId, @DiscountAmount);
         COMMIT TRANSACTION;
 
-        SELECT @PaymentId AS PaymentId, @FinalPrice AS Amount, @SubName AS SubscriptionName, @PeriodName AS PeriodName;
+        SELECT @PaymentId AS PaymentId, @FinalPrice AS Amount, @BasePrice AS BaseAmount, @DiscountAmount AS DiscountAmount, @SubName AS SubscriptionName, @PeriodName AS PeriodName;
     END TRY
     BEGIN CATCH IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION; THROW; END CATCH
+END
+GO
+
+CREATE OR ALTER PROCEDURE [sp_PromoCodes_Create]
+    @Id UNIQUEIDENTIFIER,
+    @Code NVARCHAR(50),
+    @Title NVARCHAR(150),
+    @Description NVARCHAR(500) = NULL,
+    @DiscountType INT,
+    @DiscountValue DECIMAL(18,2),
+    @MaxDiscountAmount DECIMAL(18,2) = NULL,
+    @ValidFrom DATETIME2,
+    @ValidTo DATETIME2,
+    @TotalUsageLimit INT = NULL,
+    @PerUserUsageLimit INT = 1,
+    @SubscriptionId UNIQUEIDENTIFIER = NULL,
+    @PeriodId UNIQUEIDENTIFIER = NULL,
+    @MinAmount DECIMAL(18,2) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @CodeNormalized NVARCHAR(50) = UPPER(LTRIM(RTRIM(@Code)));
+
+    IF @CodeNormalized = '' THROW 50020, 'Promo code is required', 1;
+    IF @DiscountType NOT IN (1, 2) THROW 50021, 'Invalid discount type', 1;
+    IF @DiscountValue <= 0 THROW 50022, 'Discount value must be greater than zero', 1;
+    IF @ValidTo <= @ValidFrom THROW 50023, 'ValidTo must be greater than ValidFrom', 1;
+    IF EXISTS (SELECT 1 FROM PromoCodes WHERE Code = @CodeNormalized) THROW 50024, 'Promo code already exists', 1;
+    IF @SubscriptionId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Subscriptions WHERE Id = @SubscriptionId) THROW 50025, 'Subscription not found', 1;
+    IF @PeriodId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Periods WHERE Id = @PeriodId) THROW 50026, 'Period not found', 1;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+        INSERT INTO PromoCodes (Id, Code, Title, Description, DiscountType, DiscountValue, MaxDiscountAmount, ValidFrom, ValidTo, TotalUsageLimit, PerUserUsageLimit, IsActive, CreatedAt, UpdatedAt)
+        VALUES (@Id, @CodeNormalized, @Title, @Description, @DiscountType, @DiscountValue, @MaxDiscountAmount, @ValidFrom, @ValidTo, @TotalUsageLimit, @PerUserUsageLimit, 1, GETUTCDATE(), GETUTCDATE());
+
+        INSERT INTO PromoCodeConditions (Id, PromoCodeId, SubscriptionId, PeriodId, MinAmount, CreatedAt)
+        VALUES (NEWID(), @Id, @SubscriptionId, @PeriodId, @MinAmount, GETUTCDATE());
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+
+    SELECT pc.*, c.SubscriptionId, c.PeriodId, c.MinAmount
+    FROM PromoCodes pc
+    LEFT JOIN PromoCodeConditions c ON c.PromoCodeId = pc.Id
+    WHERE pc.Id = @Id;
+END
+GO
+
+CREATE OR ALTER PROCEDURE [sp_PromoCodes_AssignToUser]
+    @PromoCodeId UNIQUEIDENTIFIER,
+    @UserId UNIQUEIDENTIFIER,
+    @AssignedByAdminId UNIQUEIDENTIFIER = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF NOT EXISTS (SELECT 1 FROM PromoCodes WHERE Id = @PromoCodeId AND IsActive = 1) THROW 50030, 'Promo code not found or inactive', 1;
+
+    IF EXISTS (SELECT 1 FROM UserPromoCodes WHERE PromoCodeId = @PromoCodeId AND UserId = @UserId)
+    BEGIN
+        UPDATE UserPromoCodes
+        SET IsActive = 1, AssignedAt = GETUTCDATE(), AssignedByAdminId = @AssignedByAdminId
+        WHERE PromoCodeId = @PromoCodeId AND UserId = @UserId;
+    END
+    ELSE
+    BEGIN
+        INSERT INTO UserPromoCodes (Id, PromoCodeId, UserId, AssignedAt, AssignedByAdminId, IsActive)
+        VALUES (NEWID(), @PromoCodeId, @UserId, GETUTCDATE(), @AssignedByAdminId, 1);
+    END
+END
+GO
+
+CREATE OR ALTER PROCEDURE [sp_PromoCodes_GetAssignedByUserId]
+    @UserId UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @Now DATETIME2 = GETUTCDATE();
+
+    SELECT
+        pc.Id,
+        pc.Code,
+        pc.Title,
+        pc.Description,
+        pc.DiscountType,
+        pc.DiscountValue,
+        pc.MaxDiscountAmount,
+        pc.ValidFrom,
+        pc.ValidTo,
+        pc.TotalUsageLimit,
+        pc.PerUserUsageLimit,
+        c.SubscriptionId,
+        c.PeriodId,
+        c.MinAmount,
+        ISNULL(u.UserUsageCount, 0) AS UserUsageCount
+    FROM UserPromoCodes upc
+    INNER JOIN PromoCodes pc ON upc.PromoCodeId = pc.Id
+    LEFT JOIN PromoCodeConditions c ON c.PromoCodeId = pc.Id
+    OUTER APPLY (
+        SELECT COUNT(*) AS UserUsageCount
+        FROM PromoCodeUsages u
+        WHERE u.PromoCodeId = pc.Id AND u.UserId = @UserId
+    ) u
+    OUTER APPLY (
+        SELECT COUNT(*) AS TotalUsageCount
+        FROM PromoCodeUsages tu
+        WHERE tu.PromoCodeId = pc.Id
+    ) t
+    WHERE upc.UserId = @UserId
+      AND upc.IsActive = 1
+      AND pc.IsActive = 1
+      AND @Now BETWEEN pc.ValidFrom AND pc.ValidTo
+      AND (
+            pc.PerUserUsageLimit IS NULL
+            OR ISNULL(u.UserUsageCount, 0) < pc.PerUserUsageLimit
+          )
+      AND (
+            pc.TotalUsageLimit IS NULL
+            OR ISNULL(t.TotalUsageCount, 0) < pc.TotalUsageLimit
+          )
+    ORDER BY pc.ValidTo ASC;
+END
+GO
+
+CREATE OR ALTER PROCEDURE [sp_PromoCodes_ValidateForPayment]
+    @UserId UNIQUEIDENTIFIER,
+    @SubscriptionPriceId UNIQUEIDENTIFIER,
+    @PromoCode NVARCHAR(50)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @Now DATETIME2 = GETUTCDATE();
+    DECLARE @CodeTrimmed NVARCHAR(50) = UPPER(LTRIM(RTRIM(ISNULL(@PromoCode, ''))));
+    DECLARE @BaseAmount DECIMAL(18,2), @FinalAmount DECIMAL(18,2), @DiscountAmount DECIMAL(18,2) = 0;
+    DECLARE @SubscriptionId UNIQUEIDENTIFIER, @PeriodId UNIQUEIDENTIFIER;
+    DECLARE @PromoCodeId UNIQUEIDENTIFIER, @DiscountType INT, @DiscountValue DECIMAL(18,2), @MaxDiscountAmount DECIMAL(18,2);
+    DECLARE @TotalUsageLimit INT, @PerUserUsageLimit INT;
+    DECLARE @ConditionSubscriptionId UNIQUEIDENTIFIER, @ConditionPeriodId UNIQUEIDENTIFIER, @ConditionMinAmount DECIMAL(18,2);
+    DECLARE @TotalUsages INT, @UserUsages INT;
+
+    SELECT @BaseAmount = sp.FinalPrice, @SubscriptionId = sp.SubscriptionId, @PeriodId = sp.PeriodId
+    FROM SubscriptionPrices sp
+    WHERE sp.Id = @SubscriptionPriceId;
+
+    IF @BaseAmount IS NULL THROW 50040, 'Subscription price not found', 1;
+    IF @CodeTrimmed = '' THROW 50041, 'Promo code is required', 1;
+
+    SELECT TOP 1
+        @PromoCodeId = pc.Id,
+        @DiscountType = pc.DiscountType,
+        @DiscountValue = pc.DiscountValue,
+        @MaxDiscountAmount = pc.MaxDiscountAmount,
+        @TotalUsageLimit = pc.TotalUsageLimit,
+        @PerUserUsageLimit = pc.PerUserUsageLimit
+    FROM PromoCodes pc
+    WHERE UPPER(pc.Code) = @CodeTrimmed
+      AND pc.IsActive = 1
+      AND @Now BETWEEN pc.ValidFrom AND pc.ValidTo;
+
+    IF @PromoCodeId IS NULL THROW 50042, 'Promo code is invalid or expired', 1;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM UserPromoCodes upc
+        WHERE upc.PromoCodeId = @PromoCodeId AND upc.UserId = @UserId AND upc.IsActive = 1
+    ) THROW 50043, 'Promo code is not assigned to this user', 1;
+
+    SELECT TOP 1
+        @ConditionSubscriptionId = c.SubscriptionId,
+        @ConditionPeriodId = c.PeriodId,
+        @ConditionMinAmount = c.MinAmount
+    FROM PromoCodeConditions c
+    WHERE c.PromoCodeId = @PromoCodeId;
+
+    IF @ConditionSubscriptionId IS NOT NULL AND @ConditionSubscriptionId <> @SubscriptionId
+        THROW 50044, 'Promo code is not applicable for selected subscription', 1;
+
+    IF @ConditionPeriodId IS NOT NULL AND @ConditionPeriodId <> @PeriodId
+        THROW 50045, 'Promo code is not applicable for selected period', 1;
+
+    IF @ConditionMinAmount IS NOT NULL AND @BaseAmount < @ConditionMinAmount
+        THROW 50046, 'Order amount does not satisfy promo code conditions', 1;
+
+    SELECT @TotalUsages = COUNT(*) FROM PromoCodeUsages WHERE PromoCodeId = @PromoCodeId;
+    SELECT @UserUsages = COUNT(*) FROM PromoCodeUsages WHERE PromoCodeId = @PromoCodeId AND UserId = @UserId;
+
+    IF @TotalUsageLimit IS NOT NULL AND @TotalUsages >= @TotalUsageLimit
+        THROW 50047, 'Promo code usage limit exceeded', 1;
+
+    IF @PerUserUsageLimit IS NOT NULL AND @UserUsages >= @PerUserUsageLimit
+        THROW 50048, 'You have already used this promo code', 1;
+
+    IF @DiscountType = 1
+        SET @DiscountAmount = ROUND((@BaseAmount * @DiscountValue) / 100.0, 2);
+    ELSE
+        SET @DiscountAmount = @DiscountValue;
+
+    IF @MaxDiscountAmount IS NOT NULL AND @DiscountAmount > @MaxDiscountAmount
+        SET @DiscountAmount = @MaxDiscountAmount;
+
+    IF @DiscountAmount > @BaseAmount
+        SET @DiscountAmount = @BaseAmount;
+
+    SET @FinalAmount = @BaseAmount - @DiscountAmount;
+
+    SELECT
+        @PromoCodeId AS PromoCodeId,
+        @CodeTrimmed AS PromoCode,
+        @BaseAmount AS BaseAmount,
+        @DiscountAmount AS DiscountAmount,
+        @FinalAmount AS FinalAmount;
+END
+GO
+
+CREATE OR ALTER PROCEDURE [sp_PromoCodes_RegisterUsageForPayment]
+    @PaymentId UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @PromoCodeId UNIQUEIDENTIFIER, @UserId UNIQUEIDENTIFIER, @DiscountAmount DECIMAL(18,2);
+
+    SELECT
+        @PromoCodeId = p.AppliedPromoCodeId,
+        @UserId = p.UserId,
+        @DiscountAmount = ISNULL(p.DiscountAmount, 0)
+    FROM Payments p
+    WHERE p.Id = @PaymentId AND p.Status = 1;
+
+    IF @PromoCodeId IS NULL RETURN 204;
+    IF EXISTS (SELECT 1 FROM PromoCodeUsages WHERE PaymentId = @PaymentId) RETURN 204;
+
+    INSERT INTO PromoCodeUsages (Id, PromoCodeId, UserId, PaymentId, UsedAt, DiscountAmount)
+    VALUES (NEWID(), @PromoCodeId, @UserId, @PaymentId, GETUTCDATE(), @DiscountAmount);
+END
+GO
+
+CREATE OR ALTER PROCEDURE [sp_PromoCodes_GetAudienceUsers]
+    @AudienceType INT = 1,      -- 1: paid in last N days, 2: most active users, 3: all users with successful payments, 4: no purchases for more than N days
+    @DaysBack INT = 30,
+    @TopUsersCount INT = 100
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @DaysBack < 1 SET @DaysBack = 1;
+    IF @DaysBack > 365 SET @DaysBack = 365;
+    IF @TopUsersCount < 1 SET @TopUsersCount = 1;
+    IF @TopUsersCount > 1000 SET @TopUsersCount = 1000;
+
+    DECLARE @FromDate DATETIME2 = DATEADD(DAY, -@DaysBack, GETUTCDATE());
+
+    IF @AudienceType = 1
+    BEGIN
+        SELECT
+            p.UserId,
+            u.Email,
+            COUNT(*) AS PaymentsCount,
+            SUM(p.Amount) AS TotalSpent,
+            MAX(p.PaymentDate) AS LastPaymentDate
+        FROM Payments p
+        INNER JOIN AuthDb.dbo.Users u ON u.Id = p.UserId
+        WHERE p.Status = 1
+            AND p.PaymentDate >= @FromDate
+        GROUP BY p.UserId, u.Email
+        ORDER BY MAX(p.PaymentDate) DESC, COUNT(*) DESC;
+        RETURN;
+    END
+
+    IF @AudienceType = 2
+    BEGIN
+        SELECT TOP (@TopUsersCount)
+            p.UserId,
+            u.Email,
+            COUNT(*) AS PaymentsCount,
+            SUM(p.Amount) AS TotalSpent,
+            MAX(p.PaymentDate) AS LastPaymentDate
+        FROM Payments p
+        INNER JOIN AuthDb.dbo.Users u ON u.Id = p.UserId
+        WHERE p.Status = 1
+        GROUP BY p.UserId, u.Email
+        ORDER BY COUNT(*) DESC, SUM(p.Amount) DESC, MAX(p.PaymentDate) DESC;
+        RETURN;
+    END
+
+    IF @AudienceType = 3
+    BEGIN
+        SELECT
+            p.UserId,
+            u.Email,
+            COUNT(*) AS PaymentsCount,
+            SUM(p.Amount) AS TotalSpent,
+            MAX(p.PaymentDate) AS LastPaymentDate
+        FROM Payments p
+        INNER JOIN AuthDb.dbo.Users u ON u.Id = p.UserId
+        WHERE p.Status = 1
+        GROUP BY p.UserId, u.Email
+        ORDER BY MAX(p.PaymentDate) DESC;
+        RETURN;
+    END
+
+    IF @AudienceType = 4
+    BEGIN
+        SELECT
+            p.UserId,
+            u.Email,
+            COUNT(*) AS PaymentsCount,
+            SUM(p.Amount) AS TotalSpent,
+            MAX(p.PaymentDate) AS LastPaymentDate
+        FROM Payments p
+        INNER JOIN AuthDb.dbo.Users u ON u.Id = p.UserId
+        WHERE p.Status = 1
+        GROUP BY p.UserId, u.Email
+        HAVING MAX(p.PaymentDate) < @FromDate
+        ORDER BY MAX(p.PaymentDate) ASC, COUNT(*) DESC;
+        RETURN;
+    END
+
+    ;THROW 50060, 'Unknown audience type', 1;
+END
+GO
+
+CREATE OR ALTER PROCEDURE [sp_PromoCodes_GetDeliveryReport]
+    @PromoCodeId UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF NOT EXISTS (SELECT 1 FROM PromoCodes WHERE Id = @PromoCodeId)
+        THROW 50061, 'Promo code not found', 1;
+
+    SELECT
+        pc.Id AS PromoCodeId,
+        pc.Code,
+        pc.Title,
+        COUNT(DISTINCT upc.UserId) AS AssignedUsersCount,
+        COUNT(DISTINCT u.UserId) AS UsedUsersCount,
+        COUNT(u.Id) AS TotalUsagesCount
+    FROM PromoCodes pc
+    LEFT JOIN UserPromoCodes upc ON upc.PromoCodeId = pc.Id AND upc.IsActive = 1
+    LEFT JOIN PromoCodeUsages u ON u.PromoCodeId = pc.Id
+    WHERE pc.Id = @PromoCodeId
+    GROUP BY pc.Id, pc.Code, pc.Title;
+
+    SELECT
+        upc.UserId,
+        users.Email,
+        upc.AssignedAt,
+        upc.IsActive,
+        ISNULL(usages.UserUsageCount, 0) AS UserUsageCount
+    FROM UserPromoCodes upc
+    INNER JOIN AuthDb.dbo.Users users ON users.Id = upc.UserId
+    OUTER APPLY (
+        SELECT COUNT(*) AS UserUsageCount
+        FROM PromoCodeUsages u
+        WHERE u.PromoCodeId = upc.PromoCodeId AND u.UserId = upc.UserId
+    ) usages
+    WHERE upc.PromoCodeId = @PromoCodeId
+    ORDER BY upc.AssignedAt DESC;
 END
 GO
 

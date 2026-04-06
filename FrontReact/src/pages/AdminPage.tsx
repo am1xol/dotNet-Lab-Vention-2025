@@ -9,6 +9,7 @@ import { AdminUsersPanel } from '../components/subscriptions/AdminUsersPanel';
 import { AdminReportsPanel } from '../components/reports/AdminReportsPanel';
 import { AdminAnalyticsPanel } from '../components/reports/AdminAnalyticsPanel';
 import { AdminChatPanel } from '../components/chat/AdminChatPanel';
+import { AdminPromoCodesPanel } from '../components/subscriptions/AdminPromoCodesPanel';
 import { DashboardHeader } from '../components/dashboard/DashboardHeader';
 import { translations } from '../i18n/translations';
 
@@ -119,6 +120,7 @@ export const AdminPage: React.FC = () => {
               <Tab label={translations.admin.manageUsers} />
               <Tab label={translations.admin.reports} />
               <Tab label={translations.admin.analytics} />
+              <Tab label="Промокоды" />
               <Tab label={translations.admin.supportChat} />
             </Tabs>
           </Box>
@@ -149,6 +151,11 @@ export const AdminPage: React.FC = () => {
 
           {/* Chat Support Tab */}
           <TabPanel value={tabValue} index={4}>
+            <AdminPromoCodesPanel />
+          </TabPanel>
+
+          {/* Chat Support Tab */}
+          <TabPanel value={tabValue} index={5}>
             <AdminChatPanel />
           </TabPanel>
         </Paper>

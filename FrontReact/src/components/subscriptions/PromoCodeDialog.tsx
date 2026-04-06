@@ -1,0 +1,133 @@
+import React, { useMemo, useState } from 'react';
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
+import { PromoCodeValidationResult } from '../../types/payment';
+import { userSubscriptionService } from '../../services/user-subscription-service';
+
+interface PromoCodeDialogProps {
+  open: boolean;
+  subscriptionPriceId: string | null;
+  baseAmount: number;
+  periodName?: string;
+  onClose: () => void;
+  onConfirm: (promoCode?: string) => Promise<void>;
+}
+
+export const PromoCodeDialog: React.FC<PromoCodeDialogProps> = ({
+  open,
+  subscriptionPriceId,
+  baseAmount,
+  periodName,
+  onClose,
+  onConfirm,
+}) => {
+  const [promoCode, setPromoCode] = useState('');
+  const [validation, setValidation] = useState<PromoCodeValidationResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isChecking, setIsChecking] = useState(false);
+  const [isPaying, setIsPaying] = useState(false);
+
+  const finalAmount = useMemo(() => validation?.finalAmount ?? baseAmount, [validation, baseAmount]);
+
+  const handleValidate = async () => {
+    if (!subscriptionPriceId) return;
+    if (!promoCode.trim()) {
+      setValidation(null);
+      setError('Введите промокод');
+      return;
+    }
+
+    setIsChecking(true);
+    setError(null);
+    try {
+      const result = await userSubscriptionService.validatePromoCode(subscriptionPriceId, promoCode.trim());
+      setValidation(result);
+    } catch (e: any) {
+      setValidation(null);
+      setError(e.response?.data || 'Не удалось проверить промокод');
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
+  const handleConfirm = async () => {
+    setIsPaying(true);
+    setError(null);
+    try {
+      await onConfirm(validation?.promoCode ?? undefined);
+      setPromoCode('');
+      setValidation(null);
+      onClose();
+    } catch (e: any) {
+      setError(e.response?.data?.message || 'Не удалось инициировать оплату');
+    } finally {
+      setIsPaying(false);
+    }
+  };
+
+  const handleClose = () => {
+    if (isChecking || isPaying) return;
+    setPromoCode('');
+    setValidation(null);
+    setError(null);
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
+      <DialogTitle>Оплата подписки {periodName ? `(${periodName})` : ''}</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          <TextField
+            label="Промокод"
+            value={promoCode}
+            onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+            placeholder="Введите промокод"
+            fullWidth
+            disabled={isChecking || isPaying}
+          />
+          <Box>
+            <Button
+              variant="outlined"
+              onClick={handleValidate}
+              disabled={isChecking || isPaying || !subscriptionPriceId}
+            >
+              {isChecking ? <CircularProgress size={18} /> : 'Проверить промокод'}
+            </Button>
+          </Box>
+
+          {validation && (
+            <Alert severity="success">
+              Промокод применен. Скидка: {validation.discountAmount.toFixed(2)} BYN
+            </Alert>
+          )}
+          {error && <Alert severity="error">{error}</Alert>}
+
+          <Box sx={{ p: 2, border: '1px solid #eee', borderRadius: 2 }}>
+            <Typography variant="body2">Базовая стоимость: {baseAmount.toFixed(2)} BYN</Typography>
+            <Typography variant="h6" sx={{ mt: 1 }}>
+              К оплате: {finalAmount.toFixed(2)} BYN
+            </Typography>
+          </Box>
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleClose} disabled={isChecking || isPaying}>Отмена</Button>
+        <Button variant="contained" onClick={handleConfirm} disabled={isChecking || isPaying || !subscriptionPriceId}>
+          {isPaying ? <CircularProgress size={18} /> : 'Перейти к оплате'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};

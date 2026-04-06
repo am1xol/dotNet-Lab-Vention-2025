@@ -31,6 +31,7 @@ import { motion } from 'framer-motion';
 
 import { SubscriptionCard } from '../components/subscriptions/SubscriptionCard';
 import { UnsubscribeReasonDialog } from '../components/subscriptions/UnsubscribeReasonDialog';
+import { PromoCodeDialog } from '../components/subscriptions/PromoCodeDialog';
 import { subscriptionService } from '../services/subscription-service';
 import { userSubscriptionService } from '../services/user-subscription-service';
 import { useAuthStore } from '../store/auth-store';
@@ -128,6 +129,12 @@ export const CategorySubscriptionsPage: React.FC = () => {
   const [unsubscribedData, setUnsubscribedData] = useState<{
     [key: string]: { validUntil: string };
   }>({});
+  const [promoDialogOpen, setPromoDialogOpen] = useState(false);
+  const [selectedPriceForPayment, setSelectedPriceForPayment] = useState<{
+    priceId: string;
+    baseAmount: number;
+    periodName?: string;
+  } | null>(null);
 
   const pageSize = 12;
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -230,7 +237,18 @@ export const CategorySubscriptionsPage: React.FC = () => {
     );
   };
 
-  const handleInitiatePayment = async (subscriptionId: string) => {
+  const resolvePriceMeta = (subscriptionPriceId: string) => {
+    for (const subscription of subscriptions) {
+      const byPriceId = subscription.prices?.find((p) => p.id === subscriptionPriceId);
+      if (byPriceId) {
+        return { baseAmount: byPriceId.finalPrice, periodName: byPriceId.periodName };
+      }
+    }
+
+    return { baseAmount: 0, periodName: undefined };
+  };
+
+  const executePayment = async (subscriptionId: string, promoCode?: string) => {
     if (!isAuthenticated) {
       navigate('/auth/signin');
       return;
@@ -240,7 +258,7 @@ export const CategorySubscriptionsPage: React.FC = () => {
     setError(null);
     try {
       const result: PaymentInitiationResult =
-        await userSubscriptionService.initiatePayment(subscriptionId);
+        await userSubscriptionService.initiatePayment(subscriptionId, promoCode);
 
       if (typeof BeGateway !== 'undefined' && result.token) {
         const params = {
@@ -269,6 +287,16 @@ export const CategorySubscriptionsPage: React.FC = () => {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const handleInitiatePayment = async (subscriptionId: string) => {
+    const meta = resolvePriceMeta(subscriptionId);
+    setSelectedPriceForPayment({
+      priceId: subscriptionId,
+      baseAmount: meta.baseAmount,
+      periodName: meta.periodName,
+    });
+    setPromoDialogOpen(true);
   };
 
   const handleSubscribe = async (subscriptionId: string) => {
@@ -742,6 +770,20 @@ export const CategorySubscriptionsPage: React.FC = () => {
         onConfirm={handleConfirmUnsubscribe}
         subscriptionName={selectedSubscriptionName}
         loading={actionLoading !== null}
+      />
+      <PromoCodeDialog
+        open={promoDialogOpen}
+        subscriptionPriceId={selectedPriceForPayment?.priceId ?? null}
+        baseAmount={selectedPriceForPayment?.baseAmount ?? 0}
+        periodName={selectedPriceForPayment?.periodName}
+        onClose={() => {
+          setPromoDialogOpen(false);
+          setSelectedPriceForPayment(null);
+        }}
+        onConfirm={async (promoCode?: string) => {
+          if (!selectedPriceForPayment) return;
+          await executePayment(selectedPriceForPayment.priceId, promoCode);
+        }}
       />
     </PageContainer>
   );

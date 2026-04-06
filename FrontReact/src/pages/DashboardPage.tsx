@@ -5,9 +5,11 @@ import { useAuthStore } from '../store/auth-store';
 import { subscriptionService } from '../services/subscription-service';
 import { userSubscriptionService } from '../services/user-subscription-service';
 import { UserStatistics } from '../components/statistics/UserStatistics';
+import { PromoCodeDialog } from '../components/subscriptions/PromoCodeDialog';
 import {
   UserStatistics as UserStatisticsType,
   PaymentInitiationResult,
+  PromoCodeInfo,
 } from '../types/payment';
 import {
   GroupedSubscriptions,
@@ -35,9 +37,16 @@ export const DashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [myPromoCodes, setMyPromoCodes] = useState<PromoCodeInfo[]>([]);
   const [unsubscribedData, setUnsubscribedData] = useState<{
     [key: string]: { validUntil: string };
   }>({});
+  const [promoDialogOpen, setPromoDialogOpen] = useState(false);
+  const [selectedPriceForPayment, setSelectedPriceForPayment] = useState<{
+    priceId: string;
+    baseAmount: number;
+    periodName?: string;
+  } | null>(null);
 
   const { isAuthenticated } = useAuthStore();
 
@@ -57,6 +66,8 @@ export const DashboardPage: React.FC = () => {
 
       setAvailableSubscriptions(subscriptionsData);
       setMySubscriptions(mySubscriptionsData);
+      const promoCodes = await userSubscriptionService.getMyPromoCodes();
+      setMyPromoCodes(promoCodes);
 
       if (isAuthenticated) {
         await loadStatistics();
@@ -78,12 +89,12 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
-  const handleInitiatePayment = async (subscriptionId: string) => {
+  const executePayment = async (subscriptionId: string, promoCode?: string) => {
     setActionLoading(subscriptionId);
     setError(null);
     try {
       const result: PaymentInitiationResult =
-        await userSubscriptionService.initiatePayment(subscriptionId);
+        await userSubscriptionService.initiatePayment(subscriptionId, promoCode);
 
       if (typeof BeGateway !== 'undefined' && result.token) {
         console.log('Attempting to open BeGateway Widget...');
@@ -122,6 +133,28 @@ export const DashboardPage: React.FC = () => {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const resolvePriceMeta = (subscriptionPriceId: string) => {
+    const allSubscriptions = Object.values(availableSubscriptions).flat();
+    for (const subscription of allSubscriptions) {
+      const byPriceId = subscription.prices?.find((p) => p.id === subscriptionPriceId);
+      if (byPriceId) {
+        return { baseAmount: byPriceId.finalPrice, periodName: byPriceId.periodName };
+      }
+    }
+
+    return { baseAmount: 0, periodName: undefined };
+  };
+
+  const handleInitiatePayment = async (subscriptionId: string) => {
+    const meta = resolvePriceMeta(subscriptionId);
+    setSelectedPriceForPayment({
+      priceId: subscriptionId,
+      baseAmount: meta.baseAmount,
+      periodName: meta.periodName,
+    });
+    setPromoDialogOpen(true);
   };
 
   const handleSubscribe = async (subscriptionId: string) => {
@@ -222,6 +255,11 @@ export const DashboardPage: React.FC = () => {
             </Alert>
           </motion.div>
         )}
+        {myPromoCodes.length > 0 && (
+          <Alert severity="info" sx={{ borderRadius: 3 }}>
+            Доступные промокоды: {myPromoCodes.map((p) => p.code).join(', ')}
+          </Alert>
+        )}
 
         {statistics && (
           <motion.div
@@ -247,6 +285,20 @@ export const DashboardPage: React.FC = () => {
           handleUnsubscribe={handleUnsubscribe}
           handleFreeze={handleFreeze}
           handleRestoreCancelled={handleRestoreCancelled}
+        />
+        <PromoCodeDialog
+          open={promoDialogOpen}
+          subscriptionPriceId={selectedPriceForPayment?.priceId ?? null}
+          baseAmount={selectedPriceForPayment?.baseAmount ?? 0}
+          periodName={selectedPriceForPayment?.periodName}
+          onClose={() => {
+            setPromoDialogOpen(false);
+            setSelectedPriceForPayment(null);
+          }}
+          onConfirm={async (promoCode?: string) => {
+            if (!selectedPriceForPayment) return;
+            await executePayment(selectedPriceForPayment.priceId, promoCode);
+          }}
         />
       </Stack>
     </DashboardShell>

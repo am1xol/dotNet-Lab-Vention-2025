@@ -97,6 +97,12 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                         transaction,
                         commandType: CommandType.StoredProcedure);
 
+                    await connection.ExecuteAsync(
+                        "sp_PromoCodes_RegisterUsageForPayment",
+                        new { PaymentId = paymentId },
+                        transaction,
+                        commandType: CommandType.StoredProcedure);
+
                     await _notificationService.CreateAsync(
                         payment.UserId,
                         "Подписка активна",

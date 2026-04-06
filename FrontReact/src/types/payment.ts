@@ -16,6 +16,29 @@ export interface PaymentInitiationResult {
   token: string;
 }
 
+export interface PromoCodeValidationResult {
+  promoCodeId: string;
+  promoCode: string;
+  baseAmount: number;
+  discountAmount: number;
+  finalAmount: number;
+}
+
+export interface PromoCodeInfo {
+  id: string;
+  code: string;
+  title: string;
+  description?: string;
+  discountType: number;
+  discountValue: number;
+  maxDiscountAmount?: number;
+  validFrom: string;
+  validTo: string;
+  totalUsageLimit?: number;
+  perUserUsageLimit: number;
+  userUsageCount: number;
+}
+
 export interface Payment {
   id: string;
   userSubscriptionId: string;

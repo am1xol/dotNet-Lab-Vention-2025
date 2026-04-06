@@ -5,7 +5,12 @@ import {
   PagedResult,
   UserSubscription,
 } from '../types/subscription';
-import { UserStatistics, PaymentInitiationResult } from '../types/payment';
+import {
+  UserStatistics,
+  PaymentInitiationResult,
+  PromoCodeInfo,
+  PromoCodeValidationResult,
+} from '../types/payment';
 
 const API_BASE_URL = import.meta.env.VITE_SUBSCRIPTIONS_API_URL + '/api';
 
@@ -18,12 +23,30 @@ export const userSubscriptionService = {
   },
 
   async initiatePayment(
-    subscriptionId: string
+    subscriptionId: string,
+    promoCode?: string
   ): Promise<PaymentInitiationResult> {
+    const encodedPromo = promoCode ? `?promoCode=${encodeURIComponent(promoCode)}` : '';
     const response = await api.post(
-      `${API_BASE_URL}/UserSubscriptions/initiate-payment/${subscriptionId}`
+      `${API_BASE_URL}/UserSubscriptions/initiate-payment/${subscriptionId}${encodedPromo}`
     );
     return response.data as PaymentInitiationResult;
+  },
+
+  async validatePromoCode(
+    subscriptionPriceId: string,
+    promoCode: string
+  ): Promise<PromoCodeValidationResult> {
+    const response = await api.post(`${API_BASE_URL}/PromoCodes/validate`, {
+      subscriptionPriceId,
+      promoCode,
+    });
+    return response.data as PromoCodeValidationResult;
+  },
+
+  async getMyPromoCodes(): Promise<PromoCodeInfo[]> {
+    const response = await api.get(`${API_BASE_URL}/PromoCodes/my`);
+    return response.data as PromoCodeInfo[];
   },
 
   async getMySubscriptions(): Promise<GroupedUserSubscriptions> {

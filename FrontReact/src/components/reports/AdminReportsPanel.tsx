@@ -14,12 +14,16 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  TableContainer,
   LinearProgress,
   Stack,
   IconButton,
   Select,
   FormControl,
   InputLabel,
+  Paper,
+  Chip,
+  Divider,
 } from '@mui/material';
 import {
   ChevronLeft,
@@ -54,6 +58,12 @@ const normalizeForChart = (values: number[]) => {
   const max = Math.max(...values, 1);
   return values.map((v) => (v / max) * 100);
 };
+
+const formatMoney = (value: number) =>
+  value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
 const exportToCsv = (filename: string, items: any[]) => {
   if (!items.length) return;
@@ -263,6 +273,60 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
     return [];
   }, [tab, topPopular, activeByPlan, byMonth]);
 
+  const overviewMetrics = useMemo(() => {
+    if (tab === 'activeByPlan') {
+      const totalActive = activeByPlan.reduce((sum, item) => sum + item.activeSubscriptionsCount, 0);
+      const avgPrice = activeByPlan.length
+        ? activeByPlan.reduce((sum, item) => sum + item.finalPrice, 0) / activeByPlan.length
+        : 0;
+      return [
+        { label: translations.admin.rows, value: activeByPlan.length },
+        { label: translations.admin.activeCount, value: totalActive },
+        { label: translations.admin.price, value: formatMoney(avgPrice) },
+      ];
+    }
+
+    if (tab === 'subscriptionsWithPlans') {
+      const avgBase = subsWithPlans.length
+        ? subsWithPlans.reduce((sum, item) => sum + item.basePrice, 0) / subsWithPlans.length
+        : 0;
+      const avgFinal = subsWithPlans.length
+        ? subsWithPlans.reduce((sum, item) => sum + item.finalPrice, 0) / subsWithPlans.length
+        : 0;
+      return [
+        { label: translations.admin.rows, value: subsWithPlans.length },
+        { label: translations.admin.basePrice, value: formatMoney(avgBase) },
+        { label: translations.admin.finalPrice, value: formatMoney(avgFinal) },
+      ];
+    }
+
+    if (tab === 'topPopular') {
+      const total = topPopular.reduce((sum, item) => sum + item.totalSubscriptionsCount, 0);
+      return [
+        { label: translations.admin.rows, value: topPopular.length },
+        { label: translations.admin.totalSubscriptionsCount, value: total },
+        { label: translations.admin.topN, value: topCount },
+      ];
+    }
+
+    if (tab === 'byMonth') {
+      const total = byMonth.reduce((sum, item) => sum + item.subscriptionsCount, 0);
+      const peak = byMonth.reduce((max, item) => Math.max(max, item.subscriptionsCount), 0);
+      return [
+        { label: translations.admin.rows, value: byMonth.length },
+        { label: translations.admin.subscriptionsCount, value: total },
+        { label: translations.admin.activeCount, value: peak },
+      ];
+    }
+
+    const activeCount = userSubs.filter((item) => item.isActive).length;
+    return [
+      { label: translations.admin.rows, value: userSubs.length },
+      { label: translations.admin.activeStatus, value: activeCount },
+      { label: translations.admin.inactiveStatus, value: userSubs.length - activeCount },
+    ];
+  }, [tab, activeByPlan, subsWithPlans, topPopular, byMonth, userSubs, topCount]);
+
   const renderChart = () => {
     if (!chartData.length) return null;
 
@@ -300,21 +364,25 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
   const renderTable = () => {
     if (tab === 'activeByPlan' && activeByPlan.length) {
       return (
-        <Table size="small">
+        <Table stickyHeader size="small">
           <TableHead>
             <TableRow>
-              <TableCell>{translations.admin.subscription}</TableCell>
-              <TableCell>{translations.admin.plan}</TableCell>
-              <TableCell>{translations.admin.price}</TableCell>
-              <TableCell align="right">{translations.admin.activeCount}</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.subscription}</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.plan}</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.price}</TableCell>
+              <TableCell sx={{ fontWeight: 700 }} align="right">{translations.admin.activeCount}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {activeByPlan.map((row) => (
-              <TableRow key={`${row.subscriptionId}-${row.periodId}`}>
+              <TableRow
+                key={`${row.subscriptionId}-${row.periodId}`}
+                hover
+                sx={{ '&:nth-of-type(odd)': { backgroundColor: 'rgba(126,87,194,0.04)' } }}
+              >
                 <TableCell>{row.subscriptionName}</TableCell>
                 <TableCell>{row.periodName}</TableCell>
-                <TableCell>{row.finalPrice.toFixed(2)}</TableCell>
+                <TableCell>{formatMoney(row.finalPrice)}</TableCell>
                 <TableCell align="right">
                   {row.activeSubscriptionsCount}
                 </TableCell>
@@ -327,26 +395,30 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
 
     if (tab === 'subscriptionsWithPlans' && subsWithPlans.length) {
       return (
-        <Table size="small">
+        <Table stickyHeader size="small">
           <TableHead>
             <TableRow>
-              <TableCell>{translations.admin.subscription}</TableCell>
-              <TableCell>{translations.admin.category}</TableCell>
-              <TableCell>{translations.admin.basePrice}</TableCell>
-              <TableCell>{translations.admin.period}</TableCell>
-              <TableCell>{translations.admin.months}</TableCell>
-              <TableCell>{translations.admin.finalPrice}</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.subscription}</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.category}</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.basePrice}</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.period}</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.months}</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.finalPrice}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {subsWithPlans.map((row) => (
-              <TableRow key={row.subscriptionPriceId}>
+              <TableRow
+                key={row.subscriptionPriceId}
+                hover
+                sx={{ '&:nth-of-type(odd)': { backgroundColor: 'rgba(126,87,194,0.04)' } }}
+              >
                 <TableCell>{row.subscriptionName}</TableCell>
                 <TableCell>{row.category}</TableCell>
-                <TableCell>{row.basePrice.toFixed(2)}</TableCell>
+                <TableCell>{formatMoney(row.basePrice)}</TableCell>
                 <TableCell>{row.periodName}</TableCell>
                 <TableCell>{row.monthsCount}</TableCell>
-                <TableCell>{row.finalPrice.toFixed(2)}</TableCell>
+                <TableCell>{formatMoney(row.finalPrice)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -356,19 +428,28 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
 
     if (tab === 'topPopular' && topPopular.length) {
       return (
-        <Table size="small">
+        <Table stickyHeader size="small">
           <TableHead>
             <TableRow>
-              <TableCell>{translations.admin.subscription}</TableCell>
-              <TableCell>{translations.admin.category}</TableCell>
-              <TableCell align="right">{translations.admin.totalSubscriptionsCount}</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.subscription}</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.category}</TableCell>
+              <TableCell sx={{ fontWeight: 700 }} align="right">{translations.admin.totalSubscriptionsCount}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {topPopular.map((row) => (
-              <TableRow key={row.subscriptionId}>
+            {topPopular.map((row, index) => (
+              <TableRow
+                key={row.subscriptionId}
+                hover
+                sx={{ '&:nth-of-type(odd)': { backgroundColor: 'rgba(126,87,194,0.04)' } }}
+              >
                 <TableCell>{row.subscriptionName}</TableCell>
-                <TableCell>{row.category}</TableCell>
+                <TableCell>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Chip size="small" color="secondary" label={`#${index + 1}`} />
+                    <span>{row.category}</span>
+                  </Stack>
+                </TableCell>
                 <TableCell align="right">
                   {row.totalSubscriptionsCount}
                 </TableCell>
@@ -381,17 +462,21 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
 
     if (tab === 'byMonth' && byMonth.length) {
       return (
-        <Table size="small">
+        <Table stickyHeader size="small">
           <TableHead>
             <TableRow>
-              <TableCell>{translations.admin.year}</TableCell>
-              <TableCell>{translations.admin.month}</TableCell>
-              <TableCell align="right">{translations.admin.subscriptionsCount}</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.year}</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.month}</TableCell>
+              <TableCell sx={{ fontWeight: 700 }} align="right">{translations.admin.subscriptionsCount}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {byMonth.map((row) => (
-              <TableRow key={`${row.year}-${row.month}`}>
+              <TableRow
+                key={`${row.year}-${row.month}`}
+                hover
+                sx={{ '&:nth-of-type(odd)': { backgroundColor: 'rgba(126,87,194,0.04)' } }}
+              >
                 <TableCell>{row.year}</TableCell>
                 <TableCell>{row.month}</TableCell>
                 <TableCell align="right">{row.subscriptionsCount}</TableCell>
@@ -404,25 +489,29 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
 
     if (tab === 'userSubscriptions' && userSubs.length) {
       return (
-        <Table size="small">
+        <Table stickyHeader size="small">
           <TableHead>
             <TableRow>
-              <TableCell>{translations.admin.subscription}</TableCell>
-              <TableCell>{translations.admin.category}</TableCell>
-              <TableCell>{translations.admin.period}</TableCell>
-              <TableCell>{translations.admin.price}</TableCell>
-              <TableCell>{translations.admin.start}</TableCell>
-              <TableCell>{translations.admin.validUntil}</TableCell>
-              <TableCell>{translations.admin.status}</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.subscription}</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.category}</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.period}</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.price}</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.start}</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.validUntil}</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.status}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {userSubs.map((row) => (
-              <TableRow key={row.userSubscriptionId}>
+              <TableRow
+                key={row.userSubscriptionId}
+                hover
+                sx={{ '&:nth-of-type(odd)': { backgroundColor: 'rgba(126,87,194,0.04)' } }}
+              >
                 <TableCell>{row.subscriptionName}</TableCell>
                 <TableCell>{row.category}</TableCell>
                 <TableCell>{row.periodName}</TableCell>
-                <TableCell>{row.finalPrice.toFixed(2)}</TableCell>
+                <TableCell>{formatMoney(row.finalPrice)}</TableCell>
                 <TableCell>
                   {formatDateShort(row.startDate)}
                 </TableCell>
@@ -431,7 +520,14 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
                     ? formatDateShort(row.validUntil)
                     : '-'}
                 </TableCell>
-                <TableCell>{row.isActive ? translations.admin.activeStatus : translations.admin.inactiveStatus}</TableCell>
+                <TableCell>
+                  <Chip
+                    size="small"
+                    label={row.isActive ? translations.admin.activeStatus : translations.admin.inactiveStatus}
+                    color={row.isActive ? 'success' : 'default'}
+                    variant={row.isActive ? 'filled' : 'outlined'}
+                  />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -618,6 +714,8 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
           value={tab}
           onChange={(_, v) => setTab(v)}
           sx={{ mb: 2 }}
+          variant="scrollable"
+          allowScrollButtonsMobile
           textColor="inherit"
           indicatorColor="secondary"
         >
@@ -627,6 +725,40 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
           <Tab label={translations.admin.byMonth} value="byMonth" />
           <Tab label={translations.admin.byUser} value="userSubscriptions" />
         </Tabs>
+
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 2,
+            borderRadius: 2.5,
+            mb: 2,
+            borderColor: 'rgba(126,87,194,0.2)',
+            backgroundColor: 'rgba(126,87,194,0.02)',
+          }}
+        >
+          <Stack direction="row" spacing={1.5} useFlexGap flexWrap="wrap">
+            {overviewMetrics.map((metric) => (
+              <Box
+                key={metric.label}
+                sx={{
+                  minWidth: 130,
+                  px: 1.5,
+                  py: 1,
+                  borderRadius: 1.5,
+                  backgroundColor: 'rgba(255,255,255,0.9)',
+                  border: '1px solid rgba(126,87,194,0.16)',
+                }}
+              >
+                <Typography variant="caption" color="text.secondary">
+                  {metric.label}
+                </Typography>
+                <Typography variant="h6" sx={{ fontWeight: 700, color: '#5E35B1', lineHeight: 1.2 }}>
+                  {metric.value}
+                </Typography>
+              </Box>
+            ))}
+          </Stack>
+        </Paper>
 
         <Box
           display="flex"
@@ -661,8 +793,20 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
         </Box>
 
         {loading && <LinearProgress sx={{ mb: 2 }} />}
+        <Divider sx={{ mb: 2 }} />
 
-        <Box sx={{ overflowX: 'auto' }}>{renderTable()}</Box>
+        <TableContainer
+          component={Paper}
+          variant="outlined"
+          sx={{
+            overflowX: 'auto',
+            maxHeight: 440,
+            borderRadius: 2.5,
+            borderColor: 'rgba(126,87,194,0.2)',
+          }}
+        >
+          {renderTable()}
+        </TableContainer>
 
         <Box mt={2} display="flex" justifyContent="flex-end">
           {renderPagination()}

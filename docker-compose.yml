@@ -26,6 +26,16 @@ services:
       - MinIO__AccessKey=minioadmin
       - MinIO__SecretKey=minioadmin
       - MinIO__BucketName=subscriptions
+      - EmailSettings__EnableSecondaryDelivery=${ENABLE_SECONDARY_EMAIL_DELIVERY:-false}
+      - EmailSettings__SecondarySmtpServer=${YANDEX_SMTP_SERVER:-smtp.yandex.com}
+      - EmailSettings__SecondarySmtpPort=${YANDEX_SMTP_PORT:-465}
+      - EmailSettings__SecondaryEnableSsl=${YANDEX_SMTP_ENABLE_SSL:-true}
+      - EmailSettings__SecondaryUseAuthentication=true
+      - EmailSettings__SecondaryTimeoutMs=${YANDEX_SMTP_TIMEOUT_MS:-5000}
+      - EmailSettings__SecondaryUserName=${YANDEX_SMTP_USERNAME:-}
+      - EmailSettings__SecondaryPassword=${YANDEX_SMTP_PASSWORD:-}
+      - EmailSettings__SecondarySenderEmail=${YANDEX_SENDER_EMAIL:-}
+      - EmailSettings__SecondarySenderName=${YANDEX_SENDER_NAME:-}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://aspire-dashboard:4317
       - OTEL_SERVICE_NAME=Auth.API
       - OTEL_EXPORTER_OTLP_HEADERS=x-otlp-api-key=YourSecretKey123!
@@ -58,6 +68,16 @@ services:
       - MinIO__AccessKey=minioadmin
       - MinIO__SecretKey=minioadmin
       - MinIO__BucketName=subscriptions
+      - EmailSettings__EnableSecondaryDelivery=${ENABLE_SECONDARY_EMAIL_DELIVERY:-false}
+      - EmailSettings__SecondarySmtpServer=${YANDEX_SMTP_SERVER:-smtp.yandex.com}
+      - EmailSettings__SecondarySmtpPort=${YANDEX_SMTP_PORT:-465}
+      - EmailSettings__SecondaryEnableSsl=${YANDEX_SMTP_ENABLE_SSL:-true}
+      - EmailSettings__SecondaryUseAuthentication=true
+      - EmailSettings__SecondaryTimeoutMs=${YANDEX_SMTP_TIMEOUT_MS:-5000}
+      - EmailSettings__SecondaryUserName=${YANDEX_SMTP_USERNAME:-}
+      - EmailSettings__SecondaryPassword=${YANDEX_SMTP_PASSWORD:-}
+      - EmailSettings__SecondarySenderEmail=${YANDEX_SENDER_EMAIL:-}
+      - EmailSettings__SecondarySenderName=${YANDEX_SENDER_NAME:-}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://aspire-dashboard:4317
       - OTEL_SERVICE_NAME=Subscriptions.API
       - OTEL_EXPORTER_OTLP_HEADERS=x-otlp-api-key=YourSecretKey123!

@@ -2,13 +2,14 @@ import React from 'react';
 import { Fab, Tooltip, Zoom } from '@mui/material';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { useNavigate } from 'react-router-dom';
+import { translations } from '../../i18n/translations';
 
 const FaqFabWidget: React.FC = () => {
   const navigate = useNavigate();
 
   return (
     <Zoom in>
-      <Tooltip title="Статьи и FAQ" placement="left">
+      <Tooltip title={translations.articlesFaq.title} placement="left">
         <Fab
           onClick={() => navigate('/articles-faq')}
           sx={{

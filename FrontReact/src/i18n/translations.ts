@@ -352,6 +352,7 @@ export const translations = {
       'Доступ будет отключён на выбранный срок. Срок действия и следующий платёж будут сдвинуты на это же время.',
     freezeMonthsLabel: 'На сколько месяцев',
     freezeConfirm: 'Приостановить',
+    deletePriceAriaLabel: 'Удалить цену',
   },
 
   // Платежи
@@ -385,6 +386,8 @@ export const translations = {
     invalidYear: 'Введите корректный год',
     invalidCvc: 'Введите корректный CVC',
     enterCardholderName: 'Введите имя владельца карты',
+    expiryMonthPlaceholder: 'ММ',
+    expiryYearPlaceholder: 'ГГГГ',
     payAndSubscribe: 'Оплатить и подписаться',
     noPaymentHistoryFound: 'История платежей не найдена',
     paymentHistoryWillAppearHere: 'Ваша история платежей появится здесь после совершения платежей',
@@ -622,6 +625,10 @@ export const translations = {
     analyticsPaymentStatuses: 'Статусы платежей',
     analyticsCategoryDistribution: 'Распределение подписок по категориям',
     failedToLoadAnalyticsDashboard: 'Не удалось загрузить аналитическую панель',
+    deleteSubscriptionTitle: 'Удаление подписки',
+    deleteSubscriptionConfirmText: 'Вы уверены, что хотите навсегда удалить "{name}"? Это действие удалит подписку из системы.',
+    deleteSubscriptionActiveWarning: 'Примечание: эта подписка сейчас активна и может иметь активных пользователей.',
+    deletePermanently: 'Удалить навсегда',
   },
 
   // Landing Page
@@ -683,6 +690,13 @@ export const translations = {
     failedToStartConversation: 'Не удалось начать новый чат',
   },
 
+  // Промокоды
+  promo: {
+    daysBackLabel: 'Количество дней (N)',
+    topUsersLabel: 'Топ пользователей',
+    emailColumn: 'Эл. почта',
+  },
+
   // Уведомления
   notifications: {
     youHaveNewNotifications: 'У вас {count} новых уведомлений',
@@ -704,7 +718,7 @@ export const translations = {
 
   // Статьи и FAQ
   articlesFaq: {
-    title: 'Статьи и FAQ',
+    title: 'Статьи и вопросы',
     articles: 'Статьи',
     faq: 'Часто задаваемые вопросы',
     readMore: 'Читать далее',
@@ -714,7 +728,7 @@ export const translations = {
     popularQuestions: 'Популярные вопросы',
     backToArticles: 'Вернуться к статьям',
     searchArticles: 'Поиск статей...',
-    searchFaq: 'Поиск в FAQ...',
+    searchFaq: 'Поиск в вопросах...',
     noArticlesFound: 'Статьи не найдены',
     noFaqFound: 'Вопросы не найдены',
     tryDifferentSearch: 'Попробуйте изменить параметры поиска',

@@ -168,7 +168,7 @@ export const ManagePricesDialog: React.FC<ManagePricesDialogProps> = ({
                     secondaryAction={
                       <IconButton
                         edge="end"
-                        aria-label="delete"
+                        aria-label={translations.subscriptions.deletePriceAriaLabel}
                         onClick={() => handleDeletePrice(price.id)}
                         disabled={loading}
                       >

@@ -180,7 +180,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
                 onChange={handleInputChange('expiryMonth')}
                 error={!!errors.expiryMonth}
                 helperText={errors.expiryMonth}
-                placeholder="MM"
+                placeholder={translations.payments.expiryMonthPlaceholder}
                 required
               />
             </Grid>
@@ -193,7 +193,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
                 onChange={handleInputChange('expiryYear')}
                 error={!!errors.expiryYear}
                 helperText={errors.expiryYear}
-                placeholder="YYYY"
+                placeholder={translations.payments.expiryYearPlaceholder}
                 required
               />
             </Grid>

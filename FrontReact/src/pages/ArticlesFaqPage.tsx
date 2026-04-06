@@ -243,7 +243,7 @@ const ArticlesFaqPage: React.FC = () => {
             textAlign: 'center',
           }}
         >
-          {translations.articlesFaq?.title || 'Статьи и FAQ'}
+          {translations.articlesFaq?.title || 'Статьи и вопросы'}
         </Typography>
         <Box sx={{ width: 100 }} />
       </Box>
@@ -294,7 +294,7 @@ const ArticlesFaqPage: React.FC = () => {
             <Tab
               icon={<HelpOutlineIcon />}
               iconPosition="start"
-              label="FAQ"
+              label={translations.articlesFaq?.faq || 'Вопросы'}
             />
           </Tabs>
         </Card>

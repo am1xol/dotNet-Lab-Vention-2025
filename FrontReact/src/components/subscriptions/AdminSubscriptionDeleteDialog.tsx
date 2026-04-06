@@ -8,6 +8,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Subscription } from '../../types/subscription';
+import { translations } from '../../i18n/translations';
 
 interface AdminSubscriptionDeleteDialogProps {
   open: boolean;
@@ -19,28 +20,28 @@ interface AdminSubscriptionDeleteDialogProps {
 export const AdminSubscriptionDeleteDialog: React.FC<
   AdminSubscriptionDeleteDialogProps
 > = ({ open, onClose, subscription, onConfirmDelete }) => {
+  const confirmationText = translations.admin.deleteSubscriptionConfirmText.replace(
+    '{name}',
+    subscription?.name ?? ''
+  );
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Delete Subscription</DialogTitle>
+      <DialogTitle>{translations.admin.deleteSubscriptionTitle}</DialogTitle>
       <DialogContent>
         <Typography>
-          Are you sure you want to permanently delete "
-          <Typography component="span" fontWeight="bold">
-            {subscription?.name}
-          </Typography>
-          "? This action will remove the subscription from the system.
+          {confirmationText}
         </Typography>
         {subscription?.isActive && (
           <Typography variant="body2" color="error" sx={{ mt: 1 }}>
-            Note: This subscription is currently active and may have active
-            users.
+            {translations.admin.deleteSubscriptionActiveWarning}
           </Typography>
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{translations.common.cancel}</Button>
         <Button onClick={onConfirmDelete} variant="contained" color="error">
-          Delete Permanently
+          {translations.admin.deletePermanently}
         </Button>
       </DialogActions>
     </Dialog>

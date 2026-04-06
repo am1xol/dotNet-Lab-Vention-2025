@@ -21,6 +21,7 @@ import {
 } from '@mui/material';
 import { promoService } from '../../services/promo-service';
 import { PromoAudienceUser, PromoCode, PromoCreateRequest, PromoDeliverySummary } from '../../types/promo';
+import { translations } from '../../i18n/translations';
 
 const defaultForm: PromoCreateRequest = {
   code: '',
@@ -153,8 +154,8 @@ export const AdminPromoCodesPanel: React.FC = () => {
                   <MenuItem value={4}>Не покупали &gt; N дней (реактивация)</MenuItem>
                 </Select>
               </FormControl>
-              <TextField label="N дней" type="number" value={form.daysBack} onChange={(e) => setForm({ ...form, daysBack: Number(e.target.value) })} fullWidth />
-              <TextField label="Top пользователей" type="number" value={form.topUsersCount} onChange={(e) => setForm({ ...form, topUsersCount: Number(e.target.value) })} fullWidth />
+              <TextField label={translations.promo.daysBackLabel} type="number" value={form.daysBack} onChange={(e) => setForm({ ...form, daysBack: Number(e.target.value) })} fullWidth />
+              <TextField label={translations.promo.topUsersLabel} type="number" value={form.topUsersCount} onChange={(e) => setForm({ ...form, topUsersCount: Number(e.target.value) })} fullWidth />
             </Stack>
             <Stack direction="row" spacing={1}>
               <Button variant="outlined" onClick={handlePreview}>Предпросмотр аудитории</Button>
@@ -173,7 +174,7 @@ export const AdminPromoCodesPanel: React.FC = () => {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Email</TableCell>
+                  <TableCell>{translations.promo.emailColumn}</TableCell>
                   <TableCell align="right">Оплат</TableCell>
                   <TableCell align="right">Потрачено</TableCell>
                 </TableRow>
@@ -227,7 +228,7 @@ export const AdminPromoCodesPanel: React.FC = () => {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Email</TableCell>
+                  <TableCell>{translations.promo.emailColumn}</TableCell>
                   <TableCell>Назначено</TableCell>
                   <TableCell align="right">Использований</TableCell>
                   <TableCell align="right">Активен</TableCell>

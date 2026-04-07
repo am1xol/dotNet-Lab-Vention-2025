@@ -27,7 +27,13 @@ import { Notification, NotificationType } from '../../types/notification';
 import { notificationService } from '../../services/notification-service';
 import { translations } from '../../i18n/translations';
 
-export const NotificationsTab: React.FC = () => {
+interface NotificationsTabProps {
+  onUnreadCountChanged?: () => Promise<void> | void;
+}
+
+export const NotificationsTab: React.FC<NotificationsTabProps> = ({
+  onUnreadCountChanged,
+}) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -74,10 +80,11 @@ export const NotificationsTab: React.FC = () => {
 
   const handleMarkAsRead = async (id: string) => {
     try {
+      await notificationService.markAsRead(id);
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
       );
-      await notificationService.markAsRead(id);
+      await onUnreadCountChanged?.();
     } catch (error) {
       console.error('Failed to mark as read', error);
     }
@@ -87,6 +94,7 @@ export const NotificationsTab: React.FC = () => {
     try {
       await notificationService.markAllAsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      await onUnreadCountChanged?.();
     } catch (error) {
       console.error('Failed to mark all as read', error);
     }

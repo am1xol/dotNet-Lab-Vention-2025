@@ -7,6 +7,7 @@ using SubscriptionManager.Core.Models;
 using SubscriptionManager.Subscriptions.Infrastructure.Services;
 using System.Data;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace SubscriptionManager.Subscriptions.API.Controllers
 {
@@ -15,6 +16,23 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
     [Authorize]
     public class PromoCodesController : ControllerBase
     {
+        private sealed class PromoNotificationInfo
+        {
+            public Guid Id { get; set; }
+            public string Code { get; set; } = string.Empty;
+            public string Title { get; set; } = string.Empty;
+            public string? Description { get; set; }
+        }
+
+        private sealed class PromoNotificationConditionRow
+        {
+            public Guid? SubscriptionId { get; set; }
+            public string? SubscriptionName { get; set; }
+            public Guid? PeriodId { get; set; }
+            public string? PeriodName { get; set; }
+            public decimal? MinAmount { get; set; }
+        }
+
         private readonly string _connectionString;
         private readonly INotificationService _notificationService;
 
@@ -55,11 +73,46 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                         request.ValidTo,
                         request.TotalUsageLimit,
                         request.PerUserUsageLimit,
-                        request.SubscriptionId,
-                        request.PeriodId,
-                        request.MinAmount
+                        SubscriptionId = (Guid?)null,
+                        PeriodId = (Guid?)null,
+                        MinAmount = (decimal?)null
                     },
                     commandType: CommandType.StoredProcedure);
+
+                var conditions = request.Conditions
+                    .Select(c => new
+                    {
+                        c.SubscriptionId,
+                        c.PeriodId,
+                        c.MinAmount
+                    })
+                    .Distinct()
+                    .ToList();
+
+                if (conditions.Count == 0)
+                {
+                    // Empty conditions list means promo code is applicable to all subscriptions and periods.
+                    conditions.Add(new
+                    {
+                        SubscriptionId = request.SubscriptionId,
+                        PeriodId = request.PeriodId,
+                        MinAmount = request.MinAmount
+                    });
+                }
+
+                var conditionsJson = JsonSerializer.Serialize(conditions);
+                await connection.ExecuteAsync(
+                    "sp_PromoCodes_SetConditions",
+                    new
+                    {
+                        PromoCodeId = created.Id,
+                        ConditionsJson = conditionsJson
+                    },
+                    commandType: CommandType.StoredProcedure);
+
+                var promoForNotification = await GetPromoNotificationInfoAsync(connection, created.Id);
+                var promoConditions = await GetPromoNotificationConditionsAsync(connection, created.Id);
+                var notificationMessage = BuildPromoNotificationMessage(promoForNotification, promoConditions);
 
                 var audienceUsers = (await connection.QueryAsync<PromoCodeAudienceUserDto>(
                     "sp_PromoCodes_GetAudienceUsers",
@@ -89,7 +142,7 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                     await _notificationService.CreateAsync(
                         user.UserId,
                         "Новый промокод",
-                        $"Вам доступен промокод {created.Code}: {created.Title}",
+                        notificationMessage,
                         NotificationType.Info);
                 }
 
@@ -143,10 +196,17 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                             commandType: CommandType.StoredProcedure);
                     }
 
-                    var promo = await connection.QueryFirstOrDefaultAsync<PromoCodeDto>(
-                        "SELECT TOP 1 Id, Code, Title FROM PromoCodes WHERE Id = @Id",
+                    var promo = await connection.QueryFirstOrDefaultAsync<PromoNotificationInfo>(
+                        "SELECT TOP 1 Id, Code, Title, Description FROM PromoCodes WHERE Id = @Id",
                         new { Id = request.PromoCodeId },
                         transaction);
+
+                    var promoConditions = promo == null
+                        ? Array.Empty<PromoNotificationConditionRow>()
+                        : (await GetPromoNotificationConditionsAsync(connection, request.PromoCodeId, transaction)).ToArray();
+                    var notificationMessage = promo == null
+                        ? string.Empty
+                        : BuildPromoNotificationMessage(promo, promoConditions);
 
                     await transaction.CommitAsync();
 
@@ -157,7 +217,7 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                             await _notificationService.CreateAsync(
                                 userId,
                                 "Новый промокод",
-                                $"Вам доступен промокод {promo.Code}: {promo.Title}",
+                                notificationMessage,
                                 NotificationType.Info);
                         }
                     }
@@ -294,6 +354,97 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             {
                 return BadRequest(ex.Message);
             }
+        }
+
+        private async Task<PromoNotificationInfo> GetPromoNotificationInfoAsync(SqlConnection connection, Guid promoCodeId)
+        {
+            return await connection.QueryFirstAsync<PromoNotificationInfo>(
+                @"SELECT TOP 1 Id, Code, Title, Description
+                  FROM PromoCodes
+                  WHERE Id = @Id",
+                new { Id = promoCodeId });
+        }
+
+        private async Task<IEnumerable<PromoNotificationConditionRow>> GetPromoNotificationConditionsAsync(
+            SqlConnection connection,
+            Guid promoCodeId,
+            IDbTransaction? transaction = null)
+        {
+            return await connection.QueryAsync<PromoNotificationConditionRow>(
+                @"SELECT
+                    c.SubscriptionId,
+                    s.Name AS SubscriptionName,
+                    c.PeriodId,
+                    p.Name AS PeriodName,
+                    c.MinAmount
+                  FROM PromoCodeConditions c
+                  LEFT JOIN Subscriptions s ON s.Id = c.SubscriptionId
+                  LEFT JOIN Periods p ON p.Id = c.PeriodId
+                  WHERE c.PromoCodeId = @PromoCodeId",
+                new { PromoCodeId = promoCodeId },
+                transaction);
+        }
+
+        private static string BuildPromoNotificationMessage(
+            PromoNotificationInfo promo,
+            IEnumerable<PromoNotificationConditionRow> conditions)
+        {
+            var parts = new List<string>
+            {
+                $"Промокод: {promo.Code} ({promo.Title})"
+            };
+
+            if (!string.IsNullOrWhiteSpace(promo.Description))
+            {
+                parts.Add($"Описание: {promo.Description.Trim()}");
+            }
+
+            var conditionTexts = conditions
+                .Select(BuildSingleConditionText)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct()
+                .ToList();
+
+            if (conditionTexts.Count == 0)
+            {
+                parts.Add("Применение: любая подписка, любой период");
+            }
+            else
+            {
+                parts.Add($"Применение: {string.Join(" • ", conditionTexts)}");
+            }
+
+            return string.Join(" | ", parts);
+        }
+
+        private static string BuildSingleConditionText(PromoNotificationConditionRow condition)
+        {
+            var parts = new List<string>();
+
+            if (!string.IsNullOrWhiteSpace(condition.SubscriptionName))
+            {
+                parts.Add($"подписка \"{condition.SubscriptionName}\"");
+            }
+            else if (condition.SubscriptionId == null)
+            {
+                parts.Add("любая подписка");
+            }
+
+            if (!string.IsNullOrWhiteSpace(condition.PeriodName))
+            {
+                parts.Add($"период \"{condition.PeriodName}\"");
+            }
+            else if (condition.PeriodId == null)
+            {
+                parts.Add("любой период");
+            }
+
+            if (condition.MinAmount.HasValue)
+            {
+                parts.Add($"минимальная сумма {condition.MinAmount.Value:0.##}");
+            }
+
+            return string.Join(", ", parts);
         }
     }
 }

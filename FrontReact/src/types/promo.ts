@@ -10,6 +10,15 @@ export interface PromoCode {
   validTo: string;
   totalUsageLimit?: number;
   perUserUsageLimit: number;
+  subscriptionId?: string;
+  periodId?: string;
+  minAmount?: number;
+}
+
+export interface PromoConditionRequest {
+  subscriptionId?: string;
+  periodId?: string;
+  minAmount?: number;
 }
 
 export interface PromoAudienceUser {
@@ -34,6 +43,7 @@ export interface PromoCreateRequest {
   audienceType: number;
   daysBack: number;
   topUsersCount: number;
+  conditions: PromoConditionRequest[];
 }
 
 export interface PromoCreateResult {

@@ -51,15 +51,16 @@ export const UserProfile: React.FC = () => {
   const setAuthUser = useAuthStore((state) => state.setUser);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  const fetchUnreadCount = async () => {
+    try {
+      const data = await notificationService.getUserNotifications(1, 100);
+      setUnreadCount(data.items.filter((n: any) => !n.isRead).length);
+    } catch (err) {
+      console.error('Failed to fetch unread count');
+    }
+  };
+
   useEffect(() => {
-    const fetchUnreadCount = async () => {
-      try {
-        const data = await notificationService.getUserNotifications(1, 100);
-        setUnreadCount(data.items.filter((n: any) => !n.isRead).length);
-      } catch (err) {
-        console.error('Failed to fetch unread count');
-      }
-    };
     fetchUnreadCount();
   }, []);
 
@@ -416,7 +417,9 @@ export const UserProfile: React.FC = () => {
                     />
                   )}
                   {activeSection === 'security' && <ChangePasswordForm />}
-                  {activeSection === 'notifications' && <NotificationsTab />}
+                  {activeSection === 'notifications' && (
+                    <NotificationsTab onUnreadCountChanged={fetchUnreadCount} />
+                  )}
                   {activeSection === 'feedback' && <FeedbackTab />}
                 </Card>
               </motion.div>

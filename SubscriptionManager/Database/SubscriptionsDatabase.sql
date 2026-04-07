@@ -853,6 +853,52 @@ BEGIN
 END
 GO
 
+CREATE OR ALTER PROCEDURE [sp_PromoCodes_SetConditions]
+    @PromoCodeId UNIQUEIDENTIFIER,
+    @ConditionsJson NVARCHAR(MAX) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF NOT EXISTS (SELECT 1 FROM [PromoCodes] WHERE [Id] = @PromoCodeId)
+        THROW 50062, 'Promo code not found', 1;
+
+    DELETE FROM [PromoCodeConditions]
+    WHERE [PromoCodeId] = @PromoCodeId;
+
+    IF @ConditionsJson IS NULL OR ISJSON(@ConditionsJson) <> 1
+    BEGIN
+        INSERT INTO [PromoCodeConditions] ([Id], [PromoCodeId], [SubscriptionId], [PeriodId], [MinAmount], [CreatedAt])
+        VALUES (NEWID(), @PromoCodeId, NULL, NULL, NULL, GETUTCDATE());
+        RETURN;
+    END
+
+    ;WITH ParsedConditions AS
+    (
+        SELECT
+            TRY_CONVERT(UNIQUEIDENTIFIER, JSON_VALUE([value], '$.SubscriptionId')) AS [SubscriptionId],
+            TRY_CONVERT(UNIQUEIDENTIFIER, JSON_VALUE([value], '$.PeriodId')) AS [PeriodId],
+            TRY_CONVERT(DECIMAL(18,2), JSON_VALUE([value], '$.MinAmount')) AS [MinAmount]
+        FROM OPENJSON(@ConditionsJson)
+    )
+    INSERT INTO [PromoCodeConditions] ([Id], [PromoCodeId], [SubscriptionId], [PeriodId], [MinAmount], [CreatedAt])
+    SELECT DISTINCT
+        NEWID(),
+        @PromoCodeId,
+        [SubscriptionId],
+        [PeriodId],
+        [MinAmount],
+        GETUTCDATE()
+    FROM ParsedConditions;
+
+    IF @@ROWCOUNT = 0
+    BEGIN
+        INSERT INTO [PromoCodeConditions] ([Id], [PromoCodeId], [SubscriptionId], [PeriodId], [MinAmount], [CreatedAt])
+        VALUES (NEWID(), @PromoCodeId, NULL, NULL, NULL, GETUTCDATE());
+    END
+END
+GO
+
 CREATE OR ALTER PROCEDURE [sp_PromoCodes_AssignToUser]
     @PromoCodeId UNIQUEIDENTIFIER,
     @UserId UNIQUEIDENTIFIER,

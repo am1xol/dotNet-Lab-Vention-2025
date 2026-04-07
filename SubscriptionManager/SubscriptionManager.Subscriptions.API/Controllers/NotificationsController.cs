@@ -40,5 +40,16 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             await _notificationService.MarkAllAsReadAsync(userId);
             return Ok();
         }
+
+        [HttpPost("{id:guid}/read")]
+        public async Task<IActionResult> MarkAsRead([FromRoute] Guid id)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+                return Unauthorized();
+
+            await _notificationService.MarkAsReadAsync(id, userId);
+            return Ok();
+        }
     }
 }

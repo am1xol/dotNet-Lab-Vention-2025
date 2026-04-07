@@ -5,6 +5,8 @@ import {
   Button,
   Card,
   CardContent,
+  Chip,
+  Divider,
   FormControl,
   InputLabel,
   MenuItem,
@@ -20,7 +22,16 @@ import {
   Typography,
 } from '@mui/material';
 import { promoService } from '../../services/promo-service';
-import { PromoAudienceUser, PromoCode, PromoCreateRequest, PromoDeliverySummary } from '../../types/promo';
+import { subscriptionService } from '../../services/subscription-service';
+import { subscriptionPriceService } from '../../services/subscription-price-service';
+import { Period, Subscription } from '../../types/subscription';
+import {
+  PromoAudienceUser,
+  PromoCode,
+  PromoConditionRequest,
+  PromoCreateRequest,
+  PromoDeliverySummary,
+} from '../../types/promo';
 import { translations } from '../../i18n/translations';
 
 const defaultForm: PromoCreateRequest = {
@@ -37,6 +48,7 @@ const defaultForm: PromoCreateRequest = {
   audienceType: 1,
   daysBack: 30,
   topUsersCount: 100,
+  conditions: [{ subscriptionId: undefined, periodId: undefined, minAmount: undefined }],
 };
 
 export const AdminPromoCodesPanel: React.FC = () => {
@@ -45,21 +57,70 @@ export const AdminPromoCodesPanel: React.FC = () => {
   const [promos, setPromos] = useState<PromoCode[]>([]);
   const [selectedPromoId, setSelectedPromoId] = useState<string>('');
   const [report, setReport] = useState<PromoDeliverySummary | null>(null);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [periods, setPeriods] = useState<Period[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   const loadPromos = async () => {
     const data = await promoService.getAdminPromos();
-    setPromos(data);
-    if (!selectedPromoId && data.length > 0) {
-      setSelectedPromoId(data[0].id);
+    const uniquePromos = data.filter((promo, index, source) =>
+      source.findIndex((candidate) => candidate.id === promo.id) === index
+    );
+    setPromos(uniquePromos);
+    if (!selectedPromoId && uniquePromos.length > 0) {
+      setSelectedPromoId(uniquePromos[0].id);
     }
   };
 
   useEffect(() => {
-    loadPromos().catch((e) => setError(e.response?.data || 'Не удалось загрузить промокоды'));
+    const loadInitialData = async () => {
+      try {
+        await loadPromos();
+
+        const [subscriptionsResponse, periodsResponse] = await Promise.all([
+          subscriptionService.getSubscriptionsForAdmin(),
+          subscriptionPriceService.getPeriods(),
+        ]);
+
+        const allSubscriptions = Object.values(subscriptionsResponse).flat();
+        setSubscriptions(allSubscriptions);
+        setPeriods(periodsResponse);
+      } catch (e: any) {
+        setError(e.response?.data || 'Не удалось загрузить данные для промокодов');
+      }
+    };
+
+    loadInitialData();
   }, []);
+
+  const updateCondition = (index: number, value: PromoConditionRequest) => {
+    const next = [...form.conditions];
+    next[index] = value;
+    setForm({ ...form, conditions: next });
+  };
+
+  const addCondition = () => {
+    setForm({
+      ...form,
+      conditions: [...form.conditions, { subscriptionId: undefined, periodId: undefined, minAmount: undefined }],
+    });
+  };
+
+  const removeCondition = (index: number) => {
+    if (form.conditions.length === 1) {
+      setForm({
+        ...form,
+        conditions: [{ subscriptionId: undefined, periodId: undefined, minAmount: undefined }],
+      });
+      return;
+    }
+    setForm({
+      ...form,
+      conditions: form.conditions.filter((_, i) => i !== index),
+    });
+  };
 
   const handlePreview = async () => {
     setError(null);
@@ -113,14 +174,22 @@ export const AdminPromoCodesPanel: React.FC = () => {
       <Card>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            Создание промокода и выбор аудитории
+            Создание промокода
           </Typography>
           <Stack spacing={2}>
+            <Typography variant="subtitle2" color="text.secondary">
+              1. Основная информация
+            </Typography>
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
               <TextField label="Код" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} fullWidth />
               <TextField label="Название" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} fullWidth />
             </Stack>
             <TextField label="Описание" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} fullWidth />
+
+            <Divider />
+            <Typography variant="subtitle2" color="text.secondary">
+              2. Параметры скидки
+            </Typography>
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
               <FormControl fullWidth>
                 <InputLabel>Тип скидки</InputLabel>
@@ -140,6 +209,81 @@ export const AdminPromoCodesPanel: React.FC = () => {
               <TextField label="Действует с" type="datetime-local" value={form.validFrom} onChange={(e) => setForm({ ...form, validFrom: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
               <TextField label="Действует до" type="datetime-local" value={form.validTo} onChange={(e) => setForm({ ...form, validTo: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
             </Stack>
+
+            <Divider />
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+              <Typography variant="subtitle2" color="text.secondary">
+                3. Условия применимости
+              </Typography>
+              <Button variant="outlined" onClick={addCondition}>Добавить условие</Button>
+            </Stack>
+            <Typography variant="body2" color="text.secondary">
+              Если оставить подписку и период пустыми - промокод будет действовать для всех.
+            </Typography>
+            {form.conditions.map((condition, index) => (
+              <Card key={index} variant="outlined">
+                <CardContent>
+                  <Stack spacing={2}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Typography variant="body2" fontWeight={600}>Условие {index + 1}</Typography>
+                      <Button color="error" onClick={() => removeCondition(index)}>Удалить</Button>
+                    </Stack>
+                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                      <FormControl fullWidth>
+                        <InputLabel>Подписка</InputLabel>
+                        <Select
+                          value={condition.subscriptionId ?? ''}
+                          label="Подписка"
+                          onChange={(e) =>
+                            updateCondition(index, { ...condition, subscriptionId: e.target.value || undefined })
+                          }
+                        >
+                          <MenuItem value="">Все подписки</MenuItem>
+                          {subscriptions.map((s) => (
+                            <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <FormControl fullWidth>
+                        <InputLabel>Период</InputLabel>
+                        <Select
+                          value={condition.periodId ?? ''}
+                          label="Период"
+                          onChange={(e) =>
+                            updateCondition(index, { ...condition, periodId: e.target.value || undefined })
+                          }
+                        >
+                          <MenuItem value="">Все периоды</MenuItem>
+                          {periods.map((p) => (
+                            <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <TextField
+                        label="Мин. сумма заказа (BYN)"
+                        type="number"
+                        value={condition.minAmount ?? ''}
+                        onChange={(e) =>
+                          updateCondition(index, {
+                            ...condition,
+                            minAmount: e.target.value === '' ? undefined : Number(e.target.value),
+                          })
+                        }
+                        fullWidth
+                      />
+                    </Stack>
+                    {!condition.subscriptionId && !condition.periodId && (
+                      <Chip label="Применимо ко всем подпискам и периодам" color="success" variant="outlined" />
+                    )}
+                  </Stack>
+                </CardContent>
+              </Card>
+            ))}
+
+            <Divider />
+            <Typography variant="subtitle2" color="text.secondary">
+              4. Аудитория рассылки
+            </Typography>
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
               <FormControl fullWidth>
                 <InputLabel>Аудитория</InputLabel>

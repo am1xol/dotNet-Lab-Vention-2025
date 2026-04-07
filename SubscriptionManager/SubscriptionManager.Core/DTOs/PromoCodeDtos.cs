@@ -37,6 +37,14 @@ namespace SubscriptionManager.Core.DTOs
         public int AudienceType { get; set; } = 1;
         public int DaysBack { get; set; } = 30;
         public int TopUsersCount { get; set; } = 100;
+        public List<CreatePromoCodeConditionRequest> Conditions { get; set; } = new();
+    }
+
+    public class CreatePromoCodeConditionRequest
+    {
+        public Guid? SubscriptionId { get; set; }
+        public Guid? PeriodId { get; set; }
+        public decimal? MinAmount { get; set; }
     }
 
     public class AssignPromoCodeRequest

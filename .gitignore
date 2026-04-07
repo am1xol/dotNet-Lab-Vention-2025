@@ -47,6 +47,7 @@ build/
 *.mdf
 *.ldf
 App_Data/
+SubscriptionManager/Database/
 
 # Файлы покрытия тестов
 coverage/

@@ -37,6 +37,7 @@ import { NotificationsTab } from './NotificationsTab';
 import { FeedbackTab } from './FeedbackTab';
 import { notificationService } from '../../services/notification-service';
 import { translations } from '../../i18n/translations';
+import { useAuthStore } from '../../store/auth-store';
 
 export const UserProfile: React.FC = () => {
   const [user, setUser] = useState<UserProfileType | null>(null);
@@ -47,6 +48,7 @@ export const UserProfile: React.FC = () => {
   >('profile');
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
+  const setAuthUser = useAuthStore((state) => state.setUser);
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
@@ -70,6 +72,7 @@ export const UserProfile: React.FC = () => {
       setLoading(true);
       const userData = await userService.getProfile();
       setUser(userData);
+      setAuthUser(userData);
     } catch (err: any) {
       setError(translations.userProfile.failedToLoadProfile);
       enqueueSnackbar(translations.userProfile.failedToLoadProfile, { variant: 'error' });
@@ -80,6 +83,7 @@ export const UserProfile: React.FC = () => {
 
   const handleProfileUpdated = (updatedUser: UserProfileType) => {
     setUser(updatedUser);
+    setAuthUser(updatedUser);
   };
 
   const getUserInitials = (user: UserProfileType) => {

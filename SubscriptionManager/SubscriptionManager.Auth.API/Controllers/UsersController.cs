@@ -8,6 +8,9 @@ using System.Security.Claims;
 
 namespace SubscriptionManager.Auth.API.Controllers
 {
+    [ApiController]
+    [Route("")]
+    [Route("api/[controller]")]
     public class UsersController : ControllerBase
     {
         private readonly IUserRepository _userRepository;
@@ -25,6 +28,7 @@ namespace SubscriptionManager.Auth.API.Controllers
         }
 
         [HttpGet("me")]
+        [Authorize]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<UserDetailsResponse>> GetCurrentUser()
@@ -93,12 +97,13 @@ namespace SubscriptionManager.Auth.API.Controllers
                     statusCode: StatusCodes.Status409Conflict);
             }
 
+            var isEmailChanged = !string.Equals(user.Email, request.Email, StringComparison.OrdinalIgnoreCase);
             user.FirstName = request.FirstName;
             user.LastName = request.LastName;
             user.Email = request.Email;
             user.UpdatedAt = DateTime.UtcNow;
 
-            if (user.Email != request.Email)
+            if (isEmailChanged)
             {
                 user.IsEmailVerified = false;
             }

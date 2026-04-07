@@ -5,8 +5,9 @@ import {
   Navigate,
 } from 'react-router-dom';
 import { GlobalStyles } from '@mui/material';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { useAuthStore } from './store/auth-store';
+import { userService } from './services/user-service';
 
 const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.default })));
 const SignIn = lazy(() => import('./components/auth/SignIn').then(m => ({ default: m.SignIn })));
@@ -61,6 +62,34 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 };
 
 function App() {
+  const { isAuthenticated, accessToken, user, setUser, logout } = useAuthStore();
+
+  useEffect(() => {
+    if (!isAuthenticated || !accessToken) return;
+    if (user?.firstName || user?.email) return;
+
+    let isMounted = true;
+
+    const hydrateUserProfile = async () => {
+      try {
+        const profile = await userService.getProfile();
+        if (isMounted) {
+          setUser(profile);
+        }
+      } catch (error) {
+        if (isMounted) {
+          logout();
+        }
+      }
+    };
+
+    hydrateUserProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated, accessToken, user?.firstName, user?.email, setUser, logout]);
+
   return (
     <>
       <GlobalStyles

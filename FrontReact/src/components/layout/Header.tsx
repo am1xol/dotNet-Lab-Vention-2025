@@ -71,6 +71,11 @@ const Header: React.FC = () => {
     setAnchorEl(null);
   };
 
+  const displayName =
+    [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() ||
+    user?.email ||
+    '';
+
   return (
     <AppBar
       position="static"
@@ -155,7 +160,7 @@ const Header: React.FC = () => {
                     fontSize: '1rem',
                   }}
                 >
-                  {translations.common.welcome}, {user?.email}!
+                  {translations.common.welcome}, {displayName}!
                 </Typography>
                 <Button
                   variant="outlined"
@@ -324,7 +329,7 @@ const Header: React.FC = () => {
           <>
             <MenuItem onClick={() => { navigate('/profile'); handleMenuClose(); }}>
               <Typography sx={{ fontWeight: 600, color: '#7E57C2' }}>
-                {user?.email}
+                {displayName}
               </Typography>
             </MenuItem>
             <MenuItem onClick={() => { navigate('/profile'); handleMenuClose(); }}>

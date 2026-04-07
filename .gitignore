@@ -1,12 +1,20 @@
-# Общие системные файлы
+# OS / system
 .DS_Store
 Thumbs.db
+
+# IDE / editors
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sln.iml
 *.user
 *.suo
 *.userosscache
 *.sln.docstates
 
-# Файлы сборки .NET
+# .NET build artifacts
 bin/
 obj/
 [Bb]uild/
@@ -15,62 +23,21 @@ obj/
 *.pdb
 *.cache
 
-# Файлы пакетов NuGet
+# NuGet
 **/packages/*
 *.nupkg
 .nuget/
 
-# Файлы Visual Studio
-.vs/
-.vscode/
-*.swp
-*.[Cc]ache/
-
-# Файлы Rider
-.idea/
-*.sln.iml
-
-# Файлы Node.js и React
+# Node / frontend
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 dist/
 build/
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Файлы базы данных
-*.mdf
-*.ldf
-App_Data/
-SubscriptionManager/Database/
-
-# Файлы покрытия тестов
 coverage/
-*.coverage
-*.coveragexml
-
-# Временные файлы
-tmp/
-temp/
-
-
-
-
-
-# Dependencies
-node_modules/
+*.tsbuildinfo
+.cache/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-
-# Production build
-dist/
-build/
 
 # Environment variables
 .env
@@ -79,24 +46,16 @@ build/
 .env.test.local
 .env.production.local
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
+# Databases / local app data
+*.mdf
+*.ldf
+App_Data/
+SubscriptionManager/Database/
 
-# OS
-.DS_Store
-Thumbs.db
+# Test coverage reports
+*.coverage
+*.coveragexml
 
-# TypeScript
-*.tsbuildinfo
-
-# Vite
-.cache/
-
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# Temp files
+tmp/
+temp/

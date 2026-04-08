@@ -1,4 +1,6 @@
-﻿namespace SubscriptionManager.Core.DTOs
+﻿using SubscriptionManager.Core.Validation;
+
+namespace SubscriptionManager.Core.DTOs
 {
     public class UserSubscriptionDto
     {
@@ -40,6 +42,7 @@
     public class UnsubscribeRequest
     {
         public string? Reason { get; set; }
+        [NoLeadingWhitespace(ErrorMessage = "Custom reason cannot start with spaces, tabs, or line breaks")]
         public string? CustomReason { get; set; }
     }
 

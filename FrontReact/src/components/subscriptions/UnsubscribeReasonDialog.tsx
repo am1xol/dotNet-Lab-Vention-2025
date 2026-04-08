@@ -51,6 +51,7 @@ export const UnsubscribeReasonDialog: React.FC<UnsubscribeReasonDialogProps> = (
   const [selectedReason, setSelectedReason] = useState<string>('');
   const [customReason, setCustomReason] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const [customReasonError, setCustomReasonError] = useState<string | null>(null);
 
   const handleConfirm = () => {
     if (!selectedReason) {
@@ -63,12 +64,18 @@ export const UnsubscribeReasonDialog: React.FC<UnsubscribeReasonDialogProps> = (
       return;
     }
 
+    if (selectedReason === 'other' && /^\s/.test(customReason)) {
+      setCustomReasonError('Причина не должна начинаться с пробела, таба или переноса строки');
+      return;
+    }
+
     onConfirm(selectedReason, selectedReason === 'other' ? customReason : undefined);
     
     setTimeout(() => {
       setSelectedReason('');
       setCustomReason('');
       setError(null);
+      setCustomReasonError(null);
     }, 300);
   };
 
@@ -76,6 +83,7 @@ export const UnsubscribeReasonDialog: React.FC<UnsubscribeReasonDialogProps> = (
     setSelectedReason('');
     setCustomReason('');
     setError(null);
+    setCustomReasonError(null);
     onClose();
   };
 
@@ -123,6 +131,7 @@ export const UnsubscribeReasonDialog: React.FC<UnsubscribeReasonDialogProps> = (
           onChange={(e) => {
             setSelectedReason(e.target.value);
             setError(null);
+            setCustomReasonError(null);
           }}
         >
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -159,11 +168,19 @@ export const UnsubscribeReasonDialog: React.FC<UnsubscribeReasonDialogProps> = (
             variant="outlined"
             value={customReason}
             onChange={(e) => {
-              setCustomReason(e.target.value);
+              const value = e.target.value;
+              setCustomReason(value);
               setError(null);
+              setCustomReasonError(
+                /^\s/.test(value)
+                  ? 'Причина не должна начинаться с пробела, таба или переноса строки'
+                  : null
+              );
             }}
             multiline
             rows={3}
+            error={Boolean(customReasonError)}
+            helperText={customReasonError}
             sx={{ mt: 2 }}
           />
         )}
@@ -185,7 +202,7 @@ export const UnsubscribeReasonDialog: React.FC<UnsubscribeReasonDialogProps> = (
           variant="contained"
           color="error"
           fullWidth
-          disabled={loading || !selectedReason}
+          disabled={loading || !selectedReason || Boolean(customReasonError)}
           sx={{ borderRadius: 2 }}
         >
           {loading ? 'Отмена...' : 'Отменить подписку'}

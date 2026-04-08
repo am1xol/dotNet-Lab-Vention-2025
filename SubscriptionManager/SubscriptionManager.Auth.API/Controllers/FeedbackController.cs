@@ -11,6 +11,7 @@ namespace SubscriptionManager.Auth.API.Controllers
     [Route("api/[controller]")]
     public class FeedbackController : ControllerBase
     {
+        private const int FeedbackUpdateCooldownSeconds = 60;
         private readonly IFeedbackRepository _feedbackRepository;
         private readonly ILogger<FeedbackController> _logger;
 
@@ -90,6 +91,19 @@ namespace SubscriptionManager.Auth.API.Controllers
                 }
 
                 var userId = GetUserIdFromClaims();
+                var currentFeedback = await _feedbackRepository.GetFeedbackByUserIdAsync(userId);
+                if (currentFeedback != null)
+                {
+                    var retryAfter = currentFeedback.UpdatedAt.AddSeconds(FeedbackUpdateCooldownSeconds) - DateTime.UtcNow;
+                    if (retryAfter > TimeSpan.Zero)
+                    {
+                        Response.Headers["Retry-After"] = Math.Ceiling(retryAfter.TotalSeconds).ToString();
+                        return StatusCode(
+                            StatusCodes.Status429TooManyRequests,
+                            $"Feedback can be updated once per {FeedbackUpdateCooldownSeconds} seconds. Try again in {FormatRetryAfter(retryAfter)}.");
+                    }
+                }
+
                 var feedback = await _feedbackRepository.CreateOrUpdateFeedbackAsync(
                     userId, 
                     request.Rating, 
@@ -112,6 +126,18 @@ namespace SubscriptionManager.Auth.API.Controllers
                 _logger.LogError(ex, "Error creating/updating feedback");
                 return Problem(title: ex.Message, statusCode: StatusCodes.Status500InternalServerError);
             }
+        }
+
+        private static string FormatRetryAfter(TimeSpan retryAfter)
+        {
+            var totalSeconds = (int)Math.Ceiling(retryAfter.TotalSeconds);
+            if (totalSeconds <= 60)
+            {
+                return $"{totalSeconds} sec";
+            }
+
+            var minutes = (int)Math.Ceiling(totalSeconds / 60.0);
+            return $"{minutes} min";
         }
 
         [HttpGet]

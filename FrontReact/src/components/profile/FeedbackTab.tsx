@@ -19,6 +19,7 @@ import { translations } from '../../i18n/translations';
 import { formatDateTime } from '../../utils/date-utils';
 
 export const FeedbackTab: React.FC = () => {
+  const FEEDBACK_COOLDOWN_SECONDS = 60;
   const [feedback, setFeedback] = useState<FeedbackDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -26,12 +27,42 @@ export const FeedbackTab: React.FC = () => {
   const [rating, setRating] = useState<number>(0);
   const [comment, setComment] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
+  const [cooldownSecondsLeft, setCooldownSecondsLeft] = useState<number>(0);
   
   const { enqueueSnackbar } = useSnackbar();
 
   useEffect(() => {
     loadFeedback();
   }, []);
+
+  useEffect(() => {
+    if (!feedback?.updatedAt) {
+      setCooldownSecondsLeft(0);
+      return;
+    }
+
+    const updatedAtMs = Date.parse(feedback.updatedAt);
+    if (Number.isNaN(updatedAtMs)) {
+      setCooldownSecondsLeft(0);
+      return;
+    }
+
+    const nextAllowedMs = updatedAtMs + FEEDBACK_COOLDOWN_SECONDS * 1000;
+    const secondsLeft = Math.max(0, Math.ceil((nextAllowedMs - Date.now()) / 1000));
+    setCooldownSecondsLeft(secondsLeft);
+  }, [feedback]);
+
+  useEffect(() => {
+    if (cooldownSecondsLeft <= 0) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setCooldownSecondsLeft((prev) => Math.max(0, prev - 1));
+    }, 1000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [cooldownSecondsLeft]);
 
   const loadFeedback = async () => {
     try {
@@ -71,8 +102,21 @@ export const FeedbackTab: React.FC = () => {
       setSuccessMessage(feedback ? translations.profile.feedbackUpdated : translations.profile.thankYouFeedback);
       enqueueSnackbar(translations.profile.feedbackSubmitted, { variant: 'success' });
     } catch (err: any) {
-      setError(translations.common.error);
-      enqueueSnackbar(translations.common.error, { variant: 'error' });
+      if (err?.response?.status === 429) {
+        const retryAfterHeader = err?.response?.headers?.['retry-after'];
+        const retryAfterSeconds = Number.parseInt(String(retryAfterHeader ?? ''), 10);
+        if (!Number.isNaN(retryAfterSeconds) && retryAfterSeconds > 0) {
+          setCooldownSecondsLeft(retryAfterSeconds);
+        }
+      }
+
+      const apiMessage =
+        err?.response?.status === 429 && typeof err?.response?.data === 'string'
+          ? err.response.data
+          : null;
+      const message = apiMessage || translations.common.error;
+      setError(message);
+      enqueueSnackbar(message, { variant: 'error' });
     } finally {
       setSubmitting(false);
     }
@@ -192,7 +236,7 @@ export const FeedbackTab: React.FC = () => {
       <Button
         variant="contained"
         onClick={handleSubmit}
-        disabled={submitting || rating === 0}
+        disabled={submitting || rating === 0 || cooldownSecondsLeft > 0}
         startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <Send />}
         sx={{
           background: 'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
@@ -203,7 +247,13 @@ export const FeedbackTab: React.FC = () => {
           py: 1.5,
         }}
       >
-        {submitting ? translations.profile.submitting : feedback ? translations.profile.updateFeedback : translations.profile.submitFeedback}
+        {submitting
+          ? translations.profile.submitting
+          : cooldownSecondsLeft > 0
+            ? `${translations.profile.updateFeedback} (${cooldownSecondsLeft}s)`
+            : feedback
+              ? translations.profile.updateFeedback
+              : translations.profile.submitFeedback}
       </Button>
     </Box>
   );

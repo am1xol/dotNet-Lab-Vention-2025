@@ -378,7 +378,11 @@ public class AuthService : IAuthService
         user.EmailVerificationCodeExpiresAt = newCodeExpiresAt;
         user.UpdatedAt = now;
 
-        await _userRepository.SaveChangesAsync();
+        await _userRepository.UpdateEmailVerificationCodeAsync(
+            user.Id,
+            newVerificationCode,
+            newCodeExpiresAt,
+            now);
 
         try
         {

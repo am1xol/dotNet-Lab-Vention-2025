@@ -196,6 +196,30 @@ export const SignUp: React.FC = () => {
     return () => window.clearInterval(timerId);
   }, [resendTimer]);
 
+  const getApiErrorMessage = (err: any, fallback: string): string => {
+    const responseData = err?.response?.data;
+
+    if (responseData?.title) {
+      return responseData.title;
+    }
+
+    if (responseData?.error) {
+      return responseData.error;
+    }
+
+    const validationErrors = responseData?.errors as
+      | Record<string, string[]>
+      | undefined;
+    if (validationErrors) {
+      const firstFieldError = Object.values(validationErrors)[0]?.[0];
+      if (firstFieldError) {
+        return firstFieldError;
+      }
+    }
+
+    return fallback;
+  };
+
   const handleResendCode = async () => {
     if (resendTimer > 0) return;
 
@@ -203,14 +227,14 @@ export const SignUp: React.FC = () => {
     setError('');
 
     try {
-      await authService.resendVerificationCode(formData.email);
+      await authService.resendVerificationCode(formData.email.trim());
 
       setResendTimer(RESEND_INTERVAL);
       enqueueSnackbar(translations.auth.codeResent, {
         variant: 'info',
       });
     } catch (err: any) {
-      const errorMsg = err.response?.data?.title || translations.messages.error;
+      const errorMsg = getApiErrorMessage(err, translations.messages.error);
       enqueueSnackbar(errorMsg, { variant: 'error' });
       setError(errorMsg);
     } finally {
@@ -395,7 +419,7 @@ export const SignUp: React.FC = () => {
     setError('');
 
     try {
-      await authService.verifyEmail(formData.email, verificationCode);
+      await authService.verifyEmail(formData.email.trim(), verificationCode.trim());
 
       enqueueSnackbar(translations.auth.emailVerified, { variant: 'success' });
 
@@ -405,7 +429,7 @@ export const SignUp: React.FC = () => {
         navigate('/auth/signin');
       }, 2000);
     } catch (err: any) {
-      setError(err.response?.data?.title || translations.auth.invalidCode);
+      setError(getApiErrorMessage(err, translations.auth.invalidCode));
     } finally {
       setLoading(false);
     }

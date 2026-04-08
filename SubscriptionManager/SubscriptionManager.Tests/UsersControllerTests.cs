@@ -162,6 +162,11 @@ namespace SubscriptionManager.Tests
             }
 
             public Task VerifyEmailAsync(Guid userId) => Task.CompletedTask;
+
+            public Task UpdateEmailVerificationCodeAsync(Guid userId, string verificationCode, DateTime expiresAt, DateTime updatedAt)
+            {
+                return Task.CompletedTask;
+            }
         }
     }
 }

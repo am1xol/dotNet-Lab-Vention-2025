@@ -162,4 +162,23 @@ public class UserRepository : IUserRepository
         using var connection = CreateConnection();
         await connection.ExecuteAsync(sql, new { Id = userId }, commandType: CommandType.StoredProcedure);
     }
+
+    public async Task UpdateEmailVerificationCodeAsync(Guid userId, string verificationCode, DateTime expiresAt, DateTime updatedAt)
+    {
+        const string sql = @"
+            UPDATE Users
+            SET EmailVerificationCode = @VerificationCode,
+                EmailVerificationCodeExpiresAt = @ExpiresAt,
+                UpdatedAt = @UpdatedAt
+            WHERE Id = @Id";
+
+        using var connection = CreateConnection();
+        await connection.ExecuteAsync(sql, new
+        {
+            Id = userId,
+            VerificationCode = verificationCode,
+            ExpiresAt = expiresAt,
+            UpdatedAt = updatedAt
+        });
+    }
 }

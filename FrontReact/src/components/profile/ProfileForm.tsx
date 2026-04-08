@@ -18,19 +18,25 @@ interface ProfileFormProps {
   onProfileUpdated: (user: UserProfile) => void;
 }
 
+type ProfileFormData = Omit<UpdateProfileRequest, 'subscriptionExpiryReminderDays'> & {
+  subscriptionExpiryReminderDays: string;
+};
+
 export const ProfileForm: React.FC<ProfileFormProps> = ({
   user,
   onProfileUpdated,
 }) => {
-  const [formData, setFormData] = useState<UpdateProfileRequest>({
+  const [formData, setFormData] = useState<ProfileFormData>({
     firstName: user.firstName,
     lastName: user.lastName,
     email: user.email,
+    subscriptionExpiryReminderDays: String(user.subscriptionExpiryReminderDays ?? 3),
   });
 
   const [fieldErrors, setFieldErrors] = useState<{
     firstName?: string;
     lastName?: string;
+    subscriptionExpiryReminderDays?: string;
   }>({});
 
   const [loading, setLoading] = useState(false);
@@ -42,6 +48,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
+      subscriptionExpiryReminderDays: String(user.subscriptionExpiryReminderDays ?? 3),
     });
   }, [user]);
 
@@ -65,13 +72,36 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
         return translations.profile.useOnlyLetters;
       }
     }
+
+    if (name === 'subscriptionExpiryReminderDays') {
+      if (value.length === 0) {
+        return translations.profile.reminderDaysInvalid;
+      }
+
+      if (!/^\d+$/.test(value)) {
+        return translations.profile.reminderDaysInvalid;
+      }
+
+      const days = Number(value);
+      if (days < 0 || days > 14) {
+        return translations.profile.reminderDaysRange;
+      }
+    }
+
     return '';
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
 
-    setFormData({ ...formData, [name]: value });
+    if (name === 'subscriptionExpiryReminderDays') {
+      setFormData({
+        ...formData,
+        subscriptionExpiryReminderDays: value,
+      });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
 
     const errorMessage = validateField(name, value);
     setFieldErrors((prev) => ({ ...prev, [name]: errorMessage }));
@@ -87,13 +117,22 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
       firstName: formData.firstName.trim(),
       lastName: formData.lastName.trim(),
       email: formData.email.trim(),
+      subscriptionExpiryReminderDays: Number(formData.subscriptionExpiryReminderDays),
     };
 
     const fNameError = validateField('firstName', cleanData.firstName);
     const lNameError = validateField('lastName', cleanData.lastName);
+    const reminderDaysError = validateField(
+      'subscriptionExpiryReminderDays',
+      String(cleanData.subscriptionExpiryReminderDays)
+    );
 
-    if (fNameError || lNameError) {
-      setFieldErrors({ firstName: fNameError, lastName: lNameError });
+    if (fNameError || lNameError || reminderDaysError) {
+      setFieldErrors({
+        firstName: fNameError,
+        lastName: lNameError,
+        subscriptionExpiryReminderDays: reminderDaysError,
+      });
       return;
     }
 
@@ -114,9 +153,13 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
   const hasChanges =
     formData.firstName !== user.firstName ||
     formData.lastName !== user.lastName ||
-    formData.email !== user.email;
+    formData.email !== user.email ||
+    formData.subscriptionExpiryReminderDays !== String(user.subscriptionExpiryReminderDays ?? 3);
 
-  const isFormValid = !fieldErrors.firstName && !fieldErrors.lastName;
+  const isFormValid =
+    !fieldErrors.firstName &&
+    !fieldErrors.lastName &&
+    !fieldErrors.subscriptionExpiryReminderDays;
 
   return (
     <Box component="form" onSubmit={handleSubmit}>
@@ -159,6 +202,22 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
               ? translations.profile.emailVerified
               : translations.profile.emailNotVerified
           }
+        />
+
+        <TextField
+          fullWidth
+          label={translations.profile.subscriptionExpiryReminderDays}
+          name="subscriptionExpiryReminderDays"
+          type="number"
+          value={formData.subscriptionExpiryReminderDays}
+          onChange={handleChange}
+          inputProps={{ min: 0, max: 14 }}
+          error={!!fieldErrors.subscriptionExpiryReminderDays}
+          helperText={
+            fieldErrors.subscriptionExpiryReminderDays ||
+            translations.profile.subscriptionExpiryReminderDaysHint
+          }
+          required
         />
 
         <Box

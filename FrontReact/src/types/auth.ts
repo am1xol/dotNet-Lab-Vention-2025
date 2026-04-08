@@ -35,6 +35,7 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
+  subscriptionExpiryReminderDays: number;
   isEmailVerified: boolean;
   isBlocked: boolean;
   role: string;

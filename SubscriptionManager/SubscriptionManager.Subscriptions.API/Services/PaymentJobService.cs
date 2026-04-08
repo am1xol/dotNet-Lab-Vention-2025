@@ -13,10 +13,12 @@ namespace SubscriptionManager.Subscriptions.API.Services
         Task<int> CleanupStuckPaymentsAsync(CancellationToken ct);
         Task CheckExpiringSubscriptionsAsync(CancellationToken ct);
         Task<int> ProcessExpiredFreezesAsync(CancellationToken ct);
+        Task SendSubscriptionExpiryRemindersAsync(CancellationToken ct);
     }
 
     public class PaymentJobService : IPaymentJobService
     {
+        private const string ExpiryReminderTitle = "Срок подписки скоро истекает";
         private readonly string _connectionString;
         private readonly IPaymentGatewayService _gatewayService;
         private readonly INotificationService _notificationService;
@@ -119,6 +121,81 @@ namespace SubscriptionManager.Subscriptions.API.Services
             }
         }
 
+        public async Task SendSubscriptionExpiryRemindersAsync(CancellationToken ct)
+        {
+            using var connection = new SqlConnection(_connectionString);
+
+            var reminders = await connection.QueryAsync<SubscriptionExpiryReminderItem>(
+                """
+                SELECT
+                    us.Id AS UserSubscriptionId,
+                    us.UserId,
+                    s.Name AS SubscriptionName,
+                    us.NextBillingDate,
+                    ISNULL(NULLIF(u.SubscriptionExpiryReminderDays, 0), 3) AS ReminderDays
+                FROM UserSubscriptions us
+                INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id
+                INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id
+                INNER JOIN AuthDb.dbo.Users u ON u.Id = us.UserId
+                WHERE us.IsActive = 1
+                  AND us.CancelledAt IS NULL
+                  AND us.NextBillingDate > GETUTCDATE()
+                  AND CAST(us.NextBillingDate AS DATE) = DATEADD(
+                        DAY,
+                        ISNULL(NULLIF(u.SubscriptionExpiryReminderDays, 0), 3),
+                        CAST(GETUTCDATE() AS DATE)
+                    );
+                """);
+
+            foreach (var item in reminders)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                var message =
+                    $"Подписка '{item.SubscriptionName}' истекает {item.NextBillingDate:dd.MM.yyyy}. " +
+                    $"Напоминаем за {item.ReminderDays} дн.";
+
+                var wasSentToday = await connection.ExecuteScalarAsync<int>(
+                    """
+                    SELECT COUNT(1)
+                    FROM Notifications
+                    WHERE UserId = @UserId
+                      AND Title = @Title
+                      AND Message = @Message
+                      AND CreatedAt >= CAST(GETUTCDATE() AS DATE);
+                    """,
+                    new
+                    {
+                        item.UserId,
+                        Title = ExpiryReminderTitle,
+                        Message = message
+                    });
+
+                if (wasSentToday > 0)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    await _notificationService.CreateAsync(
+                        item.UserId,
+                        ExpiryReminderTitle,
+                        message,
+                        NotificationType.Warning
+                    );
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(
+                        ex,
+                        "Error sending expiry reminder for user {UserId}, subscription {UserSubscriptionId}",
+                        item.UserId,
+                        item.UserSubscriptionId);
+                }
+            }
+        }
+
         public async Task<int> ProcessExpiredFreezesAsync(CancellationToken ct)
         {
             using var connection = new SqlConnection(_connectionString);
@@ -127,6 +204,15 @@ namespace SubscriptionManager.Subscriptions.API.Services
                 commandType: CommandType.StoredProcedure);
             if (row == null) return 0;
             return (int)row.RowsAffected;
+        }
+
+        private sealed class SubscriptionExpiryReminderItem
+        {
+            public Guid UserSubscriptionId { get; set; }
+            public Guid UserId { get; set; }
+            public string SubscriptionName { get; set; } = string.Empty;
+            public DateTime NextBillingDate { get; set; }
+            public int ReminderDays { get; set; }
         }
     }
 }

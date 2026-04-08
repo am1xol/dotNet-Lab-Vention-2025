@@ -17,4 +17,5 @@ public interface IUserRepository
     Task UpdatePasswordAsync(Guid userId, string passwordHash);
     Task VerifyEmailAsync(Guid userId);
     Task UpdateEmailVerificationCodeAsync(Guid userId, string verificationCode, DateTime expiresAt, DateTime updatedAt);
+    Task UpdateSubscriptionExpiryReminderDaysAsync(Guid userId, int reminderDays);
 }

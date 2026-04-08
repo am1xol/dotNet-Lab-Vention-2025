@@ -20,6 +20,7 @@
                     var jobService = scope.ServiceProvider.GetRequiredService<IPaymentJobService>();
                     await jobService.ProcessExpiredFreezesAsync(stoppingToken);
                     await jobService.CheckExpiringSubscriptionsAsync(stoppingToken);
+                    await jobService.SendSubscriptionExpiryRemindersAsync(stoppingToken);
                     await jobService.CleanupStuckPaymentsAsync(stoppingToken);
                 }
 

@@ -10,4 +10,5 @@ public class UserDetailsResponse
     public bool IsBlocked { get; set; }
     public DateTime CreatedAt { get; set; }
     public string Role { get; set; } = "User";
+    public int SubscriptionExpiryReminderDays { get; set; }
 }

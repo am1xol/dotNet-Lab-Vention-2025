@@ -40,4 +40,7 @@ public class User
     public DateTime? PasswordResetExpiresAt { get; set; }
 
     public bool IsBlocked { get; set; } = false;
+
+    [Range(0, 14)]
+    public int SubscriptionExpiryReminderDays { get; set; } = 3;
 }

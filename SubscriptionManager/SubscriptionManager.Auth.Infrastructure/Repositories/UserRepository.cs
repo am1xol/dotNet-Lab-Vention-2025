@@ -181,4 +181,21 @@ public class UserRepository : IUserRepository
             UpdatedAt = updatedAt
         });
     }
+
+    public async Task UpdateSubscriptionExpiryReminderDaysAsync(Guid userId, int reminderDays)
+    {
+        const string sql = @"
+            UPDATE Users
+            SET SubscriptionExpiryReminderDays = @ReminderDays,
+                UpdatedAt = @UpdatedAt
+            WHERE Id = @Id";
+
+        using var connection = CreateConnection();
+        await connection.ExecuteAsync(sql, new
+        {
+            Id = userId,
+            ReminderDays = reminderDays,
+            UpdatedAt = DateTime.UtcNow
+        });
+    }
 }

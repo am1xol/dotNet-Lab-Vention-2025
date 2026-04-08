@@ -55,6 +55,14 @@ BEGIN
 END
 GO
 
+IF COL_LENGTH('AuthDb.dbo.Users', 'SubscriptionExpiryReminderDays') IS NULL
+BEGIN
+    ALTER TABLE [AuthDb].[dbo].[Users]
+        ADD [SubscriptionExpiryReminderDays] INT NOT NULL
+            CONSTRAINT [DF_Users_SubscriptionExpiryReminderDays] DEFAULT 3;
+END
+GO
+
 CREATE TABLE [SubscriptionCancellationReasons] (
     [Id] UNIQUEIDENTIFIER PRIMARY KEY,
     [UserSubscriptionId] UNIQUEIDENTIFIER NOT NULL,

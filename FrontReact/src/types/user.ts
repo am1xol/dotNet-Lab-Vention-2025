@@ -6,6 +6,7 @@ export interface UpdateProfileRequest {
   firstName: string;
   lastName: string;
   email: string;
+  subscriptionExpiryReminderDays: number;
 }
 
 export interface ChangePasswordRequest {

@@ -64,7 +64,8 @@ namespace SubscriptionManager.Auth.API.Controllers
                 LastName = user.LastName,
                 IsEmailVerified = user.IsEmailVerified,
                 CreatedAt = user.CreatedAt,
-                Role = user.Role
+                Role = user.Role,
+                SubscriptionExpiryReminderDays = user.SubscriptionExpiryReminderDays
             };
 
             return Ok(response);
@@ -101,6 +102,7 @@ namespace SubscriptionManager.Auth.API.Controllers
             user.FirstName = request.FirstName;
             user.LastName = request.LastName;
             user.Email = request.Email;
+            user.SubscriptionExpiryReminderDays = request.SubscriptionExpiryReminderDays;
             user.UpdatedAt = DateTime.UtcNow;
 
             if (isEmailChanged)
@@ -109,6 +111,9 @@ namespace SubscriptionManager.Auth.API.Controllers
             }
 
             await _userRepository.UpdateAsync(user);
+            await _userRepository.UpdateSubscriptionExpiryReminderDaysAsync(
+                user.Id,
+                request.SubscriptionExpiryReminderDays);
             await _userRepository.SaveChangesAsync();
 
             var response = new UserDetailsResponse
@@ -118,7 +123,8 @@ namespace SubscriptionManager.Auth.API.Controllers
                 FirstName = user.FirstName,
                 LastName = user.LastName,
                 IsEmailVerified = user.IsEmailVerified,
-                CreatedAt = user.CreatedAt
+                CreatedAt = user.CreatedAt,
+                SubscriptionExpiryReminderDays = user.SubscriptionExpiryReminderDays
             };
 
             return Ok(response);
@@ -180,7 +186,8 @@ namespace SubscriptionManager.Auth.API.Controllers
                 IsEmailVerified = user.IsEmailVerified,
                 IsBlocked = user.IsBlocked,
                 CreatedAt = user.CreatedAt,
-                Role = user.Role
+                Role = user.Role,
+                SubscriptionExpiryReminderDays = user.SubscriptionExpiryReminderDays
             });
 
             return Ok(new PagedResponse<UserDetailsResponse>

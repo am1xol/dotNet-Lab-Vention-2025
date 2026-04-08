@@ -4,6 +4,7 @@ using SubscriptionManager.Core.DTOs;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Constants;
 using System.Security.Claims;
+using System.Linq;
 
 namespace SubscriptionManager.Auth.API.Controllers
 {
@@ -12,14 +13,60 @@ namespace SubscriptionManager.Auth.API.Controllers
     public class ChatController : ControllerBase
     {
         private readonly IChatRepository _chatRepository;
+        private readonly IUserRepository _userRepository;
+        private readonly IEmailService _emailService;
         private readonly ILogger<ChatController> _logger;
 
         public ChatController(
             IChatRepository chatRepository,
+            IUserRepository userRepository,
+            IEmailService emailService,
             ILogger<ChatController> logger)
         {
             _chatRepository = chatRepository;
+            _userRepository = userRepository;
+            _emailService = emailService;
             _logger = logger;
+        }
+
+        private async Task NotifyAdminsAboutNewSupportMessageAsync(Guid senderUserId, string messageContent)
+        {
+            try
+            {
+                var users = await _userRepository.GetAllUsersAsync();
+                var adminEmails = users
+                    .Where(u => u.Role == RoleConstants.Admin && !string.IsNullOrWhiteSpace(u.Email))
+                    .Select(u => u.Email)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (adminEmails.Count == 0)
+                {
+                    _logger.LogWarning("Support message email notification skipped: no admin emails found.");
+                    return;
+                }
+
+                var title = "New support chat message";
+                var trimmedMessage = messageContent.Length > 500
+                    ? $"{messageContent[..500]}..."
+                    : messageContent;
+                var body = $"""
+                    A user sent a new message in support chat.
+                    
+                    User ID: {senderUserId}
+                    Message:
+                    {trimmedMessage}
+                    """;
+
+                foreach (var adminEmail in adminEmails)
+                {
+                    await _emailService.SendNotificationEmailAsync(adminEmail, title, body);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send support chat email notifications to admins.");
+            }
         }
 
         private Guid GetUserIdFromClaims()
@@ -108,6 +155,11 @@ namespace SubscriptionManager.Auth.API.Controllers
                     userId, 
                     userRole, 
                     request.Content);
+
+                if (!IsAdmin())
+                {
+                    await NotifyAdminsAboutNewSupportMessageAsync(userId, request.Content);
+                }
 
                 if (IsAdmin())
                 {

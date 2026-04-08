@@ -177,7 +177,9 @@ export const SignUp: React.FC = () => {
   const [passwordError, setPasswordError] = useState(false);
   const [passwordErrorMessage, setPasswordErrorMessage] = useState('');
   const [firstNameError, setFirstNameError] = useState(false);
+  const [firstNameErrorMessage, setFirstNameErrorMessage] = useState('');
   const [lastNameError, setLastNameError] = useState(false);
+  const [lastNameErrorMessage, setLastNameErrorMessage] = useState('');
   const [verificationCodeError, setVerificationCodeError] = useState(false);
 
   const [resendLoading, setResendLoading] = useState(false);
@@ -229,8 +231,14 @@ export const SignUp: React.FC = () => {
       setPasswordError(false);
       setPasswordErrorMessage('');
     }
-    if (e.target.name === 'firstName') setFirstNameError(false);
-    if (e.target.name === 'lastName') setLastNameError(false);
+    if (e.target.name === 'firstName') {
+      setFirstNameError(false);
+      setFirstNameErrorMessage('');
+    }
+    if (e.target.name === 'lastName') {
+      setLastNameError(false);
+      setLastNameErrorMessage('');
+    }
     setError('');
   };
 
@@ -243,6 +251,46 @@ export const SignUp: React.FC = () => {
   };
 
   const handleClickShowPassword = () => setShowPassword((show) => !show);
+
+  const hasLeadingOrTrailingSpaces = (value: string): boolean => {
+    return value.trim() !== value;
+  };
+
+  const applyServerFieldErrors = (errors: Record<string, string[]>) => {
+    const entries = Object.entries(errors);
+    let hasFieldError = false;
+
+    entries.forEach(([fieldName, messages]) => {
+      const message = messages?.[0] || translations.validation.required;
+      const normalizedField = fieldName.toLowerCase();
+
+      if (normalizedField.includes('email')) {
+        setEmailError(true);
+        setEmailErrorMessage(message);
+        hasFieldError = true;
+      }
+
+      if (normalizedField.includes('password')) {
+        setPasswordError(true);
+        setPasswordErrorMessage(message);
+        hasFieldError = true;
+      }
+
+      if (normalizedField.includes('firstname')) {
+        setFirstNameError(true);
+        setFirstNameErrorMessage(message);
+        hasFieldError = true;
+      }
+
+      if (normalizedField.includes('lastname')) {
+        setLastNameError(true);
+        setLastNameErrorMessage(message);
+        hasFieldError = true;
+      }
+    });
+
+    return hasFieldError;
+  };
 
   const validateRegistrationInputs = (): boolean => {
     let isValid = true;
@@ -261,11 +309,21 @@ export const SignUp: React.FC = () => {
 
     if (!formData.firstName || formData.firstName.length < 1) {
       setFirstNameError(true);
+      setFirstNameErrorMessage(translations.validation.required);
+      isValid = false;
+    } else if (hasLeadingOrTrailingSpaces(formData.firstName)) {
+      setFirstNameError(true);
+      setFirstNameErrorMessage(translations.validation.noLeadingOrTrailingSpaces);
       isValid = false;
     }
 
     if (!formData.lastName || formData.lastName.length < 1) {
       setLastNameError(true);
+      setLastNameErrorMessage(translations.validation.required);
+      isValid = false;
+    } else if (hasLeadingOrTrailingSpaces(formData.lastName)) {
+      setLastNameError(true);
+      setLastNameErrorMessage(translations.validation.noLeadingOrTrailingSpaces);
       isValid = false;
     }
 
@@ -301,9 +359,23 @@ export const SignUp: React.FC = () => {
       setResendTimer(RESEND_INTERVAL);
       setStep('verification');
     } catch (err: any) {
+      const serverErrors = err.response?.data?.errors as
+        | Record<string, string[]>
+        | undefined;
+      if (serverErrors && applyServerFieldErrors(serverErrors)) {
+        return;
+      }
+
+      const serverErrorText =
+        err.response?.data?.title || err.response?.data?.error || '';
+      if (serverErrorText === 'Email already exists') {
+        setEmailError(true);
+        setEmailErrorMessage(translations.validation.emailAlreadyExists);
+        return;
+      }
+
       const errorMessage =
-        err.response?.data?.title ||
-        err.response?.data?.error ||
+        serverErrorText ||
         translations.auth.accountCreated;
       setError(errorMessage);
     } finally {
@@ -773,7 +845,7 @@ export const SignUp: React.FC = () => {
                   </FormLabel>
                   <StyledTextField
                     error={firstNameError}
-                    helperText={firstNameError ? translations.validation.required : ''}
+                    helperText={firstNameErrorMessage}
                     name="firstName"
                     placeholder={translations.profile.firstName}
                     autoComplete="given-name"
@@ -795,7 +867,7 @@ export const SignUp: React.FC = () => {
                   </FormLabel>
                   <StyledTextField
                     error={lastNameError}
-                    helperText={lastNameError ? translations.validation.required : ''}
+                    helperText={lastNameErrorMessage}
                     name="lastName"
                     placeholder={translations.profile.lastName}
                     autoComplete="family-name"

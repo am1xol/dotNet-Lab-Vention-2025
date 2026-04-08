@@ -179,6 +179,30 @@ export const SignIn: React.FC = () => {
 
   const handleClickShowPassword = () => setShowPassword((show) => !show);
 
+  const applyServerFieldErrors = (errors: Record<string, string[]>) => {
+    const entries = Object.entries(errors);
+    let hasFieldError = false;
+
+    entries.forEach(([fieldName, messages]) => {
+      const message = messages?.[0] || translations.validation.required;
+      const normalizedField = fieldName.toLowerCase();
+
+      if (normalizedField.includes('email')) {
+        setEmailError(true);
+        setEmailErrorMessage(message);
+        hasFieldError = true;
+      }
+
+      if (normalizedField.includes('password')) {
+        setPasswordError(true);
+        setPasswordErrorMessage(message);
+        hasFieldError = true;
+      }
+    });
+
+    return hasFieldError;
+  };
+
   const validateInputs = (): boolean => {
     let isValid = true;
 
@@ -215,6 +239,13 @@ export const SignIn: React.FC = () => {
         navigate('/dashboard');
       }, 1000);
     } catch (err: any) {
+      const serverErrors = err.response?.data?.errors as
+        | Record<string, string[]>
+        | undefined;
+      if (serverErrors && applyServerFieldErrors(serverErrors)) {
+        return;
+      }
+
       const serverError =
         err.response?.data?.error || err.response?.data?.title;
 
@@ -230,6 +261,13 @@ export const SignIn: React.FC = () => {
             initialEmail: formData.email,
           },
         });
+        return;
+      }
+
+      if (serverError === 'Invalid email or password') {
+        setEmailError(true);
+        setPasswordError(true);
+        setPasswordErrorMessage(translations.validation.invalidCredentials);
         return;
       }
 

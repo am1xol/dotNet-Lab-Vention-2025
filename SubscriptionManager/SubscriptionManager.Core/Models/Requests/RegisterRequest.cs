@@ -17,11 +17,13 @@ public class RegisterRequest
     [Required]
     [MinLength(1)]
     [MaxLength(25)]
+    [NoLeadingOrTrailingWhitespace(ErrorMessage = "First name cannot start or end with spaces")]
     public string FirstName { get; set; } = string.Empty;
 
     [Required]
     [MinLength(1)]
     [MaxLength(25)]
+    [NoLeadingOrTrailingWhitespace(ErrorMessage = "Last name cannot start or end with spaces")]
     public string LastName { get; set; } = string.Empty;
 
     public string Role { get; set; } = "User";

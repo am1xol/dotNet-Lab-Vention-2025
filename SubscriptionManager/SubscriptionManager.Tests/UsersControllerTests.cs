@@ -167,6 +167,11 @@ namespace SubscriptionManager.Tests
             {
                 return Task.CompletedTask;
             }
+
+            public Task UpdateSubscriptionExpiryReminderDaysAsync(Guid userId, int reminderDays)
+            {
+                return Task.CompletedTask;
+            }
         }
     }
 }

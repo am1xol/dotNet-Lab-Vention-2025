@@ -25,6 +25,7 @@ import {
   CalendarToday,
   Notifications,
   Star,
+  LocalOffer,
 } from '@mui/icons-material';
 import { UserProfile as UserProfileType } from '../../types/user';
 import { userService } from '../../services/user-service';
@@ -35,6 +36,7 @@ import { ProfileForm } from './ProfileForm';
 import { ChangePasswordForm } from './ChangePasswordForm';
 import { NotificationsTab } from './NotificationsTab';
 import { FeedbackTab } from './FeedbackTab';
+import { PromoCodesTab } from './PromoCodesTab';
 import { notificationService } from '../../services/notification-service';
 import { translations } from '../../i18n/translations';
 import { useAuthStore } from '../../store/auth-store';
@@ -44,7 +46,7 @@ export const UserProfile: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [activeSection, setActiveSection] = useState<
-    'profile' | 'security' | 'notifications' | 'feedback'
+    'profile' | 'security' | 'notifications' | 'promoCodes' | 'feedback'
   >('profile');
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
@@ -352,6 +354,26 @@ export const UserProfile: React.FC = () => {
                   >
                     {translations.userProfile.rateService}
                   </Button>
+
+                  <Button
+                    fullWidth
+                    startIcon={<LocalOffer />}
+                    onClick={() => setActiveSection('promoCodes')}
+                    variant={
+                      activeSection === 'promoCodes' ? 'contained' : 'text'
+                    }
+                    sx={{
+                      justifyContent: 'flex-start',
+                      borderRadius: 2,
+                      py: 1.5,
+                      ...(activeSection === 'promoCodes' && {
+                        background:
+                          'linear-gradient(135deg, #7E57C2 0%, #B39DDB 100%)',
+                      }),
+                    }}
+                  >
+                    {translations.userProfile.promoCodes}
+                  </Button>
                 </Stack>
 
                 <Divider sx={{ my: 2 }} />
@@ -401,12 +423,16 @@ export const UserProfile: React.FC = () => {
                     {activeSection === 'feedback' && (
                       <Star sx={{ color: '#7E57C2', mr: 2 }} />
                     )}
+                    {activeSection === 'promoCodes' && (
+                      <LocalOffer sx={{ color: '#7E57C2', mr: 2 }} />
+                    )}
 
                     <Typography variant="h5" fontWeight="600" color="#7E57C2">
                       {activeSection === 'profile' && translations.userProfile.personalInfo}
                       {activeSection === 'security' && translations.userProfile.securitySettings}
                       {activeSection === 'notifications' && translations.userProfile.myNotifications}
                       {activeSection === 'feedback' && translations.userProfile.rateOurService}
+                      {activeSection === 'promoCodes' && translations.userProfile.myPromoCodes}
                     </Typography>
                   </Box>
 
@@ -420,6 +446,7 @@ export const UserProfile: React.FC = () => {
                   {activeSection === 'notifications' && (
                     <NotificationsTab onUnreadCountChanged={fetchUnreadCount} />
                   )}
+                  {activeSection === 'promoCodes' && <PromoCodesTab />}
                   {activeSection === 'feedback' && <FeedbackTab />}
                 </Card>
               </motion.div>

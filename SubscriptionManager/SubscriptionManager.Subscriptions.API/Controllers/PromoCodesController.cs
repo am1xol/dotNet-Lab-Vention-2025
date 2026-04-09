@@ -293,10 +293,22 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             }
 
             using var connection = new SqlConnection(_connectionString);
-            var result = await connection.QueryAsync<PromoCodeDto>(
-                "sp_PromoCodes_GetAssignedByUserId",
-                new { UserId = userId },
-                commandType: CommandType.StoredProcedure);
+            IEnumerable<PromoCodeDto> result;
+            try
+            {
+                result = await connection.QueryAsync<PromoCodeDto>(
+                    "sp_PromoCodes_GetAssignedHistoryByUserId",
+                    new { UserId = userId },
+                    commandType: CommandType.StoredProcedure);
+            }
+            catch (SqlException)
+            {
+                // Backward compatibility while DB proc is being rolled out.
+                result = await connection.QueryAsync<PromoCodeDto>(
+                    "sp_PromoCodes_GetAssignedByUserId",
+                    new { UserId = userId },
+                    commandType: CommandType.StoredProcedure);
+            }
 
             return Ok(result);
         }

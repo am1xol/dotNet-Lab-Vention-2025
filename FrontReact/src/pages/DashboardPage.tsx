@@ -9,7 +9,6 @@ import { PromoCodeDialog } from '../components/subscriptions/PromoCodeDialog';
 import {
   UserStatistics as UserStatisticsType,
   PaymentInitiationResult,
-  PromoCodeInfo,
 } from '../types/payment';
 import {
   GroupedSubscriptions,
@@ -37,7 +36,6 @@ export const DashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [myPromoCodes, setMyPromoCodes] = useState<PromoCodeInfo[]>([]);
   const [unsubscribedData, setUnsubscribedData] = useState<{
     [key: string]: { validUntil: string };
   }>({});
@@ -66,9 +64,6 @@ export const DashboardPage: React.FC = () => {
 
       setAvailableSubscriptions(subscriptionsData);
       setMySubscriptions(mySubscriptionsData);
-      const promoCodes = await userSubscriptionService.getMyPromoCodes();
-      setMyPromoCodes(promoCodes);
-
       if (isAuthenticated) {
         await loadStatistics();
       }
@@ -255,12 +250,6 @@ export const DashboardPage: React.FC = () => {
             </Alert>
           </motion.div>
         )}
-        {myPromoCodes.length > 0 && (
-          <Alert severity="info" sx={{ borderRadius: 3 }}>
-            Доступные промокоды: {myPromoCodes.map((p) => p.code).join(', ')}
-          </Alert>
-        )}
-
         {statistics && (
           <motion.div
             key="statistics-loaded" 

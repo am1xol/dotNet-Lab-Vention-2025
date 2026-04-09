@@ -1218,6 +1218,51 @@ BEGIN
 END
 GO
 
+CREATE OR ALTER PROCEDURE [sp_PromoCodes_GetAssignedHistoryByUserId]
+    @UserId UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        pc.Id,
+        pc.Code,
+        pc.Title,
+        pc.Description,
+        pc.DiscountType,
+        pc.DiscountValue,
+        pc.MaxDiscountAmount,
+        pc.ValidFrom,
+        pc.ValidTo,
+        pc.TotalUsageLimit,
+        pc.PerUserUsageLimit,
+        cond.SubscriptionId,
+        cond.PeriodId,
+        cond.MinAmount,
+        ISNULL(usageStats.UserUsageCount, 0) AS UserUsageCount
+    FROM [UserPromoCodes] upc
+    INNER JOIN [PromoCodes] pc ON pc.Id = upc.PromoCodeId
+    OUTER APPLY (
+        SELECT TOP 1
+            c.SubscriptionId,
+            c.PeriodId,
+            c.MinAmount
+        FROM [PromoCodeConditions] c
+        WHERE c.PromoCodeId = pc.Id
+        ORDER BY c.Id
+    ) cond
+    OUTER APPLY (
+        SELECT COUNT(1) AS UserUsageCount
+        FROM [PromoCodeUsages] u
+        WHERE u.PromoCodeId = pc.Id
+          AND u.UserId = @UserId
+    ) usageStats
+    WHERE upc.UserId = @UserId
+    ORDER BY upc.AssignedAt DESC;
+END
+GO
+
+
 CREATE OR ALTER PROCEDURE [sp_Payments_SyncStatus]
     @PaymentId UNIQUEIDENTIFIER,
     @Status INT

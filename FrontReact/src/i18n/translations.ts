@@ -191,6 +191,17 @@ export const translations = {
     emailVerified: 'Email подтверждён',
     emailNotVerified: 'Email не подтверждён',
     notifications: 'Уведомления',
+    promoCodes: 'Промокоды',
+    myPromoCodes: 'Мои промокоды',
+    promoStatusActive: 'Активен',
+    promoStatusUsed: 'Использован',
+    promoStatusUnavailable: 'Недоступен',
+    promoValidity: 'Срок действия',
+    promoUsage: 'Использований',
+    promoUsageUnknown: 'недоступно',
+    noPromoCodes: 'Промокодов пока нет',
+    noPromoCodesDescription: 'Здесь будут показаны все ваши промокоды',
+    failedToLoadPromoCodes: 'Не удалось загрузить промокоды',
   },
 
   // Как это работает

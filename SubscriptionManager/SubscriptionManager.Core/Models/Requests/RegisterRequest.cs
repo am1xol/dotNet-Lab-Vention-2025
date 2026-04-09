@@ -15,6 +15,10 @@ public class RegisterRequest
     public string Password { get; set; } = string.Empty;
 
     [Required]
+    [Range(typeof(bool), "true", "true", ErrorMessage = "You must accept the user agreement")]
+    public bool AcceptTerms { get; set; }
+
+    [Required]
     [MinLength(1)]
     [MaxLength(25)]
     [NoLeadingOrTrailingWhitespace(ErrorMessage = "First name cannot start or end with spaces")]

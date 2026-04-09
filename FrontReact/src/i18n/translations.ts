@@ -113,6 +113,9 @@ export const translations = {
     codeResent: 'Код отправлен повторно',
     back: 'Назад',
     signInLink: 'Войти',
+    acceptTermsPrefix: 'Я принимаю',
+    userAgreement: 'пользовательское соглашение',
+    acceptTermsRequired: 'Необходимо принять пользовательское соглашение',
   },
 
   // Навигация

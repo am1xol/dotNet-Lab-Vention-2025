@@ -27,6 +27,13 @@ public class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<AuthResult>> Register([FromBody] RegisterRequest request)
     {
+        if (!request.AcceptTerms)
+        {
+            return Problem(
+                title: "You must accept the user agreement",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
         if (!EmailValidator.Validate(request.Email))
         {
             return Problem(

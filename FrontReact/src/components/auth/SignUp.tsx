@@ -3,7 +3,9 @@ import {
   Box,
   Button,
   Divider,
+  FormControlLabel,
   FormLabel,
+  Checkbox,
   FormControl,
   TextField,
   Typography,
@@ -12,6 +14,10 @@ import {
   Alert,
   CircularProgress,
   Zoom,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import {
@@ -164,6 +170,7 @@ export const SignUp: React.FC = () => {
     password: '',
     firstName: '',
     lastName: '',
+    acceptTerms: false,
     role: 'User',
   });
   const [verificationCode, setVerificationCode] = useState('');
@@ -180,10 +187,15 @@ export const SignUp: React.FC = () => {
   const [firstNameErrorMessage, setFirstNameErrorMessage] = useState('');
   const [lastNameError, setLastNameError] = useState(false);
   const [lastNameErrorMessage, setLastNameErrorMessage] = useState('');
+  const [acceptTermsError, setAcceptTermsError] = useState(false);
+  const [acceptTermsErrorMessage, setAcceptTermsErrorMessage] = useState('');
   const [verificationCodeError, setVerificationCodeError] = useState(false);
 
   const [resendLoading, setResendLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
+  const [isAgreementOpen, setIsAgreementOpen] = useState(false);
+  const [agreementHtml, setAgreementHtml] = useState('');
+  const [agreementLoading, setAgreementLoading] = useState(false);
   const RESEND_INTERVAL = 60;
 
   React.useEffect(() => {
@@ -195,6 +207,34 @@ export const SignUp: React.FC = () => {
     }
     return () => window.clearInterval(timerId);
   }, [resendTimer]);
+
+  React.useEffect(() => {
+    if (!isAgreementOpen || agreementHtml || agreementLoading) {
+      return;
+    }
+
+    const loadAgreement = async () => {
+      setAgreementLoading(true);
+      try {
+        const response = await fetch('/user-agreement.html');
+        if (!response.ok) {
+          throw new Error('Failed to load user agreement');
+        }
+        const html = await response.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        setAgreementHtml(doc.body?.innerHTML || html);
+      } catch {
+        setAgreementHtml(
+          `<p style="color:#c62828;">${translations.messages.error}: не удалось загрузить пользовательское соглашение.</p>`
+        );
+      } finally {
+        setAgreementLoading(false);
+      }
+    };
+
+    loadAgreement();
+  }, [isAgreementOpen, agreementHtml, agreementLoading]);
 
   const getApiErrorMessage = (err: any, fallback: string): string => {
     const responseData = err?.response?.data;
@@ -245,7 +285,8 @@ export const SignUp: React.FC = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [e.target.name]:
+        e.target.type === 'checkbox' ? e.target.checked : e.target.value,
     });
     if (e.target.name === 'email') {
       setEmailError(false);
@@ -263,6 +304,10 @@ export const SignUp: React.FC = () => {
       setLastNameError(false);
       setLastNameErrorMessage('');
     }
+    if (e.target.name === 'acceptTerms') {
+      setAcceptTermsError(false);
+      setAcceptTermsErrorMessage('');
+    }
     setError('');
   };
 
@@ -275,6 +320,14 @@ export const SignUp: React.FC = () => {
   };
 
   const handleClickShowPassword = () => setShowPassword((show) => !show);
+  const handleOpenAgreement = (
+    event: React.MouseEvent<HTMLButtonElement>
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsAgreementOpen(true);
+  };
+  const handleCloseAgreement = () => setIsAgreementOpen(false);
 
   const hasLeadingOrTrailingSpaces = (value: string): boolean => {
     return value.trim() !== value;
@@ -348,6 +401,12 @@ export const SignUp: React.FC = () => {
     } else if (hasLeadingOrTrailingSpaces(formData.lastName)) {
       setLastNameError(true);
       setLastNameErrorMessage(translations.validation.noLeadingOrTrailingSpaces);
+      isValid = false;
+    }
+
+    if (!formData.acceptTerms) {
+      setAcceptTermsError(true);
+      setAcceptTermsErrorMessage(translations.auth.acceptTermsRequired);
       isValid = false;
     }
 
@@ -957,6 +1016,51 @@ export const SignUp: React.FC = () => {
                 />
               </FormControl>
 
+              <FormControl error={acceptTermsError}>
+                <FormControlLabel
+                  control={(
+                    <Checkbox
+                      name="acceptTerms"
+                      checked={formData.acceptTerms}
+                      onChange={handleChange}
+                      sx={{
+                        color: '#7E57C2',
+                        '&.Mui-checked': {
+                          color: '#7E57C2',
+                        },
+                      }}
+                    />
+                  )}
+                  label={(
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      {translations.auth.acceptTermsPrefix}{' '}
+                      <Typography
+                        component="button"
+                        type="button"
+                        onClick={handleOpenAgreement}
+                        sx={{
+                          border: 'none',
+                          background: 'transparent',
+                          color: '#7E57C2',
+                          cursor: 'pointer',
+                          p: 0,
+                          m: 0,
+                          font: 'inherit',
+                          textDecoration: 'underline',
+                        }}
+                      >
+                        {translations.auth.userAgreement}
+                      </Typography>
+                    </Typography>
+                  )}
+                />
+                {acceptTermsError && (
+                  <Typography variant="caption" color="error">
+                    {acceptTermsErrorMessage}
+                  </Typography>
+                )}
+              </FormControl>
+
               <GradientButton
                 type="submit"
                 fullWidth
@@ -1002,6 +1106,48 @@ export const SignUp: React.FC = () => {
           </AnimatedCardContent>
         </GlassCard>
       </Zoom>
+
+      <Dialog
+        open={isAgreementOpen}
+        onClose={handleCloseAgreement}
+        fullWidth
+        maxWidth="md"
+        scroll="paper"
+        slotProps={{
+          backdrop: {
+            sx: {
+              backdropFilter: 'blur(10px)',
+              backgroundColor: 'rgba(10, 10, 18, 0.35)',
+            },
+          },
+          paper: {
+            sx: {
+              borderRadius: 3,
+              maxHeight: '85vh',
+            },
+          },
+        }}
+      >
+        <DialogTitle>{translations.auth.userAgreement}</DialogTitle>
+        <DialogContent dividers>
+          {agreementLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress size={28} />
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                '& h1, & h2, & h3': { color: '#4d2d7a' },
+                '& p': { mb: 1.5 },
+              }}
+              dangerouslySetInnerHTML={{ __html: agreementHtml }}
+            />
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseAgreement}>{translations.common.close}</Button>
+        </DialogActions>
+      </Dialog>
     </AuthContainer>
   );
 };

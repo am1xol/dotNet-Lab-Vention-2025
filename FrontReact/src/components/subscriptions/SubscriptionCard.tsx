@@ -19,6 +19,7 @@ import { Subscription, SubscriptionPrice } from '../../types/subscription';
 import { translations } from '../../i18n/translations';
 import { formatDate } from '../../utils/date-utils';
 import { FreezeSubscriptionDialog } from './FreezeSubscriptionDialog';
+import { BynAmount } from '../shared/BynAmount';
 
 interface SubscriptionCardProps {
   subscription: Subscription;
@@ -91,8 +92,6 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   const handleExpandToggle = useCallback(() => {
     setExpanded(prev => !prev);
   }, []);
-
-  const formatPrice = useMemo(() => (price: number) => `${price} BYN`, []);
 
   const formatDateLocalized = useMemo(() => (dateString: string | undefined) => {
     if (!dateString) return translations.common.noData;
@@ -286,7 +285,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
             mt="auto"
           >
             <Typography variant="h4" color="primary.main" fontWeight="bold">
-              {formatPrice(displayPrice)}
+              <BynAmount amount={displayPrice} />
             </Typography>
             {displayPeriod && (
               <Typography
@@ -326,7 +325,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                     color="primary.main"
                     fontWeight="bold"
                   >
-                    {formatPrice(price.finalPrice)}
+                    <BynAmount amount={price.finalPrice} />
                   </Typography>
                 </Box>
               ))}

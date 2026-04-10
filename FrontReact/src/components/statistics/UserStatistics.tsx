@@ -24,6 +24,7 @@ import { motion } from 'framer-motion';
 import { UserStatistics as UserStatisticsType } from '../../types/payment';
 import { formatDate, formatDateNumeric } from '../../utils/date-utils';
 import { translations } from '../../i18n/translations';
+import { BynAmount } from '../shared/BynAmount';
 
 interface UserStatisticsProps {
   statistics: UserStatisticsType;
@@ -32,13 +33,6 @@ interface UserStatisticsProps {
 export const UserStatistics: React.FC<UserStatisticsProps> = memo(({
   statistics,
 }) => {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'BYN',
-    }).format(amount);
-  };
-
   const generateRandomCircles = (count: number) => {
     return Array.from({ length: count }, (_, i) => ({
       id: i,
@@ -58,7 +52,7 @@ export const UserStatistics: React.FC<UserStatisticsProps> = memo(({
     delay = 0,
   }: {
     title: string;
-    value: string;
+    value: React.ReactNode;
     subtitle: string;
     icon: React.ElementType;
     color?: string;
@@ -142,7 +136,7 @@ export const UserStatistics: React.FC<UserStatisticsProps> = memo(({
     variant = 'circles',
   }: {
     title: string;
-    value: string;
+    value: React.ReactNode;
     subtitle: string;
     icon: React.ElementType;
     color?: string;
@@ -297,7 +291,7 @@ export const UserStatistics: React.FC<UserStatisticsProps> = memo(({
                   color="primary"
                   component="div"
                 >
-                  {formatCurrency(payment.amount)}
+                  <BynAmount amount={payment.amount} />
                 </Typography>
                 <Chip
                   label={payment.status}
@@ -367,7 +361,7 @@ export const UserStatistics: React.FC<UserStatisticsProps> = memo(({
                 color="warning.main"
                 component="div"
               >
-                {formatCurrency(upcoming.amount)}
+                <BynAmount amount={upcoming.amount} />
               </Typography>
             </Box>
           }
@@ -407,7 +401,7 @@ export const UserStatistics: React.FC<UserStatisticsProps> = memo(({
         <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
           <StatCard
             title={translations.statistics.totalSpentTitle}
-            value={formatCurrency(statistics.totalSpent)}
+            value={<BynAmount amount={statistics.totalSpent} />}
             subtitle={translations.statistics.totalSpentSubtitle}
             icon={Payment}
             color="#7E57C2"

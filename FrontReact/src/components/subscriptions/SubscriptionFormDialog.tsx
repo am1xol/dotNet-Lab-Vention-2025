@@ -21,6 +21,7 @@ import {
 } from '../../types/subscription';
 import { RichTextEditor } from './RichTextEditor';
 import { translations } from '../../i18n/translations';
+import { BynAmount } from '../shared/BynAmount';
 
 type SubscriptionFormData =
   | CreateSubscriptionRequest
@@ -263,7 +264,7 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
             >
               {ALLOWED_PRICES.map((price) => (
                 <MenuItem key={price} value={price}>
-                  {price} BYN
+                  <BynAmount amount={price} minimumFractionDigits={0} maximumFractionDigits={0} />
                 </MenuItem>
               ))}
             </TextField>

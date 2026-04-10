@@ -17,6 +17,7 @@ import { Payment } from '../../types/payment';
 import { userSubscriptionService } from '../../services/user-subscription-service';
 import { formatDateTime } from '../../utils/date-utils';
 import { translations } from '../../i18n/translations';
+import { BynAmount } from '../shared/BynAmount';
 
 interface PagedPaymentResponse {
   items: Payment[];
@@ -69,13 +70,6 @@ export const PaymentHistoryTab: React.FC = () => {
     const nextPage = page + 1;
     setPage(nextPage);
     loadPaymentHistory(nextPage);
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'BYN',
-    }).format(amount);
   };
 
   const formatDate = (dateString: string) => {
@@ -156,7 +150,7 @@ export const PaymentHistoryTab: React.FC = () => {
                                 fontWeight="bold"
                                 color="primary"
                               >
-                                {formatCurrency(payment.amount)}
+                                <BynAmount amount={payment.amount} />
                               </Typography>
                               <Chip
                                 label={payment.status === 'Completed' ? translations.payments.completed : payment.status === 'Failed' ? translations.payments.failed : payment.status}

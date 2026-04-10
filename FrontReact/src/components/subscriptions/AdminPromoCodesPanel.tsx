@@ -33,6 +33,7 @@ import {
   PromoDeliverySummary,
 } from '../../types/promo';
 import { translations } from '../../i18n/translations';
+import { BynAmount } from '../shared/BynAmount';
 
 const defaultForm: PromoCreateRequest = {
   code: '',
@@ -260,7 +261,7 @@ export const AdminPromoCodesPanel: React.FC = () => {
                         </Select>
                       </FormControl>
                       <TextField
-                        label="Мин. сумма заказа (BYN)"
+                        label="Мин. сумма заказа"
                         type="number"
                         value={condition.minAmount ?? ''}
                         onChange={(e) =>
@@ -328,7 +329,7 @@ export const AdminPromoCodesPanel: React.FC = () => {
                   <TableRow key={u.userId}>
                     <TableCell>{u.email}</TableCell>
                     <TableCell align="right">{u.paymentsCount}</TableCell>
-                    <TableCell align="right">{u.totalSpent.toFixed(2)}</TableCell>
+                    <TableCell align="right"><BynAmount amount={u.totalSpent} /></TableCell>
                   </TableRow>
                 ))}
               </TableBody>

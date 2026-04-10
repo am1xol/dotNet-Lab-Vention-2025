@@ -20,6 +20,7 @@ import {
 import { motion } from 'framer-motion';
 import { Subscription } from '../../types/subscription';
 import { translations } from '../../i18n/translations';
+import { BynAmount } from '../shared/BynAmount';
 
 interface AdminSubscriptionCardProps {
   subscription: Subscription;
@@ -183,7 +184,7 @@ export const AdminSubscriptionCard: React.FC<AdminSubscriptionCardProps> = ({
               color={subscription.isActive ? 'primary.main' : 'grey.500'}
               fontWeight="bold"
             >
-              {subscription.price} BYN
+              <BynAmount amount={subscription.price} />
             </Typography>
             <Chip
               label={subscription.isActive ? translations.common.active : translations.common.inactive}

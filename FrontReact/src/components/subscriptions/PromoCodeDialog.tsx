@@ -14,6 +14,7 @@ import {
 } from '@mui/material';
 import { PromoCodeValidationResult } from '../../types/payment';
 import { userSubscriptionService } from '../../services/user-subscription-service';
+import { BynAmount } from '../shared/BynAmount';
 
 interface PromoCodeDialogProps {
   open: boolean;
@@ -109,15 +110,15 @@ export const PromoCodeDialog: React.FC<PromoCodeDialogProps> = ({
 
           {validation && (
             <Alert severity="success">
-              Промокод применен. Скидка: {validation.discountAmount.toFixed(2)} BYN
+              Промокод применен. Скидка: <BynAmount amount={validation.discountAmount} />
             </Alert>
           )}
           {error && <Alert severity="error">{error}</Alert>}
 
           <Box sx={{ p: 2, border: '1px solid #eee', borderRadius: 2 }}>
-            <Typography variant="body2">Базовая стоимость: {baseAmount.toFixed(2)} BYN</Typography>
+            <Typography variant="body2">Базовая стоимость: <BynAmount amount={baseAmount} /></Typography>
             <Typography variant="h6" sx={{ mt: 1 }}>
-              К оплате: {finalAmount.toFixed(2)} BYN
+              К оплате: <BynAmount amount={finalAmount} />
             </Typography>
           </Box>
         </Stack>

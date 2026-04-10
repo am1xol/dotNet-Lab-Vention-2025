@@ -18,6 +18,7 @@ namespace SubscriptionManager.Subscriptions.Infrastructure.Services
 
         private const string ApiVersion = "2.1";
         private const string TransactionType = "payment";
+        private const string BelarusianRubleCurrency = "BYN";
 
         public BePaidService(HttpClient httpClient, IOptions<BePaidOptions> options, ILogger<BePaidService> logger)
         {
@@ -28,6 +29,11 @@ namespace SubscriptionManager.Subscriptions.Infrastructure.Services
 
         public async Task<PaymentInitiationResult> InitiatePaymentAsync(decimal amount, string currency, string description, string trackingId, string email, DateTime? expiredAt = null)
         {
+            if (!string.Equals(currency, BelarusianRubleCurrency, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning("Unsupported currency '{Currency}' received for BePaid checkout. Falling back to {FallbackCurrency}.", currency, BelarusianRubleCurrency);
+            }
+
             var request = new BePaidCheckoutRequest
             {
                 Checkout = new CheckoutData
@@ -38,7 +44,7 @@ namespace SubscriptionManager.Subscriptions.Infrastructure.Services
                     Order = new OrderData
                     {
                         Amount = ConvertToCopies(amount),
-                        Currency = currency,
+                        Currency = BelarusianRubleCurrency,
                         Description = description,
                         TrackingId = trackingId,
                         ExpiredAt = expiredAt?.ToString("yyyy-MM-ddTHH:mm:ssK")

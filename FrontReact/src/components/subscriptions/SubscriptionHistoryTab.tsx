@@ -17,6 +17,7 @@ import { UserSubscription } from '../../types/subscription';
 import { userSubscriptionService } from '../../services/user-subscription-service';
 import { formatDate } from '../../utils/date-utils';
 import { translations } from '../../i18n/translations';
+import { BynAmount } from '../shared/BynAmount';
 
 interface PagedUserSubscriptionResponse {
   items: UserSubscription[];
@@ -150,7 +151,7 @@ export const SubscriptionHistoryTab: React.FC = () => {
                                 variant="body2"
                                 color="text.secondary"
                               >
-                                {translations.common.price}: {sub.finalPrice} BYN
+                                {translations.common.price}: <BynAmount amount={sub.finalPrice} />
                               </Typography>
                             </Box>
                             <Box textAlign="right">

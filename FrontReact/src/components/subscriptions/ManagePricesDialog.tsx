@@ -31,6 +31,7 @@ import {
   SubscriptionPrice,
 } from '../../types/subscription';
 import { translations } from '../../i18n/translations';
+import { BynAmount } from '../shared/BynAmount';
 
 interface ManagePricesDialogProps {
   open: boolean;
@@ -137,7 +138,7 @@ export const ManagePricesDialog: React.FC<ManagePricesDialogProps> = ({
       <DialogTitle>
         {translations.subscriptions.managePricesFor} "{subscription.name}"
         <Typography variant="subtitle2" color="text.secondary">
-          {translations.subscriptions.basePricePerMonth}: {subscription.price} BYN
+          {translations.subscriptions.basePricePerMonth}: <BynAmount amount={subscription.price} />
         </Typography>
       </DialogTitle>
       <DialogContent>
@@ -178,7 +179,7 @@ export const ManagePricesDialog: React.FC<ManagePricesDialogProps> = ({
                   >
                     <ListItemText
                       primary={period?.name || price.periodName}
-                      secondary={`${price.finalPrice} BYN`}
+                      secondary={<BynAmount amount={price.finalPrice} />}
                     />
                   </ListItem>
                 );

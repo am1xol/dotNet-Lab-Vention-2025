@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { PaymentInfo } from '../../types/payment';
 import { translations } from '../../i18n/translations';
+import { BynAmount } from '../shared/BynAmount';
 
 interface PaymentFormProps {
   open: boolean;
@@ -138,7 +139,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
             component="div"
             color="text.secondary"
           >
-            {translations.payments.subscribeTo} {subscriptionName} - {price} BYN
+            {translations.payments.subscribeTo} {subscriptionName} - <BynAmount amount={price} />
           </Typography>
         </Box>
       </DialogTitle>

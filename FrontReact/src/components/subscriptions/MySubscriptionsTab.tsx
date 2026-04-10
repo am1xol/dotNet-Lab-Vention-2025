@@ -11,6 +11,7 @@ import { translations } from '../../i18n/translations';
 import {
   canFreezeUserSubscription,
   canRestoreCancelledUserSubscription,
+  isUserSubscriptionInMySubscriptionsList,
 } from '../../utils/subscription-utils';
 
 interface UnsubscribeInfo {
@@ -53,9 +54,7 @@ export const MySubscriptionsTab: React.FC<MySubscriptionsTabProps> = ({
     const initialData: any = {};
 
     Object.entries(mySubscriptions).forEach(([category, subs]) => {
-      const activeSubs = subs.filter(
-        (s) => s.isActive || s.isFrozen || !!s.cancelledAt
-      );
+      const activeSubs = subs.filter(isUserSubscriptionInMySubscriptionsList);
       if (activeSubs.length > 0) {
         initialData[category] = {
           allLines: activeSubs,

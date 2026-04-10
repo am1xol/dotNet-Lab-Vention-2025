@@ -20,7 +20,10 @@ import DashboardShell from '../components/layout/DashboardShell';
 import { DashboardHeader } from '../components/dashboard/DashboardHeader';
 import { DashboardTabs } from '../components/dashboard/DashboardTabs';
 import { translations } from '../i18n/translations';
-import { matchesUserSubscriptionCatalog } from '../utils/subscription-utils';
+import {
+  countMySubscriptionsTabItems,
+  matchesUserSubscriptionCatalog,
+} from '../utils/subscription-utils';
 
 declare const BeGateway: new (options: any) => {
   createWidget: () => void;
@@ -257,7 +260,13 @@ export const DashboardPage: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
           >
-            <UserStatistics statistics={statistics} />
+            <UserStatistics
+              statistics={{
+                ...statistics,
+                totalSubscriptionsCount:
+                  countMySubscriptionsTabItems(mySubscriptions),
+              }}
+            />
           </motion.div>
         )}
 

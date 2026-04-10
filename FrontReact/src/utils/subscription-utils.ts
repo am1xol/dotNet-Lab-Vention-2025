@@ -1,4 +1,22 @@
-import { UserSubscription } from '../types/subscription';
+import {
+  GroupedUserSubscriptions,
+  UserSubscription,
+} from '../types/subscription';
+
+/** Same rows as in «Мои подписки» (MySubscriptionsTab). */
+export function isUserSubscriptionInMySubscriptionsList(
+  s: UserSubscription
+): boolean {
+  return s.isActive || !!s.isFrozen || !!s.cancelledAt;
+}
+
+export function countMySubscriptionsTabItems(
+  grouped: GroupedUserSubscriptions
+): number {
+  return Object.values(grouped)
+    .flat()
+    .filter(isUserSubscriptionInMySubscriptionsList).length;
+}
 
 export function matchesUserSubscriptionCatalog(
   us: UserSubscription,

@@ -10,15 +10,15 @@ import {
   Avatar,
   LinearProgress,
   Tooltip,
-  Collapse,
   Stack,
+  IconButton,
 } from '@mui/material';
-import { ExpandMore, ExpandLess } from '@mui/icons-material';
-import DOMPurify from 'dompurify';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { Subscription, SubscriptionPrice } from '../../types/subscription';
 import { translations } from '../../i18n/translations';
 import { formatDate } from '../../utils/date-utils';
 import { FreezeSubscriptionDialog } from './FreezeSubscriptionDialog';
+import { SubscriptionDetailsDialog } from './SubscriptionDetailsDialog';
 import { BynAmount } from '../shared/BynAmount';
 
 interface SubscriptionCardProps {
@@ -67,7 +67,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   loading = false,
 }) => {
   const [paymentLoading, setPaymentLoading] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [freezeDialogOpen, setFreezeDialogOpen] = useState(false);
 
   const handleInitiatePayment = useCallback(async (priceId: string) => {
@@ -88,10 +88,6 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   const handleUnsubscribeClick = useCallback(() => {
     onUnsubscribe(subscription.id);
   }, [onUnsubscribe, subscription.id]);
-
-  const handleExpandToggle = useCallback(() => {
-    setExpanded(prev => !prev);
-  }, []);
 
   const formatDateLocalized = useMemo(() => (dateString: string | undefined) => {
     if (!dateString) return translations.common.noData;
@@ -128,7 +124,6 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   }, [status, isFrozen, frozenUntil, unsubscribeInfo?.validUntil, validUntil, formatDateLocalized]);
 
   const finalLoadingState = loading || paymentLoading;
-  const hasMarkdownContent = subscription.descriptionMarkdown?.trim().length > 0;
 
   const sortedPrices = useMemo(() => {
     if (!prices?.length) return [];
@@ -149,17 +144,38 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   const displayPrice = hasMultiplePrices ? null : (finalPrice ?? subscription.price);
   const displayPeriod = hasMultiplePrices ? null : periodName;
 
-  const createMarkup = useMemo(() => (htmlContent: string) => ({
-    __html: DOMPurify.sanitize(htmlContent),
-  }), []);
+  const pricesForDetails = useMemo((): SubscriptionPrice[] => {
+    if (sortedPrices.length > 0) return sortedPrices;
+    const amount = finalPrice ?? subscription.price;
+    if (amount == null || Number.isNaN(Number(amount))) return [];
+    return [
+      {
+        id: `${subscription.id}-catalog-price`,
+        subscriptionId: subscription.id,
+        periodId: subscriptionPriceId || '',
+        finalPrice: Number(amount),
+        periodName: periodName || '—',
+        monthsCount: 0,
+      },
+    ];
+  }, [
+    sortedPrices,
+    subscription.id,
+    subscription.price,
+    finalPrice,
+    periodName,
+    subscriptionPriceId,
+  ]);
 
   return (
     <Card
       sx={{
+        position: 'relative',
+        width: '100%',
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        transition: 'all 0.3s ease',
+        transition: 'all 0.2s ease',
         background: 'rgba(255, 255, 255, 0.8)',
         backdropFilter: 'blur(10px)',
         border: isCancelled
@@ -167,236 +183,282 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
           : isFrozen
             ? '2px solid #90caf9'
             : '1px solid rgba(255, 255, 255, 0.3)',
-        borderRadius: 3,
-        boxShadow: '0 4px 20px rgba(126, 87, 194, 0.1)',
+        borderRadius: 2,
+        boxShadow: '0 2px 12px rgba(126, 87, 194, 0.08)',
         '&:hover': {
-          transform: 'translateY(-8px)',
-          boxShadow: '0 16px 40px rgba(126, 87, 194, 0.15)',
+          transform: 'translateY(-4px)',
+          boxShadow: '0 8px 24px rgba(126, 87, 194, 0.12)',
           border: isCancelled
             ? '2px solid #ffd54f'
             : isFrozen
               ? '2px solid #90caf9'
-              : '1px solid rgba(126, 87, 194, 0.2)',
+              : '1px solid rgba(126, 87, 194, 0.25)',
         },
       }}
     >
+      <Tooltip
+        title={translations.subscriptions.subscriptionDetailsCardHint}
+        arrow
+        enterTouchDelay={0}
+        placement="left"
+      >
+        <IconButton
+          size="small"
+          aria-label={translations.subscriptions.subscriptionDetailsCardHint}
+          onClick={(e) => {
+            e.stopPropagation();
+            setDetailsOpen(true);
+          }}
+          sx={{
+            position: 'absolute',
+            top: 6,
+            right: 10,
+            zIndex: 2,
+            bgcolor: 'rgba(255, 255, 255, 0.92)',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
+            '&:hover': { bgcolor: 'rgba(255, 255, 255, 1)' },
+          }}
+        >
+          <HelpOutlineIcon sx={{ fontSize: '1.15rem', color: 'primary.main' }} />
+        </IconButton>
+      </Tooltip>
+
       {loading && <LinearProgress />}
 
-      <CardContent sx={{ flexGrow: 1, p: 3 }}>
-        <Box display="flex" alignItems="flex-start" mb={3}>
-          {subscription.iconUrl ? (
-            <Avatar
-              src={subscription.iconUrl}
-              sx={{ width: 60, height: 60, mr: 2 }}
-              variant="rounded"
-            />
-          ) : (
-            <Avatar
-              sx={{
-                width: 60,
-                height: 60,
-                mr: 2,
-                bgcolor: 'primary.main',
-                fontSize: '1.5rem',
-              }}
-              variant="rounded"
-            >
-              {subscription.name.charAt(0)}
-            </Avatar>
-          )}
-          <Box sx={{ flexGrow: 1 }}>
-            <Typography
-              variant="h5"
-              component="h3"
-              fontWeight="600"
-              gutterBottom
-            >
-              {subscription.name}
-            </Typography>
-            <Box display="flex" gap={1} flexWrap="wrap">
-              <Chip
-                label={subscription.category}
-                size="small"
-                color="primary"
-                variant="outlined"
+      <CardContent
+        sx={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 0,
+          overflow: 'hidden',
+          p: 2,
+          '&:last-child': { pb: 2 },
+        }}
+      >
+        <Box
+          onClick={() => setDetailsOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setDetailsOpen(true);
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          aria-label={translations.subscriptions.subscriptionDetails}
+          sx={{
+            cursor: 'pointer',
+            borderRadius: 1,
+            mx: -0.5,
+            px: 0.5,
+            pt: 0.5,
+            pb: 0.5,
+            flexShrink: 0,
+            '&:focus-visible': {
+              outline: '2px solid',
+              outlineColor: 'primary.main',
+              outlineOffset: 2,
+            },
+          }}
+        >
+          <Box display="flex" alignItems="flex-start" mb={1}>
+            {subscription.iconUrl ? (
+              <Avatar
+                src={subscription.iconUrl}
+                sx={{ width: 48, height: 48, mr: 1.5, flexShrink: 0 }}
+                variant="rounded"
               />
-              <Chip
-                label={statusText}
-                size="small"
-                color={statusColor}
-                variant={status === translations.subscriptions.active ? 'filled' : 'outlined'}
-              />
-            </Box>
-          </Box>
-        </Box>
-
-        <Typography color="text.secondary" sx={{ mb: 2, lineHeight: 1.6 }}>
-          {subscription.description}
-        </Typography>
-
-        {hasMarkdownContent && (
-          <>
-            <Collapse in={expanded} timeout="auto" unmountOnExit>
-              <Box
+            ) : (
+              <Avatar
                 sx={{
-                  mt: 2,
-                  mb: 2,
-                  p: 2,
-                  backgroundColor: 'rgba(0, 0, 0, 0.02)',
-                  borderRadius: 1,
-                  border: '1px solid rgba(0, 0, 0, 0.05)',
-                  '& h1': {
-                    fontSize: '1.25rem',
-                    fontWeight: 600,
-                    mt: 1,
-                    mb: 1,
-                  },
-                  '& h2': { fontSize: '1.1rem', fontWeight: 600, mt: 1, mb: 1 },
-                  '& h3': { fontSize: '1rem', fontWeight: 600, mt: 1, mb: 0.5 },
-                  '& p': { mb: 1, fontSize: '0.95rem' },
-                  '& ul, & ol': { pl: 2.5, mb: 1 },
-                  '& li': { mb: 0.5 },
-                  '& a': {
-                    color: '#7E57C2',
-                    textDecoration: 'none',
-                    '&:hover': { textDecoration: 'underline' },
-                  },
-                  '& blockquote': {
-                    borderLeft: '3px solid #ccc',
-                    pl: 2,
-                    color: 'text.secondary',
-                    my: 1,
-                  },
+                  width: 48,
+                  height: 48,
+                  mr: 1.5,
+                  flexShrink: 0,
+                  bgcolor: 'primary.main',
+                  fontSize: '1.25rem',
+                }}
+                variant="rounded"
+              >
+                {subscription.name.charAt(0)}
+              </Avatar>
+            )}
+            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+              <Typography
+                variant="subtitle1"
+                component="h3"
+                fontWeight={600}
+                sx={{
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                  wordBreak: 'break-word',
+                  lineHeight: 1.3,
+                  mb: 0.5,
                 }}
               >
-                <div
-                  dangerouslySetInnerHTML={createMarkup(
-                    subscription.descriptionMarkdown || ''
-                  )}
-                />
-              </Box>
-            </Collapse>
-
-            <Button
-              size="small"
-              onClick={handleExpandToggle}
-              endIcon={expanded ? <ExpandLess /> : <ExpandMore />}
-              sx={{
-                color: 'primary.main',
-                textTransform: 'none',
-                fontWeight: 500,
-                mb: 2,
-              }}
-            >
-              {expanded ? translations.subscriptions.showLessDetails : translations.subscriptions.showMoreDetails}
-            </Button>
-          </>
-        )}
-
-        {!hasMultiplePrices && displayPrice !== null && (
-          <Box
-            display="flex"
-            justifyContent="space-between"
-            alignItems="center"
-            mt="auto"
-          >
-            <Typography variant="h4" color="primary.main" fontWeight="bold">
-              <BynAmount amount={displayPrice} />
-            </Typography>
-            {displayPeriod && (
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                fontWeight="500"
-              >
-                {displayPeriod}
+                {subscription.name}
               </Typography>
-            )}
-          </Box>
-        )}
-
-        {hasMultiplePrices && (
-          <Box mt="auto">
-            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              {translations.subscriptions.availablePlans}
-            </Typography>
-            <Stack spacing={1}>
-              {sortedPrices.map((price) => (
-                <Box
-                  key={price.id}
-                  display="flex"
-                  justifyContent="space-between"
-                  alignItems="center"
+              <Box display="flex" gap={0.75} flexWrap="wrap" alignItems="center">
+                <Chip
+                  label={subscription.category}
+                  size="small"
+                  color="primary"
+                  variant="outlined"
                   sx={{
-                    p: 1,
-                    borderRadius: 1,
-                    bgcolor: 'rgba(126, 87, 194, 0.05)',
+                    maxWidth: '100%',
+                    height: 24,
+                    '& .MuiChip-label': {
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      display: 'block',
+                      px: 1,
+                      fontSize: '0.7rem',
+                    },
                   }}
-                >
-                  <Typography variant="body2" fontWeight="500">
-                    {price.periodName}
-                  </Typography>
-                  <Typography
-                    variant="h6"
-                    color="primary.main"
-                    fontWeight="bold"
-                  >
-                    <BynAmount amount={price.finalPrice} />
-                  </Typography>
-                </Box>
-              ))}
-            </Stack>
+                />
+                <Tooltip title={statusText} arrow enterTouchDelay={0}>
+                  <Chip
+                    label={status}
+                    size="small"
+                    color={statusColor}
+                    variant={status === translations.subscriptions.active ? 'filled' : 'outlined'}
+                    sx={{ flexShrink: 0, height: 24, '& .MuiChip-label': { fontSize: '0.7rem', px: 1 } }}
+                  />
+                </Tooltip>
+              </Box>
+            </Box>
           </Box>
-        )}
 
-        {isFrozen && frozenUntil && (
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{
+              lineHeight: 1.45,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              wordBreak: 'break-word',
+            }}
+          >
+            {subscription.description}
+          </Typography>
+        </Box>
+
+        <Box sx={{ flexGrow: 1, minHeight: 4 }} />
+
+        <Box sx={{ flexShrink: 0, width: '100%', mt: 'auto' }}>
+          {!hasMultiplePrices && displayPrice !== null && (
+            <Box
+              display="flex"
+              justifyContent="space-between"
+              alignItems="center"
+              gap={1}
+            >
+              <Typography variant="h6" color="primary.main" fontWeight="bold">
+                <BynAmount amount={displayPrice} />
+              </Typography>
+              {displayPeriod && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  fontWeight={500}
+                  sx={{ textAlign: 'right' }}
+                >
+                  {displayPeriod}
+                </Typography>
+              )}
+            </Box>
+          )}
+
+          {hasMultiplePrices && (
+            <Box>
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.75 }}>
+                {translations.subscriptions.availablePlans}
+              </Typography>
+              <Stack spacing={0.75}>
+                {sortedPrices.map((price) => (
+                  <Box
+                    key={price.id}
+                    display="flex"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    sx={{
+                      py: 0.75,
+                      px: 1,
+                      borderRadius: 1,
+                      bgcolor: 'rgba(126, 87, 194, 0.05)',
+                    }}
+                  >
+                    <Typography variant="body2" fontWeight={500} fontSize="0.8rem">
+                      {price.periodName}
+                    </Typography>
+                    <Typography
+                      variant="subtitle1"
+                      color="primary.main"
+                      fontWeight="bold"
+                      fontSize="0.95rem"
+                    >
+                      <BynAmount amount={price.finalPrice} />
+                    </Typography>
+                  </Box>
+                ))}
+              </Stack>
+            </Box>
+          )}
+
+          {isFrozen && frozenUntil && (
             <Box
               sx={{
-                mt: 2,
-                p: 1.5,
+                mt: 1.5,
+                p: 1,
                 bgcolor: 'info.light',
                 borderRadius: 1,
                 border: '1px solid',
                 borderColor: 'info.main',
               }}
             >
-              <Typography variant="body2" color="info.dark" align="center">
+              <Typography variant="caption" color="info.dark" align="center" display="block">
                 <strong>{translations.subscriptions.resumeSubscription}:</strong>{' '}
                 {formatDateLocalized(frozenUntil)}
               </Typography>
             </Box>
           )}
 
-        {!isFrozen &&
-          status === translations.subscriptions.cancelled &&
-          (unsubscribeInfo?.validUntil || validUntil) && (
-            <Box
-              sx={{
-                mt: 2,
-                p: 1.5,
-                bgcolor: 'warning.light',
-                borderRadius: 1,
-                border: '1px solid',
-                borderColor: 'warning.main',
-              }}
-            >
-              <Typography variant="body2" color="warning.dark" align="center">
-                <strong>{translations.subscriptions.activeUntil}:</strong>{' '}
-                {formatDateLocalized(unsubscribeInfo?.validUntil || validUntil || '')}
-                <br />
-                <Typography variant="caption">
-                  {translations.subscriptions.youWillLoseAccess}
+          {!isFrozen &&
+            status === translations.subscriptions.cancelled &&
+            (unsubscribeInfo?.validUntil || validUntil) && (
+              <Box
+                sx={{
+                  mt: 1.5,
+                  p: 1,
+                  bgcolor: 'warning.light',
+                  borderRadius: 1,
+                  border: '1px solid',
+                  borderColor: 'warning.main',
+                }}
+              >
+                <Typography variant="caption" color="warning.dark" align="center" display="block">
+                  <strong>{translations.subscriptions.activeUntil}:</strong>{' '}
+                  {formatDateLocalized(unsubscribeInfo?.validUntil || validUntil || '')}
+                  <Typography variant="caption" component="span" display="block" sx={{ mt: 0.5 }}>
+                    {translations.subscriptions.youWillLoseAccess}
+                  </Typography>
                 </Typography>
-              </Typography>
-            </Box>
-          )}
+              </Box>
+            )}
+        </Box>
       </CardContent>
 
-      <CardActions sx={{ p: 3, pt: 0 }}>
+      <CardActions sx={{ p: 1.5, pt: 0, flexShrink: 0, mt: 'auto' }}>
         {userRole === 'Admin' ? (
           <Box display="flex" gap={1} width="100%">
             <Button
-              size="large"
+              size="medium"
               color="primary"
               variant="outlined"
               fullWidth
@@ -405,7 +467,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
               {translations.subscriptions.edit}
             </Button>
             <Button
-              size="large"
+              size="medium"
               color="error"
               variant="outlined"
               fullWidth
@@ -418,7 +480,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
           <>
             {canRestoreCancelled && onRestoreCancelled ? (
               <Button
-                size="large"
+                size="medium"
                 variant="contained"
                 color="primary"
                 fullWidth
@@ -431,7 +493,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
               <Tooltip title={translations.subscriptions.frozen} arrow>
                 <span style={{ width: '100%' }}>
                   <Button
-                    size="large"
+                    size="medium"
                     variant="outlined"
                     color="info"
                     fullWidth
@@ -445,7 +507,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
               <Tooltip title={translations.subscriptions.subscriptionCancelled} arrow>
                 <span style={{ width: '100%' }}>
                   <Button
-                    size="large"
+                    size="medium"
                     variant="outlined"
                     color="inherit"
                     fullWidth
@@ -459,7 +521,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
               canFreezeAndUnsubscribe && onFreeze ? (
                 <Stack direction="row" spacing={1} width="100%">
                   <Button
-                    size="large"
+                    size="medium"
                     variant="outlined"
                     color="info"
                     fullWidth
@@ -471,7 +533,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                   <Tooltip title={translations.subscriptions.cancelSubscription} arrow>
                     <span style={{ flex: 1, width: '100%' }}>
                       <Button
-                        size="large"
+                        size="medium"
                         variant="outlined"
                         color="error"
                         fullWidth
@@ -487,7 +549,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                 <Tooltip title={translations.subscriptions.cancelSubscription} arrow>
                   <span style={{ width: '100%' }}>
                     <Button
-                      size="large"
+                      size="medium"
                       variant="outlined"
                       color="error"
                       fullWidth
@@ -506,7 +568,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                     {sortedPrices.map((price) => (
                       <Button
                         key={price.id}
-                        size="large"
+                        size="medium"
                         variant="contained"
                         color="primary"
                         fullWidth
@@ -529,7 +591,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                   <Tooltip title={translations.subscriptions.subscribe} arrow>
                     <span style={{ width: '100%' }}>
                       <Button
-                        size="large"
+                        size="medium"
                         variant="contained"
                         color="primary"
                         fullWidth
@@ -561,6 +623,13 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
           </>
         )}
       </CardActions>
+
+      <SubscriptionDetailsDialog
+        open={detailsOpen}
+        onClose={() => setDetailsOpen(false)}
+        subscription={subscription}
+        prices={pricesForDetails}
+      />
 
       {onFreeze && (
         <FreezeSubscriptionDialog

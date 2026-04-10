@@ -290,6 +290,8 @@ export const translations = {
     subscribe: 'Подписаться',
     unsubscribe: 'Отписаться',
     subscriptionDetails: 'Детали подписки',
+    subscriptionDetailsCardHint:
+      'Нажмите на верхнюю часть карточки или на «?», чтобы открыть полное описание и тарифы.',
     subscriptionHistory: 'История подписки',
     startDate: 'Дата начала',
     endDate: 'Дата окончания',

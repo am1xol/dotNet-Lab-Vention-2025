@@ -151,12 +151,14 @@ export const MySubscriptionsTab: React.FC<MySubscriptionsTabProps> = ({
                       <Grid
                         key={userSubscription.id}
                         size={{ xs: 12, md: 6, lg: 4 }}
+                        sx={{ display: 'flex' }}
                       >
                         <motion.div
                           layout
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
+                          style={{ width: '100%', display: 'flex', minWidth: 0 }}
                         >
                           <SubscriptionCard
                             subscription={userSubscription.subscription}

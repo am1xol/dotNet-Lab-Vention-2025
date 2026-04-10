@@ -134,11 +134,16 @@ export const AvailableSubscriptionsTab: React.FC<
                 const canFreeze = canFreezeUserSubscription(userSub);
                 const canRestore = canRestoreCancelledUserSubscription(userSub);
                 return (
-                  <Grid key={subscription.id} size={{ xs: 12, md: 6, lg: 4 }}>
+                  <Grid
+                    key={subscription.id}
+                    size={{ xs: 12, md: 6, lg: 4 }}
+                    sx={{ display: 'flex' }}
+                  >
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.3 }}
+                      style={{ width: '100%', display: 'flex', minWidth: 0 }}
                     >
                       <SubscriptionCard
                         subscription={subscription}

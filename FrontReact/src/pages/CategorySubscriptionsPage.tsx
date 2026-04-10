@@ -826,11 +826,13 @@ export const CategorySubscriptionsPage: React.FC = () => {
                     <Grid
                       key={subscription.id}
                       size={{ xs: 12, sm: 6, md: 4, lg: 3 }}
+                      sx={{ display: 'flex' }}
                     >
                       <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3 }}
+                        style={{ width: '100%', display: 'flex', minWidth: 0 }}
                       >
                         <SubscriptionCard
                           subscription={subscription}

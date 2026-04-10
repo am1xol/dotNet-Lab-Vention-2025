@@ -129,7 +129,23 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
 
   const finalLoadingState = loading || paymentLoading;
   const hasMarkdownContent = subscription.descriptionMarkdown?.trim().length > 0;
-  const hasMultiplePrices = prices && prices.length > 0;
+
+  const sortedPrices = useMemo(() => {
+    if (!prices?.length) return [];
+    return [...prices].sort((a, b) => {
+      const ma = a.monthsCount;
+      const mb = b.monthsCount;
+      const order = (x: number | undefined) =>
+        typeof x === 'number' && x > 0 ? x : Number.POSITIVE_INFINITY;
+      const d = order(ma) - order(mb);
+      if (d !== 0) return d;
+      return (a.periodName || '').localeCompare(b.periodName || '', 'ru', {
+        sensitivity: 'base',
+      });
+    });
+  }, [prices]);
+
+  const hasMultiplePrices = sortedPrices.length > 0;
   const displayPrice = hasMultiplePrices ? null : (finalPrice ?? subscription.price);
   const displayPeriod = hasMultiplePrices ? null : periodName;
 
@@ -305,7 +321,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
               {translations.subscriptions.availablePlans}
             </Typography>
             <Stack spacing={1}>
-              {prices.map((price) => (
+              {sortedPrices.map((price) => (
                 <Box
                   key={price.id}
                   display="flex"
@@ -487,7 +503,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
               <>
                 {hasMultiplePrices ? (
                   <Stack direction="row" spacing={1} width="100%">
-                    {prices.map((price) => (
+                    {sortedPrices.map((price) => (
                       <Button
                         key={price.id}
                         size="large"

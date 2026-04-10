@@ -107,7 +107,7 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                         payment.UserId,
                         "Подписка активна",
                         "Оплата прошла успешно!",
-                        NotificationType.Info);
+                        NotificationType.Success);
                 }
                 else if (new[] { "failed", "error", "expired" }.Contains(webhookData.Transaction.Status))
                 {

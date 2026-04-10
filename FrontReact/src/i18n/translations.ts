@@ -487,6 +487,11 @@ export const translations = {
     markAsRead: 'Отметить как прочитанное',
     new: 'Новое',
     loadMore: 'Загрузить ещё',
+    filterAllNotifications: 'Все',
+    filterUnreadNotifications: 'Непрочитанные',
+    filterReadNotifications: 'Прочитанные',
+    filterTypeAll: 'Все типы',
+    noNotificationsByFilter: 'По выбранным фильтрам уведомления не найдены',
     // Валидация профиля
     fieldCannotBeEmpty: 'Поле не может быть пустым',
     minimum2Chars: 'Минимум 2 символа (не считая пробелы)',

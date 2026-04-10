@@ -12,6 +12,8 @@ import {
   Button,
   Stack,
   Tooltip,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import {
   Notifications as NotificationsIcon,
@@ -34,11 +36,16 @@ interface NotificationsTabProps {
 export const NotificationsTab: React.FC<NotificationsTabProps> = ({
   onUnreadCountChanged,
 }) => {
+  type ReadFilter = 'all' | 'unread' | 'read';
+  type TypeFilter = 'all' | NotificationType;
+
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [readFilter, setReadFilter] = useState<ReadFilter>('all');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const pageSize = 5;
 
   useEffect(() => {
@@ -128,6 +135,17 @@ export const NotificationsTab: React.FC<NotificationsTabProps> = ({
   };
 
   const hasMore = notifications.length < totalCount;
+  const filteredNotifications = notifications.filter((notification) => {
+    const matchesReadStatus =
+      readFilter === 'all' ||
+      (readFilter === 'read' && notification.isRead) ||
+      (readFilter === 'unread' && !notification.isRead);
+
+    const matchesType =
+      typeFilter === 'all' || notification.type === typeFilter;
+
+    return matchesReadStatus && matchesType;
+  });
 
   if (loading) {
     return (
@@ -176,9 +194,54 @@ export const NotificationsTab: React.FC<NotificationsTabProps> = ({
         </Stack>
       </Stack>
 
+      <Stack
+        direction={{ xs: 'column', md: 'row' }}
+        spacing={2}
+        sx={{ mb: 2 }}
+        alignItems={{ xs: 'stretch', md: 'center' }}
+      >
+        <ToggleButtonGroup
+          value={readFilter}
+          exclusive
+          onChange={(_, value: ReadFilter | null) =>
+            value && setReadFilter(value)
+          }
+          size="small"
+          color="secondary"
+          sx={{ flexWrap: 'wrap' }}
+        >
+          <ToggleButton value="all">
+            {translations.profile.filterAllNotifications}
+          </ToggleButton>
+          <ToggleButton value="unread">
+            {translations.profile.filterUnreadNotifications}
+          </ToggleButton>
+          <ToggleButton value="read">
+            {translations.profile.filterReadNotifications}
+          </ToggleButton>
+        </ToggleButtonGroup>
+
+        <ToggleButtonGroup
+          value={typeFilter}
+          exclusive
+          onChange={(_, value: TypeFilter | null) =>
+            value && setTypeFilter(value)
+          }
+          size="small"
+          color="secondary"
+          sx={{ flexWrap: 'wrap' }}
+        >
+          <ToggleButton value="all">{translations.profile.filterTypeAll}</ToggleButton>
+          <ToggleButton value="Info">Info</ToggleButton>
+          <ToggleButton value="Success">Success</ToggleButton>
+          <ToggleButton value="Warning">Warning</ToggleButton>
+          <ToggleButton value="Error">Error</ToggleButton>
+        </ToggleButtonGroup>
+      </Stack>
+
       <List sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <AnimatePresence>
-          {notifications.map((notification) => (
+          {filteredNotifications.map((notification) => (
             <motion.div
               key={notification.id}
               initial={{ opacity: 0, x: -20 }}
@@ -208,7 +271,7 @@ export const NotificationsTab: React.FC<NotificationsTabProps> = ({
                   disablePadding
                   secondaryAction={
                     !notification.isRead && (
-                      <Tooltip title="Отметить как прочитанное">
+                      <Tooltip title={translations.profile.markAsRead}>
                         <IconButton
                           edge="end"
                           onClick={() => handleMarkAsRead(notification.id)}
@@ -263,6 +326,14 @@ export const NotificationsTab: React.FC<NotificationsTabProps> = ({
           ))}
         </AnimatePresence>
       </List>
+
+      {notifications.length > 0 && filteredNotifications.length === 0 && (
+        <Box sx={{ textAlign: 'center', py: 5, color: 'text.secondary' }}>
+          <Typography variant="body1">
+            {translations.profile.noNotificationsByFilter}
+          </Typography>
+        </Box>
+      )}
 
       {hasMore && (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>

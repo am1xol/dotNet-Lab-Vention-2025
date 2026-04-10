@@ -1,5 +1,5 @@
 import api from './api';
-import { Notification } from '../types/notification';
+import { Notification, NotificationType } from '../types/notification';
 
 const SUBS_API_URL = import.meta.env.VITE_SUBSCRIPTIONS_API_URL;
 
@@ -7,6 +7,19 @@ export interface PagedNotifications {
   items: Notification[];
   totalCount: number;
 }
+
+const normalizeNotificationType = (rawType: unknown): NotificationType => {
+  if (rawType === 'Info' || rawType === 0 || rawType === '0') return 'Info';
+  if (rawType === 'Warning' || rawType === 1 || rawType === '1') return 'Warning';
+  if (rawType === 'Error' || rawType === 2 || rawType === '2') return 'Error';
+  if (rawType === 'Success' || rawType === 3 || rawType === '3') return 'Success';
+  return 'Info';
+};
+
+const normalizeNotification = (notification: Notification): Notification => ({
+  ...notification,
+  type: normalizeNotificationType(notification.type),
+});
 
 export const notificationService = {
   async getUserNotifications(
@@ -17,7 +30,11 @@ export const notificationService = {
       baseURL: SUBS_API_URL,
       params: { page, pageSize },
     });
-    return response.data;
+
+    return {
+      ...response.data,
+      items: response.data.items.map(normalizeNotification),
+    };
   },
 
   async markAsRead(id: string): Promise<void> {

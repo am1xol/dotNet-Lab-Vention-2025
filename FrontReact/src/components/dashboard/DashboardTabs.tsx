@@ -62,6 +62,7 @@ interface DashboardTabsProps {
 export const DashboardTabs: React.FC<DashboardTabsProps> = memo(({
   tabValue,
   handleTabChange,
+  availableSubscriptions,
   mySubscriptions,
   actionLoading,
   unsubscribedData,
@@ -126,6 +127,7 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = memo(({
         {/* Available Subscriptions Tab */}
         <TabPanel value={tabValue} index={0}>
           <AvailableSubscriptionsTab
+            availableSubscriptions={availableSubscriptions}
             actionLoading={actionLoading}
             unsubscribeData={unsubscribedData}
             getUserSubscription={getUserSubscription}

@@ -1,24 +1,26 @@
-import React, { useEffect, useState, memo } from 'react';
-import { Box, Typography, Grid, CircularProgress, Button } from '@mui/material';
+import React, { useMemo, useState, memo } from 'react';
+import { Box, Typography, Grid, Button } from '@mui/material';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { SubscriptionCard } from '../subscriptions/SubscriptionCard';
+import { SubscriptionCard } from './SubscriptionCard';
 import { UnsubscribeReasonDialog } from './UnsubscribeReasonDialog';
-import { subscriptionService } from '../../services/subscription-service';
 import {
-  UserSubscription,
+  GroupedSubscriptions,
   SubscriptionsByCategory,
+  UserSubscription,
 } from '../../types/subscription';
 import {
   canFreezeUserSubscription,
   canRestoreCancelledUserSubscription,
 } from '../../utils/subscription-utils';
+import { translations } from '../../i18n/translations';
 
 interface UnsubscribeInfo {
   validUntil: string;
 }
 
 interface AvailableSubscriptionsTabProps {
+  availableSubscriptions: GroupedSubscriptions;
   actionLoading: string | null;
   unsubscribeData: { [key: string]: UnsubscribeInfo };
   getUserSubscription: (subscriptionId: string) => UserSubscription | undefined;
@@ -35,9 +37,28 @@ interface AvailableSubscriptionsTabProps {
 
 const PAGE_SIZE = 3;
 
+function buildCategoryPreview(grouped: GroupedSubscriptions): SubscriptionsByCategory {
+  const result: SubscriptionsByCategory = {};
+  for (const [category, subs] of Object.entries(grouped)) {
+    const list = Array.isArray(subs) ? subs : [];
+    if (list.length === 0) continue;
+    const totalCount = list.length;
+    const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+    result[category] = {
+      items: list.slice(0, PAGE_SIZE),
+      currentPage: 1,
+      totalPages,
+      totalCount,
+      isLoadingMore: false,
+    };
+  }
+  return result;
+}
+
 export const AvailableSubscriptionsTab: React.FC<
   AvailableSubscriptionsTabProps
 > = ({
+  availableSubscriptions,
   actionLoading,
   unsubscribeData,
   getUserSubscription,
@@ -47,44 +68,14 @@ export const AvailableSubscriptionsTab: React.FC<
   handleFreeze,
   handleRestoreCancelled,
 }) => {
-  const [categoriesData, setCategoriesData] = useState<SubscriptionsByCategory>(
-    {}
+  const categoriesData = useMemo(
+    () => buildCategoryPreview(availableSubscriptions),
+    [availableSubscriptions]
   );
-  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const [unsubscribeDialogOpen, setUnsubscribeDialogOpen] = useState(false);
   const [selectedSubscriptionId, setSelectedSubscriptionId] = useState<string | null>(null);
   const [selectedSubscriptionName, setSelectedSubscriptionName] = useState<string>('');
-
-  useEffect(() => {
-    const initData = async () => {
-      try {
-        const categories = await subscriptionService.getCategories();
-        const initialData: SubscriptionsByCategory = {};
-
-        for (const cat of categories) {
-          const result = await subscriptionService.getSubscriptionsPaged(
-            1,
-            PAGE_SIZE,
-            cat
-          );
-          initialData[cat] = {
-            items: result.items,
-            currentPage: result.pageNumber,
-            totalPages: result.totalPages,
-            totalCount: result.totalCount,
-            isLoadingMore: false,
-          };
-        }
-        setCategoriesData(initialData);
-      } catch (error) {
-        console.error('Failed to fetch subscriptions', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    initData();
-  }, []);
 
   const handleShowAll = (category: string) => {
     navigate(`/category/${category}`);
@@ -108,13 +99,6 @@ export const AvailableSubscriptionsTab: React.FC<
       handleCloseUnsubscribeDialog();
     }
   };
-
-  if (loading)
-    return (
-      <Box display="flex" justifyContent="center" py={10}>
-        <CircularProgress />
-      </Box>
-    );
 
   return (
     <>
@@ -144,51 +128,48 @@ export const AvailableSubscriptionsTab: React.FC<
             </Typography>
 
             <Grid container spacing={3}>
-                {data.items.map((subscription) => {
-                  if (!subscription || !subscription.id) return null;
-                  const userSub = getUserSubscription(subscription.id);
-                  const canFreeze = canFreezeUserSubscription(userSub);
-                  const canRestore = canRestoreCancelledUserSubscription(userSub);
-                  return (
-                    <Grid key={subscription.id} size={{ xs: 12, md: 6, lg: 4 }}>
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.3 }}
-                      >
-                        <SubscriptionCard
-                          subscription={subscription}
-                          prices={subscription.prices}
-                          isSubscribed={!!userSub}
-                          isCancelled={!!userSub?.cancelledAt && !userSub?.isFrozen}
-                          isFrozen={!!userSub?.isFrozen}
-                          frozenUntil={userSub?.frozenUntil}
-                          canFreezeAndUnsubscribe={canFreeze}
-                          canRestoreCancelled={canRestore}
-                          validUntil={userSub?.validUntil}
-                          unsubscribeInfo={unsubscribeData?.[subscription.id]}
-                          onSubscribe={handleSubscribe}
-                          onInitiatePayment={handleInitiatePayment}
-                          onUnsubscribe={(id) =>
-                            handleOpenUnsubscribeDialog(id, subscription.name)
-                          }
-                          onFreeze={handleFreeze}
-                          onRestoreCancelled={handleRestoreCancelled}
-                          loading={actionLoading === subscription.id}
-                        />
-                      </motion.div>
-                    </Grid>
-                  );
-                })}
+              {data.items.map((subscription) => {
+                if (!subscription || !subscription.id) return null;
+                const userSub = getUserSubscription(subscription.id);
+                const canFreeze = canFreezeUserSubscription(userSub);
+                const canRestore = canRestoreCancelledUserSubscription(userSub);
+                return (
+                  <Grid key={subscription.id} size={{ xs: 12, md: 6, lg: 4 }}>
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <SubscriptionCard
+                        subscription={subscription}
+                        prices={subscription.prices}
+                        isSubscribed={!!userSub}
+                        isCancelled={!!userSub?.cancelledAt && !userSub?.isFrozen}
+                        isFrozen={!!userSub?.isFrozen}
+                        frozenUntil={userSub?.frozenUntil}
+                        canFreezeAndUnsubscribe={canFreeze}
+                        canRestoreCancelled={canRestore}
+                        validUntil={userSub?.validUntil}
+                        unsubscribeInfo={unsubscribeData?.[subscription.id]}
+                        onSubscribe={handleSubscribe}
+                        onInitiatePayment={handleInitiatePayment}
+                        onUnsubscribe={(id) =>
+                          handleOpenUnsubscribeDialog(id, subscription.name)
+                        }
+                        onFreeze={handleFreeze}
+                        onRestoreCancelled={handleRestoreCancelled}
+                        loading={actionLoading === subscription.id}
+                      />
+                    </motion.div>
+                  </Grid>
+                );
+              })}
             </Grid>
 
             {data.currentPage < data.totalPages && (
               <Box sx={{ mt: 3, textAlign: 'center' }}>
-                <Button
-                  variant="outlined"
-                  onClick={() => handleShowAll(category)}
-                >
-                  Показать все ({data.totalCount})
+                <Button variant="outlined" onClick={() => handleShowAll(category)}>
+                  {translations.subscriptions.showAllInCategory} ({data.totalCount})
                 </Button>
               </Box>
             )}

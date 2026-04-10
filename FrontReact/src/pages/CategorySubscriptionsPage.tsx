@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -15,7 +15,6 @@ import {
   Card,
   IconButton,
   InputAdornment,
-  Slider,
   Chip,
   Paper,
   Divider,
@@ -94,32 +93,140 @@ const ContentContainer = styled(Box)(({ theme }) => ({
   },
 }));
 
-const PERIODS = ['monthly', 'quarterly', 'yearly', 'lifetime'];
+type BillingPeriodFilter = 'monthly' | 'quarterly' | 'yearly';
+
+const BILLING_PERIOD_KEYS: BillingPeriodFilter[] = [
+  'monthly',
+  'quarterly',
+  'yearly',
+];
+
+const PERIOD_MONTHS_COUNT: Record<BillingPeriodFilter, number> = {
+  monthly: 1,
+  quarterly: 3,
+  yearly: 12,
+};
+
+/** Допустимые базовые цены (см. API AllowedPrices) */
+const ALLOWED_BASE_PRICES = [10, 20, 50] as const;
+
+function getPricePoints(s: Subscription): number[] {
+  if (s.prices?.length) return s.prices.map((p) => p.finalPrice);
+  if (s.price != null && !Number.isNaN(Number(s.price))) return [Number(s.price)];
+  return [];
+}
+
+function getMinPrice(s: Subscription): number {
+  const pts = getPricePoints(s);
+  return pts.length ? Math.min(...pts) : 0;
+}
+
+function subscriptionMatchesPeriods(
+  s: Subscription,
+  selected: string[]
+): boolean {
+  if (selected.length === 0) return true;
+  if (!s.prices?.length) return false;
+  return s.prices.some((p) =>
+    selected.some(
+      (sel) =>
+        PERIOD_MONTHS_COUNT[sel as BillingPeriodFilter] === p.monthsCount
+    )
+  );
+}
+
+function getSubscriptionBasePrice(s: Subscription): number | null {
+  const p = Number(s.price);
+  if (!Number.isFinite(p)) return null;
+  return p;
+}
+
+function subscriptionMatchesBasePrices(
+  s: Subscription,
+  selected: number[]
+): boolean {
+  if (selected.length === 0) return true;
+  const base = getSubscriptionBasePrice(s);
+  if (base != null && selected.includes(base)) return true;
+  return false;
+}
+
+function filterAndSortCatalog(
+  items: Subscription[],
+  searchQuery: string,
+  selectedPeriods: string[],
+  selectedBasePrices: number[],
+  sortBy: string,
+  sortDesc: boolean
+): Subscription[] {
+  let list = [...items];
+  const q = searchQuery.trim().toLowerCase();
+  if (q) {
+    list = list.filter((s) => {
+      const name = (s.name || '').toLowerCase();
+      const desc = (s.description || '').toLowerCase();
+      return name.includes(q) || desc.includes(q);
+    });
+  }
+  if (selectedPeriods.length > 0) {
+    list = list.filter((s) => subscriptionMatchesPeriods(s, selectedPeriods));
+  }
+  list = list.filter((s) => subscriptionMatchesBasePrices(s, selectedBasePrices));
+  list.sort((a, b) => {
+    let cmp = 0;
+    switch (sortBy) {
+      case 'name':
+        cmp = a.name.localeCompare(b.name, 'ru', { sensitivity: 'base' });
+        break;
+      case 'price':
+        cmp = getMinPrice(a) - getMinPrice(b);
+        break;
+      case 'createdAt':
+      default:
+        cmp =
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        break;
+    }
+    return sortDesc ? -cmp : cmp;
+  });
+  return list;
+}
+
 const SORT_OPTIONS = [
   { value: 'createdAt', label: translations.categorySubscriptions.byCreationDate },
   { value: 'name', label: translations.categorySubscriptions.byName },
   { value: 'price', label: translations.categorySubscriptions.byPrice },
 ];
 
+function periodChipLabel(key: BillingPeriodFilter): string {
+  switch (key) {
+    case 'monthly':
+      return translations.categorySubscriptions.periodMonthly;
+    case 'quarterly':
+      return translations.categorySubscriptions.periodQuarterly;
+    case 'yearly':
+      return translations.categorySubscriptions.periodYearly;
+    default:
+      return key;
+  }
+}
+
 export const CategorySubscriptionsPage: React.FC = () => {
   const { category } = useParams<{ category: string }>();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
 
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [catalogItems, setCatalogItems] = useState<Subscription[]>([]);
   const [mySubscriptions, setMySubscriptions] = useState<UserSubscription[]>(
     []
   );
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
 
   const [search, setSearch] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPeriods, setSelectedPeriods] = useState<string[]>([]);
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
+  const [selectedBasePrices, setSelectedBasePrices] = useState<number[]>([]);
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortDesc, setSortDesc] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -138,6 +245,27 @@ export const CategorySubscriptionsPage: React.FC = () => {
 
   const pageSize = 12;
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const filteredSorted = useMemo(
+    () =>
+      filterAndSortCatalog(
+        catalogItems,
+        searchQuery,
+        selectedPeriods,
+        selectedBasePrices,
+        sortBy,
+        sortDesc
+      ),
+    [catalogItems, searchQuery, selectedPeriods, selectedBasePrices, sortBy, sortDesc]
+  );
+
+  const filteredCount = filteredSorted.length;
+  const totalPages = Math.max(1, Math.ceil(filteredCount / pageSize));
+
+  const visibleSubscriptions = useMemo(
+    () => filteredSorted.slice(0, page * pageSize),
+    [filteredSorted, page, pageSize]
+  );
 
   useEffect(() => {
     if (searchTimerRef.current) {
@@ -167,66 +295,47 @@ export const CategorySubscriptionsPage: React.FC = () => {
     }
   }, [isAuthenticated]);
 
-  const loadSubscriptions = useCallback(
-    async (resetPage = false) => {
-      const currentPage = resetPage ? 1 : page;
+  useEffect(() => {
+    if (!category) return;
 
-      if (resetPage) {
-        setLoading(true);
-      } else {
-        setLoadingMore(true);
-      }
+    let cancelled = false;
 
+    const load = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        const result = await subscriptionService.getSubscriptionsWithFilters(
-          currentPage,
-          pageSize,
-          category,
-          searchQuery || undefined,
-          sortBy,
-          sortDesc,
-          priceRange[0] > 0 ? priceRange[0] : undefined,
-          priceRange[1] < 1000 ? priceRange[1] : undefined
+        const items = await subscriptionService.getAllSubscriptionsInCategory(
+          category
         );
-
-        if (resetPage) {
-          setSubscriptions(result.items);
+        if (!cancelled) {
+          setCatalogItems(items);
           setPage(1);
-        } else {
-          setSubscriptions((prev) => [...prev, ...result.items]);
         }
-
-        setTotalPages(Math.ceil(result.totalCount / pageSize));
-        setTotalCount(result.totalCount);
       } catch (error) {
         console.error('Failed to fetch subscriptions', error);
-        setError('Failed to load subscriptions');
+        if (!cancelled) {
+          setError(translations.categorySubscriptions.failedToLoadSubscriptions);
+        }
       } finally {
-        setLoading(false);
-        setLoadingMore(false);
+        if (!cancelled) setLoading(false);
       }
-    },
-    [category, searchQuery, priceRange, sortBy, sortDesc, page]
-  );
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [category]);
 
   useEffect(() => {
-    if (category) {
-      loadSubscriptions(true);
-      if (isAuthenticated) {
-        loadMySubscriptions();
-      }
+    if (category && isAuthenticated) {
+      void loadMySubscriptions();
     }
-  }, [category, isAuthenticated]);
+  }, [category, isAuthenticated, loadMySubscriptions]);
 
   useEffect(() => {
-    if (category) {
-      const timer = setTimeout(() => {
-        loadSubscriptions(true);
-      }, 300);
-
-      return () => clearTimeout(timer);
-    }
-  }, [searchQuery, priceRange, sortBy, sortDesc]);
+    setPage(1);
+  }, [searchQuery, selectedPeriods, selectedBasePrices, sortBy, sortDesc]);
 
   const getUserSubscription = (
     subscriptionId: string
@@ -238,7 +347,7 @@ export const CategorySubscriptionsPage: React.FC = () => {
   };
 
   const resolvePriceMeta = (subscriptionPriceId: string) => {
-    for (const subscription of subscriptions) {
+    for (const subscription of catalogItems) {
       const byPriceId = subscription.prices?.find((p) => p.id === subscriptionPriceId);
       if (byPriceId) {
         return { baseAmount: byPriceId.finalPrice, periodName: byPriceId.periodName };
@@ -403,7 +512,6 @@ export const CategorySubscriptionsPage: React.FC = () => {
   const handleLoadMore = () => {
     if (page < totalPages) {
       setPage((prev) => prev + 1);
-      loadSubscriptions(false);
     }
   };
 
@@ -419,8 +527,12 @@ export const CategorySubscriptionsPage: React.FC = () => {
     );
   };
 
-  const handlePriceChange = (_event: Event, newValue: number | number[]) => {
-    setPriceRange(newValue as [number, number]);
+  const handleBasePriceToggle = (amount: number) => {
+    setSelectedBasePrices((prev) =>
+      prev.includes(amount)
+        ? prev.filter((x) => x !== amount)
+        : [...prev, amount]
+    );
   };
 
   const handleSortChange = (event: any) => {
@@ -435,7 +547,7 @@ export const CategorySubscriptionsPage: React.FC = () => {
     setSearch('');
     setSearchQuery('');
     setSelectedPeriods([]);
-    setPriceRange([0, 1000]);
+    setSelectedBasePrices([]);
     setSortBy('createdAt');
     setSortDesc(false);
   };
@@ -524,7 +636,7 @@ export const CategorySubscriptionsPage: React.FC = () => {
                 color="text.secondary"
                 sx={{ ml: 2 }}
               >
-                ({totalCount} {translations.categorySubscriptions.subscriptions})
+                ({filteredCount} {translations.categorySubscriptions.subscriptions})
               </Typography>
             </Typography>
 
@@ -631,10 +743,10 @@ export const CategorySubscriptionsPage: React.FC = () => {
                       flexWrap="wrap"
                       useFlexGap
                     >
-                      {PERIODS.map((period) => (
+                      {BILLING_PERIOD_KEYS.map((period) => (
                         <Chip
                           key={period}
-                          label={period}
+                          label={periodChipLabel(period)}
                           onClick={() => handlePeriodToggle(period)}
                           color={
                             selectedPeriods.includes(period)
@@ -654,23 +766,33 @@ export const CategorySubscriptionsPage: React.FC = () => {
 
                   <Grid size={{ xs: 12, md: 6 }}>
                     <Typography variant="subtitle2" gutterBottom>
-                      {translations.categorySubscriptions.priceRange.replace('{min}', String(priceRange[0])).replace('{max}', String(priceRange[1]))}
+                      {translations.categorySubscriptions.basePriceFilter}
                     </Typography>
-                    <Slider
-                      value={priceRange}
-                      onChange={handlePriceChange}
-                      valueLabelDisplay="auto"
-                      min={0}
-                      max={1000}
-                      step={10}
-                      marks={[
-                        { value: 0, label: '0' },
-                        { value: 250, label: '250' },
-                        { value: 500, label: '500' },
-                        { value: 750, label: '750' },
-                        { value: 1000, label: '1000' },
-                      ]}
-                    />
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      flexWrap="wrap"
+                      useFlexGap
+                    >
+                      {ALLOWED_BASE_PRICES.map((amount) => (
+                        <Chip
+                          key={amount}
+                          label={`${amount}`}
+                          onClick={() => handleBasePriceToggle(amount)}
+                          color={
+                            selectedBasePrices.includes(amount)
+                              ? 'primary'
+                              : 'default'
+                          }
+                          variant={
+                            selectedBasePrices.includes(amount)
+                              ? 'filled'
+                              : 'outlined'
+                          }
+                          size="small"
+                        />
+                      ))}
+                    </Stack>
                   </Grid>
                 </Grid>
               </motion.div>
@@ -682,7 +804,7 @@ export const CategorySubscriptionsPage: React.FC = () => {
             <Box display="flex" justifyContent="center" py={10}>
               <CircularProgress />
             </Box>
-          ) : subscriptions.length === 0 ? (
+          ) : filteredSorted.length === 0 ? (
             <Card
               sx={{ p: 4, textAlign: 'center', borderRadius: 2, boxShadow: 2 }}
             >
@@ -696,7 +818,7 @@ export const CategorySubscriptionsPage: React.FC = () => {
           ) : (
             <>
               <Grid container spacing={3}>
-                {subscriptions.map((subscription) => {
+                {visibleSubscriptions.map((subscription) => {
                   const userSub = getUserSubscription(subscription.id);
                   const canFreeze = canFreezeUserSubscription(userSub);
                   const canRestore = canRestoreCancelledUserSubscription(userSub);
@@ -741,22 +863,14 @@ export const CategorySubscriptionsPage: React.FC = () => {
               </Grid>
 
               {/* Load more button */}
-              {page < totalPages && (
+              {page < totalPages && filteredCount > 0 && (
                 <Box sx={{ mt: 4, textAlign: 'center' }}>
                   <Button
                     variant="outlined"
                     onClick={handleLoadMore}
-                    disabled={loadingMore}
                     sx={{ minWidth: 200, borderRadius: 2 }}
                   >
-                    {loadingMore ? (
-                      <>
-                        <CircularProgress size={20} sx={{ mr: 1 }} />
-                        {translations.categorySubscriptions.loadingMore}
-                      </>
-                    ) : (
-                      translations.categorySubscriptions.showMoreButton
-                    )}
+                    {translations.categorySubscriptions.showMoreButton}
                   </Button>
                 </Box>
               )}

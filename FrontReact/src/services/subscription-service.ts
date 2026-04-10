@@ -15,10 +15,42 @@ export interface CreateSubscriptionWithPriceRequest
   finalPrice: number;
 }
 
+async function fetchAllSubscriptions(): Promise<Subscription[]> {
+  const pageSize = 100;
+  const all: Subscription[] = [];
+  let pageNumber = 1;
+
+  for (;;) {
+    const response = await api.get<PagedResult<Subscription>>(`${API_BASE_URL}/Subscriptions`, {
+      params: { pageNumber, pageSize },
+    });
+    const paged = response.data;
+    const batch = paged.items ?? [];
+    if (batch.length === 0) break;
+    all.push(...batch);
+    const total = paged.totalCount;
+    if (total != null && all.length >= total) break;
+    if (batch.length < pageSize) break;
+    pageNumber += 1;
+  }
+
+  return all;
+}
+
+function groupSubscriptionsByCategory(items: Subscription[]): GroupedSubscriptions {
+  const grouped: GroupedSubscriptions = {};
+  for (const sub of items) {
+    const cat = sub.category?.trim() || 'Other';
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(sub);
+  }
+  return grouped;
+}
+
 export const subscriptionService = {
   async getSubscriptions(): Promise<GroupedSubscriptions> {
-    const response = await api.get(`${API_BASE_URL}/Subscriptions`);
-    return response.data as GroupedSubscriptions;
+    const items = await fetchAllSubscriptions();
+    return groupSubscriptionsByCategory(items);
   },
 
   async getSubscription(id: string): Promise<Subscription> {
@@ -96,6 +128,32 @@ export const subscriptionService = {
       data
     );
     return response.data;
+  },
+
+  async getAllSubscriptionsInCategory(category: string): Promise<Subscription[]> {
+    const pageSize = 100;
+    const all: Subscription[] = [];
+    let pageNumber = 1;
+
+    for (;;) {
+      const result = await this.getSubscriptionsWithFilters(
+        pageNumber,
+        pageSize,
+        category,
+        undefined,
+        'name',
+        false
+      );
+      const batch = result.items ?? [];
+      if (batch.length === 0) break;
+      all.push(...batch);
+      const total = result.totalCount;
+      if (total != null && all.length >= total) break;
+      if (batch.length < pageSize) break;
+      pageNumber += 1;
+    }
+
+    return all;
   },
 
   async getSubscriptionsWithFilters(

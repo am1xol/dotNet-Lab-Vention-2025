@@ -46,15 +46,15 @@ namespace SubscriptionManager.Auth.API.Controllers
                     return;
                 }
 
-                var title = "New support chat message";
+                var title = "Новое сообщение в чате поддержки";
                 var trimmedMessage = messageContent.Length > 500
                     ? $"{messageContent[..500]}..."
                     : messageContent;
                 var body = $"""
-                    A user sent a new message in support chat.
-                    
-                    User ID: {senderUserId}
-                    Message:
+                    Пользователь отправил новое сообщение в чате поддержки.
+
+                    ID пользователя: {senderUserId}
+                    Сообщение:
                     {trimmedMessage}
                     """;
 

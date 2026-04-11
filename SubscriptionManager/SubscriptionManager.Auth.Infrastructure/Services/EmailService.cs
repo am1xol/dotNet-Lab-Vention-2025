@@ -140,19 +140,19 @@ public class EmailService : IEmailService
             var mailMessage = new MailMessage
             {
                 From = new MailAddress(endpoint.SenderEmail, endpoint.SenderName),
-                Subject = "Verify your email address",
+                Subject = "Подтверждение адреса электронной почты",
                 Body = $"""
-                Hello {firstName},
+                Здравствуйте, {firstName},
 
-                Please use the following code to verify your email address:
+                Используйте следующий код для подтверждения адреса электронной почты:
 
-                Verification Code: {verificationCode}
+                Код подтверждения: {verificationCode}
 
-                This code will expire in 24 hours.
+                Срок действия кода — 24 часа.
 
-                If you didn't create an account, please ignore this email.
+                Если вы не регистрировались в сервисе, проигнорируйте это письмо.
 
-                Best regards,
+                С уважением,
                 {endpoint.SenderName}
                 """,
                 IsBodyHtml = false
@@ -170,20 +170,20 @@ public class EmailService : IEmailService
             var mailMessage = new MailMessage
             {
                 From = new MailAddress(endpoint.SenderEmail, endpoint.SenderName),
-                Subject = "Password Reset Code - SubscriptionManager",
+                Subject = "Код для сброса пароля",
                 Body = $"""
-            Hello {firstName}!
+            Здравствуйте, {firstName}!
 
-            You requested to reset your password. Use the following code to reset your password:
+            Вы запросили сброс пароля. Используйте следующий код:
 
-            Reset Code: {resetCode}
+            Код сброса: {resetCode}
 
-            This code will expire in 1 hour.
+            Срок действия кода — 1 час.
 
-            If you didn't request this, please ignore this email.
+            Если вы не запрашивали сброс, проигнорируйте это письмо.
 
-            Best regards,
-            SubscriptionManager Team
+            С уважением,
+            {endpoint.SenderName}
             """,
                 IsBodyHtml = false
             };
@@ -202,13 +202,13 @@ public class EmailService : IEmailService
                 From = new MailAddress(endpoint.SenderEmail, endpoint.SenderName),
                 Subject = title,
                 Body = $"""
-                    Hello!
-                    
-                    You have a new notification in Subscription Manager:
-                    
+                    Здравствуйте!
+
+                    У вас новое уведомление:
+
                     {message}
-                    
-                    Best regards,
+
+                    С уважением,
                     {endpoint.SenderName}
                     """,
                 IsBodyHtml = false

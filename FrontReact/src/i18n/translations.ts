@@ -541,6 +541,7 @@ export const translations = {
     noUpcomingPayments: 'Нет предстоящих платежей',
     upcomingBillsWillAppearHere: 'Ваши предстоящие счета появятся здесь',
     dueDate: 'Срок оплаты',
+    upcomingPaymentsPager: '{current} / {total}',
   },
 
   // Админ

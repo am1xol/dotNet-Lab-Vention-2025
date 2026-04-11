@@ -594,3 +594,29 @@ BEGIN
     FROM [Feedbacks];
 END
 GO
+
+-- Последние отзывы для публичного блока в профиле (имя + первая буква фамилии)
+IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'sp_Feedbacks_GetRecentPublic')
+BEGIN
+    EXEC('CREATE PROCEDURE [sp_Feedbacks_GetRecentPublic] AS BEGIN SELECT 1 END');
+END
+GO
+ALTER PROCEDURE [sp_Feedbacks_GetRecentPublic]
+    @Take INT = 8
+AS
+BEGIN
+    IF @Take < 1 SET @Take = 8;
+    IF @Take > 50 SET @Take = 50;
+
+    SELECT TOP (@Take)
+        f.[Id],
+        f.[Rating],
+        f.[Comment],
+        f.[UpdatedAt],
+        u.[FirstName],
+        u.[LastName]
+    FROM [Feedbacks] f
+    INNER JOIN [Users] u ON u.[Id] = f.[UserId]
+    ORDER BY f.[UpdatedAt] DESC;
+END
+GO

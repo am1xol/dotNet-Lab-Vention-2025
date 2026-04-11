@@ -140,6 +140,28 @@ namespace SubscriptionManager.Auth.API.Controllers
             return $"{minutes} min";
         }
 
+        [HttpGet("public-summary")]
+        [Authorize]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<ActionResult<PublicFeedbackSummaryDto>> GetPublicFeedbackSummary(
+            [FromQuery] int recentCount = 8)
+        {
+            try
+            {
+                if (recentCount < 1) recentCount = 8;
+                if (recentCount > 50) recentCount = 50;
+
+                var summary = await _feedbackRepository.GetPublicFeedbackSummaryAsync(recentCount);
+                return Ok(summary);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting public feedback summary");
+                return Problem(title: ex.Message, statusCode: StatusCodes.Status500InternalServerError);
+            }
+        }
+
         [HttpGet]
         [Authorize(Roles = "Admin")]
         [ProducesResponseType(StatusCodes.Status200OK)]

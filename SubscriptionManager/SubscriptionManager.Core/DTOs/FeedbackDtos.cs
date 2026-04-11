@@ -40,4 +40,20 @@ namespace SubscriptionManager.Core.DTOs
         public int TotalCount { get; set; }
         public double AverageRating { get; set; }
     }
+
+    public class PublicFeedbackSummaryDto
+    {
+        public int TotalCount { get; set; }
+        public double AverageRating { get; set; }
+        public List<PublicFeedbackReviewDto> RecentReviews { get; set; } = new();
+    }
+
+    public class PublicFeedbackReviewDto
+    {
+        public Guid Id { get; set; }
+        public int Rating { get; set; }
+        public string? Comment { get; set; }
+        public DateTime UpdatedAt { get; set; }
+        public string DisplayName { get; set; } = string.Empty;
+    }
 }

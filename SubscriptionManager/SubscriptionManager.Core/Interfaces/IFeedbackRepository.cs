@@ -9,5 +9,6 @@ namespace SubscriptionManager.Core.Interfaces
         Task<Feedback> CreateOrUpdateFeedbackAsync(Guid userId, int rating, string? comment);
         Task<PagedFeedbackResult> GetAllFeedbacksAsync(int pageNumber, int pageSize);
         Task<FeedbackStatisticsDto> GetAverageRatingAsync();
+        Task<PublicFeedbackSummaryDto> GetPublicFeedbackSummaryAsync(int recentTake);
     }
 }

@@ -1,5 +1,11 @@
 import api from './api';
-import { FeedbackDto, CreateFeedbackRequest, PagedFeedbackResult, FeedbackStatisticsDto } from '../types/feedback';
+import {
+  FeedbackDto,
+  CreateFeedbackRequest,
+  PagedFeedbackResult,
+  FeedbackStatisticsDto,
+  PublicFeedbackSummaryDto,
+} from '../types/feedback';
 
 export const feedbackService = {
   getMyFeedback: async (): Promise<FeedbackDto | null> => {
@@ -28,6 +34,13 @@ export const feedbackService = {
 
   getStatistics: async (): Promise<FeedbackStatisticsDto> => {
     const response = await api.get<FeedbackStatisticsDto>('/api/feedback/statistics');
+    return response.data;
+  },
+
+  getPublicSummary: async (recentCount: number = 8): Promise<PublicFeedbackSummaryDto> => {
+    const response = await api.get<PublicFeedbackSummaryDto>('/api/feedback/public-summary', {
+      params: { recentCount },
+    });
     return response.data;
   },
 };

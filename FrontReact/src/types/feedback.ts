@@ -30,3 +30,17 @@ export interface FeedbackStatisticsDto {
   totalCount: number;
   averageRating: number;
 }
+
+export interface PublicFeedbackReviewDto {
+  id: string;
+  rating: number;
+  comment: string | null;
+  updatedAt: string;
+  displayName: string;
+}
+
+export interface PublicFeedbackSummaryDto {
+  totalCount: number;
+  averageRating: number;
+  recentReviews: PublicFeedbackReviewDto[];
+}

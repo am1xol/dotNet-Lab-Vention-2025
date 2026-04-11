@@ -102,4 +102,77 @@ public class FeedbackRepository : IFeedbackRepository
         
         return result ?? new FeedbackStatisticsDto { TotalCount = 0, AverageRating = 0 };
     }
+
+    public async Task<PublicFeedbackSummaryDto> GetPublicFeedbackSummaryAsync(int recentTake)
+    {
+        var stats = await GetAverageRatingAsync();
+        if (stats.TotalCount == 0)
+        {
+            stats.AverageRating = 0;
+        }
+
+        const string sql = "sp_Feedbacks_GetRecentPublic";
+        using var connection = CreateConnection();
+
+        var rows = await connection.QueryAsync<FeedbackRecentRow>(
+            sql,
+            new { Take = recentTake },
+            commandType: CommandType.StoredProcedure);
+
+        const int maxCommentLength = 500;
+        var reviews = rows.Select(r => new PublicFeedbackReviewDto
+        {
+            Id = r.Id,
+            Rating = r.Rating,
+            Comment = TruncateComment(r.Comment, maxCommentLength),
+            UpdatedAt = r.UpdatedAt,
+            DisplayName = FormatPublicDisplayName(r.FirstName, r.LastName),
+        }).ToList();
+
+        return new PublicFeedbackSummaryDto
+        {
+            TotalCount = stats.TotalCount,
+            AverageRating = stats.TotalCount == 0 ? 0 : stats.AverageRating,
+            RecentReviews = reviews,
+        };
+    }
+
+    private static string? TruncateComment(string? comment, int maxLen)
+    {
+        if (string.IsNullOrWhiteSpace(comment))
+        {
+            return null;
+        }
+
+        var t = comment.Trim();
+        return t.Length <= maxLen ? t : t[..maxLen].TrimEnd() + "…";
+    }
+
+    private static string FormatPublicDisplayName(string? firstName, string? lastName)
+    {
+        var fn = (firstName ?? string.Empty).Trim();
+        var ln = (lastName ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(fn))
+        {
+            return "Пользователь";
+        }
+
+        if (string.IsNullOrEmpty(ln))
+        {
+            return fn;
+        }
+
+        var initial = char.ToUpperInvariant(ln[0]);
+        return $"{fn} {initial}.";
+    }
+
+    private sealed class FeedbackRecentRow
+    {
+        public Guid Id { get; set; }
+        public int Rating { get; set; }
+        public string? Comment { get; set; }
+        public DateTime UpdatedAt { get; set; }
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
+    }
 }

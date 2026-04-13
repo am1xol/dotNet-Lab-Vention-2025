@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useSnackbar } from 'notistack';
+import { useNavigate } from 'react-router-dom';
 import { notificationService } from '../../services/notification-service';
 import { useAuthStore } from '../../store/auth-store';
 import { Notification } from '../../types/notification';
@@ -10,6 +11,7 @@ const t = translations.notifications;
 export const NotificationWatcher: React.FC = () => {
   const { isAuthenticated } = useAuthStore();
   const { enqueueSnackbar } = useSnackbar();
+  const navigate = useNavigate();
   const shownIds = useRef<Set<string>>(new Set());
 
   const POLLING_INTERVAL = 10000;
@@ -25,6 +27,8 @@ export const NotificationWatcher: React.FC = () => {
         );
 
         if (unreadOnes.length > 0) {
+          const handleSnackbarClick = () => navigate('/profile');
+
           enqueueSnackbar(
             unreadOnes.length === 1
               ? t.newNotification
@@ -33,6 +37,12 @@ export const NotificationWatcher: React.FC = () => {
               variant: 'info',
               anchorOrigin: { vertical: 'top', horizontal: 'right' },
               autoHideDuration: 5000,
+              SnackbarProps: {
+                onClick: handleSnackbarClick,
+                style: {
+                  cursor: 'pointer',
+                },
+              },
             }
           );
 
@@ -46,7 +56,7 @@ export const NotificationWatcher: React.FC = () => {
     checkForNewNotifications();
     const intervalId = setInterval(checkForNewNotifications, POLLING_INTERVAL);
     return () => clearInterval(intervalId);
-  }, [isAuthenticated, enqueueSnackbar]);
+  }, [isAuthenticated, enqueueSnackbar, navigate]);
 
   return null;
 };

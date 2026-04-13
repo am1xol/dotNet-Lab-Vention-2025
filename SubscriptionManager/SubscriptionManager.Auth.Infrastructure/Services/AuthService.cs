@@ -11,6 +11,8 @@ namespace SubscriptionManager.Auth.Infrastructure.Services;
 
 public class AuthService : IAuthService
 {
+    private static readonly string[] ReservedAdminMarkers = ["admin", "админ", "adminuser", "админпользователь", "Admin", "Админ", "AdminUser", "Админпользователь"];
+
     private readonly IUserRepository _userRepository;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IVerificationCodeService _verificationCodeService;
@@ -59,6 +61,11 @@ public class AuthService : IAuthService
 
     public async Task<AuthResult> RegisterAsync(RegisterRequest request)
     {
+        if (ContainsReservedAdminMarker(request.FirstName, request.LastName, request.Email))
+        {
+            return new AuthResult { Error = "Registration with admin-related name, surname, or email is not allowed" };
+        }
+
         if (await _userRepository.ExistsByEmailAsync(request.Email))
         {
             return new AuthResult { Error = "Email already exists" };
@@ -108,6 +115,28 @@ public class AuthService : IAuthService
         }
 
         return new AuthResult { UserId = user.Id.ToString() };
+    }
+
+    private static bool ContainsReservedAdminMarker(params string[] values)
+    {
+        foreach (var rawValue in values)
+        {
+            if (string.IsNullOrWhiteSpace(rawValue))
+            {
+                continue;
+            }
+
+            var normalized = rawValue.Trim().ToLowerInvariant();
+            foreach (var marker in ReservedAdminMarkers)
+            {
+                if (normalized.Contains(marker, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     public async Task<AuthResult> VerifyEmailAsync(VerifyEmailRequest request)

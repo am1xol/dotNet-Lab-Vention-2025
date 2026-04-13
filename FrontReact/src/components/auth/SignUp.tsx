@@ -151,6 +151,7 @@ const AnimatedCardContent = styled(motion.div)({
 });
 
 type SignUpStep = 'registration' | 'verification';
+const RESERVED_ADMIN_MARKERS = ['admin', 'админ'];
 
 export const SignUp: React.FC = () => {
   const { enqueueSnackbar } = useSnackbar();
@@ -332,6 +333,23 @@ export const SignUp: React.FC = () => {
   const hasLeadingOrTrailingSpaces = (value: string): boolean => {
     return value.trim() !== value;
   };
+  const containsReservedAdminMarker = (value: string): boolean => {
+    const normalized = value.trim().toLowerCase();
+    return RESERVED_ADMIN_MARKERS.some((marker) => normalized.includes(marker));
+  };
+  const getFieldWithReservedAdminMarker = (): keyof RegisterRequest | null => {
+    if (containsReservedAdminMarker(formData.firstName)) {
+      return 'firstName';
+    }
+    if (containsReservedAdminMarker(formData.lastName)) {
+      return 'lastName';
+    }
+    if (containsReservedAdminMarker(formData.email)) {
+      return 'email';
+    }
+    return null;
+  };
+  const hasReservedAdminMarker = getFieldWithReservedAdminMarker() !== null;
   const isRegistrationFormValid =
     /\S+@\S+\.\S+/.test(formData.email.trim()) &&
     formData.password.length >= 6 &&
@@ -339,6 +357,7 @@ export const SignUp: React.FC = () => {
     formData.lastName.trim().length > 0 &&
     !hasLeadingOrTrailingSpaces(formData.firstName) &&
     !hasLeadingOrTrailingSpaces(formData.lastName) &&
+    !hasReservedAdminMarker &&
     formData.acceptTerms;
   const isVerificationCodeValid = verificationCode.trim().length > 0;
   const isVerificationEmailValid = /\S+@\S+\.\S+/.test(formData.email.trim());
@@ -411,6 +430,21 @@ export const SignUp: React.FC = () => {
     } else if (hasLeadingOrTrailingSpaces(formData.lastName)) {
       setLastNameError(true);
       setLastNameErrorMessage(translations.validation.noLeadingOrTrailingSpaces);
+      isValid = false;
+    }
+
+    const fieldWithReservedMarker = getFieldWithReservedAdminMarker();
+    if (fieldWithReservedMarker === 'firstName') {
+      setFirstNameError(true);
+      setFirstNameErrorMessage(translations.validation.adminMentionNotAllowed);
+      isValid = false;
+    } else if (fieldWithReservedMarker === 'lastName') {
+      setLastNameError(true);
+      setLastNameErrorMessage(translations.validation.adminMentionNotAllowed);
+      isValid = false;
+    } else if (fieldWithReservedMarker === 'email') {
+      setEmailError(true);
+      setEmailErrorMessage(translations.validation.adminMentionNotAllowed);
       isValid = false;
     }
 

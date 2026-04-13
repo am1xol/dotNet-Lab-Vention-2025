@@ -755,6 +755,7 @@ export const translations = {
     emailAlreadyExists: 'Пользователь с таким email уже существует',
     invalidPhone: 'Введите корректный номер телефона',
     selectOption: 'Выберите вариант',
+    adminMentionNotAllowed: 'Нельзя использовать упоминания admin/админ в имени, фамилии или email',
   },
 
   // Статьи и FAQ

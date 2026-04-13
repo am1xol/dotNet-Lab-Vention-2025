@@ -53,6 +53,30 @@ const UserChatWidget: React.FC = () => {
     }
   }, []);
 
+  const loadUnreadCount = useCallback(async () => {
+    if (!isAuthenticated) return;
+
+    try {
+      const data = await chatService.getMyConversation();
+      setUnreadCount(data.conversation.unreadCount);
+      setIsClosed(data.conversation.status === 'Closed');
+      setError(null);
+    } catch (error: any) {
+      // Fallback to dedicated unread endpoint if conversation is unavailable.
+      try {
+        const count = await chatService.getUnreadCount();
+        setUnreadCount(count);
+      } catch (unreadError) {
+        console.error('Error loading unread count:', unreadError);
+      }
+
+      if (error?.response?.status === 403) {
+        setError(error.response.data);
+        setIsClosed(true);
+      }
+    }
+  }, [isAuthenticated]);
+
   const startNewConversation = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -85,6 +109,33 @@ const UserChatWidget: React.FC = () => {
       }
     };
   }, [isOpen, isAuthenticated, loadConversation, markAsRead]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setUnreadCount(0);
+      return;
+    }
+
+    loadUnreadCount();
+
+    // A short delayed re-fetch helps after login/navigation transitions.
+    const initRetryTimeout = setTimeout(() => {
+      loadUnreadCount();
+    }, 1500);
+
+    return () => clearTimeout(initRetryTimeout);
+  }, [isAuthenticated, loadUnreadCount]);
+
+  useEffect(() => {
+    if (!isAuthenticated || isOpen) return;
+
+    loadUnreadCount();
+    const unreadPollInterval = setInterval(() => {
+      loadUnreadCount();
+    }, POLL_INTERVAL);
+
+    return () => clearInterval(unreadPollInterval);
+  }, [isAuthenticated, isOpen, loadUnreadCount]);
 
   useEffect(() => {
     if (messages.length > prevMessagesLengthRef.current) {
@@ -121,12 +172,19 @@ const UserChatWidget: React.FC = () => {
     return null;
   }
 
+  const handleToggleChat = () => {
+    if (!isOpen) {
+      setUnreadCount(0);
+    }
+    setIsOpen(!isOpen);
+  };
+
   return (
     <>
       {/* Chat toggle button */}
       <Fab
         color="primary"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggleChat}
         sx={{
           position: 'fixed',
           bottom: 24,

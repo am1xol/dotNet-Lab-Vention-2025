@@ -74,11 +74,11 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
     }
 
     if (name === 'subscriptionExpiryReminderDays') {
-      if (value.length === 0) {
+      if (value.trim().length === 0) {
         return translations.profile.reminderDaysInvalid;
       }
 
-      if (!/^\d+$/.test(value)) {
+      if (!/^-?\d+$/.test(value)) {
         return translations.profile.reminderDaysInvalid;
       }
 

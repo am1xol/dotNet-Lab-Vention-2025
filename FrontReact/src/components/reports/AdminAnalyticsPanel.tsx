@@ -41,6 +41,9 @@ const emptyDashboard: AdminAnalyticsDashboard = {
 };
 
 const CHART_COLORS = ['#7E57C2', '#5C6BC0', '#26A69A', '#FFA726', '#EF5350', '#8D6E63', '#66BB6A'];
+const MAX_ANALYTICS_PERIOD_DAYS = 365;
+const MIN_EXPIRING_WITHIN_DAYS = 0;
+const MAX_EXPIRING_WITHIN_DAYS = 365;
 
 const StatCard: React.FC<{ label: string; value: number; accent?: string }> = ({
   label,
@@ -170,7 +173,15 @@ export const AdminAnalyticsPanel: React.FC = () => {
             type="number"
             size="small"
             value={periodDays}
-            onChange={(e) => setPeriodDays(Math.max(1, Number(e.target.value) || 1))}
+            onChange={(e) => {
+              const value = Number(e.target.value);
+              if (Number.isNaN(value)) {
+                setPeriodDays(1);
+                return;
+              }
+              setPeriodDays(Math.min(MAX_ANALYTICS_PERIOD_DAYS, Math.max(1, value)));
+            }}
+            inputProps={{ min: 1, max: MAX_ANALYTICS_PERIOD_DAYS, step: 1 }}
             sx={{ width: 200 }}
           />
           <TextField
@@ -178,7 +189,17 @@ export const AdminAnalyticsPanel: React.FC = () => {
             type="number"
             size="small"
             value={expiringWithinDays}
-            onChange={(e) => setExpiringWithinDays(Math.max(1, Number(e.target.value) || 1))}
+            onChange={(e) => {
+              const value = Number(e.target.value);
+              if (Number.isNaN(value)) {
+                setExpiringWithinDays(MIN_EXPIRING_WITHIN_DAYS);
+                return;
+              }
+              setExpiringWithinDays(
+                Math.min(MAX_EXPIRING_WITHIN_DAYS, Math.max(MIN_EXPIRING_WITHIN_DAYS, value))
+              );
+            }}
+            inputProps={{ min: MIN_EXPIRING_WITHIN_DAYS, max: MAX_EXPIRING_WITHIN_DAYS, step: 1 }}
             sx={{ width: 240 }}
           />
           <Chip

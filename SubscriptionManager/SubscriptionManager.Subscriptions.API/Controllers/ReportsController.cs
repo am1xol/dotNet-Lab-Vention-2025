@@ -121,7 +121,7 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             [FromQuery] int expiringWithinDays = 7)
         {
             var normalizedPeriodDays = Math.Clamp(periodDays, 1, 365);
-            var normalizedExpiringWithinDays = Math.Clamp(expiringWithinDays, 1, 90);
+            var normalizedExpiringWithinDays = Math.Clamp(expiringWithinDays, 0, 365);
             var periodStart = DateTime.UtcNow.AddDays(-normalizedPeriodDays);
 
             using var connection = new SqlConnection(_connectionString);

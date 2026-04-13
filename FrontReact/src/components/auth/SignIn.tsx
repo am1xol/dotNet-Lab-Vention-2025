@@ -160,6 +160,8 @@ export const SignIn: React.FC = () => {
 
   const { enqueueSnackbar } = useSnackbar();
   const navigate = useNavigate();
+  const isSignInFormValid =
+    /\S+@\S+\.\S+/.test(formData.email.trim()) && formData.password.trim().length > 0;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -476,6 +478,11 @@ export const SignIn: React.FC = () => {
                   fullWidth
                   disabled={loading}
                   size="large"
+                  sx={
+                    isSignInFormValid
+                      ? { color: '#fff', textShadow: '0 0 8px rgba(255, 255, 255, 0.9)' }
+                      : undefined
+                  }
                 >
                   {loading ? <CircularProgress size={24} /> : translations.common.signIn}
                 </GradientButton>

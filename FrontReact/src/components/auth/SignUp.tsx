@@ -332,6 +332,16 @@ export const SignUp: React.FC = () => {
   const hasLeadingOrTrailingSpaces = (value: string): boolean => {
     return value.trim() !== value;
   };
+  const isRegistrationFormValid =
+    /\S+@\S+\.\S+/.test(formData.email.trim()) &&
+    formData.password.length >= 6 &&
+    formData.firstName.trim().length > 0 &&
+    formData.lastName.trim().length > 0 &&
+    !hasLeadingOrTrailingSpaces(formData.firstName) &&
+    !hasLeadingOrTrailingSpaces(formData.lastName) &&
+    formData.acceptTerms;
+  const isVerificationCodeValid = verificationCode.trim().length > 0;
+  const isVerificationEmailValid = /\S+@\S+\.\S+/.test(formData.email.trim());
 
   const applyServerFieldErrors = (errors: Record<string, string[]>) => {
     const entries = Object.entries(errors);
@@ -736,7 +746,9 @@ export const SignUp: React.FC = () => {
                   </Typography>
                   <Button
                     onClick={handleResendCode}
-                    disabled={resendLoading || resendTimer > 0}
+                    disabled={
+                      resendLoading || resendTimer > 0 || !isVerificationEmailValid
+                    }
                     variant="outlined"
                     size="small"
                     sx={{
@@ -773,7 +785,12 @@ export const SignUp: React.FC = () => {
                   fullWidth
                   disabled={loading}
                   size="large"
-                  sx={{ mt: 2 }}
+                  sx={{
+                    mt: 2,
+                    ...(isVerificationCodeValid
+                      ? { color: '#fff', textShadow: '0 0 8px rgba(255, 255, 255, 0.9)' }
+                      : {}),
+                  }}
                 >
                   {loading ? <CircularProgress size={24} /> : translations.auth.verifyEmail}
                 </GradientButton>
@@ -1066,6 +1083,11 @@ export const SignUp: React.FC = () => {
                 fullWidth
                 disabled={loading}
                 size="large"
+                sx={
+                  isRegistrationFormValid
+                    ? { color: '#fff', textShadow: '0 0 8px rgba(255, 255, 255, 0.9)' }
+                    : undefined
+                }
               >
                 {loading ? <CircularProgress size={24} /> : translations.auth.createAccount}
               </GradientButton>

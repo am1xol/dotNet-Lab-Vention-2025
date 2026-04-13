@@ -8,6 +8,7 @@ using SubscriptionManager.Subscriptions.Infrastructure.Services;
 using System.Data;
 using System.Security.Claims;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace SubscriptionManager.Subscriptions.API.Controllers
 {
@@ -16,6 +17,11 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
     [Authorize]
     public class PromoCodesController : ControllerBase
     {
+        private const decimal MaxPercentDiscountValue = 99m;
+        private const decimal MaxMonetaryValue = 100000m;
+        private const int MaxDaysBack = 365;
+        private const int MaxTopUsersCount = 10000;
+
         private sealed class PromoNotificationInfo
         {
             public Guid Id { get; set; }
@@ -50,6 +56,70 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         [ProducesResponseType(typeof(PromoCodeCreateResultDto), StatusCodes.Status201Created)]
         public async Task<ActionResult<PromoCodeCreateResultDto>> Create([FromBody] CreatePromoCodeRequest request)
         {
+            request.Code = NormalizeText(request.Code, true);
+            request.Title = NormalizeText(request.Title);
+            request.Description = NormalizeText(request.Description);
+
+            if (string.IsNullOrWhiteSpace(request.Code))
+            {
+                return BadRequest("Promo code is required.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Title))
+            {
+                return BadRequest("Promo title is required.");
+            }
+
+            if (request.ValidTo <= request.ValidFrom)
+            {
+                return BadRequest("Promo code validTo must be greater than validFrom.");
+            }
+
+            if (request.DiscountType == 1 && request.DiscountValue > MaxPercentDiscountValue)
+            {
+                return BadRequest($"Percentage discount cannot exceed {MaxPercentDiscountValue:0}.");
+            }
+
+            if (request.DiscountType == 2 && request.DiscountValue > MaxMonetaryValue)
+            {
+                return BadRequest($"Fixed discount cannot exceed {MaxMonetaryValue:0.##}.");
+            }
+
+            if (request.TotalUsageLimit.HasValue && request.TotalUsageLimit < request.PerUserUsageLimit)
+            {
+                return BadRequest("Total usage limit cannot be less than per-user usage limit.");
+            }
+
+            if (request.Conditions.Any(c => c.MinAmount.HasValue && c.MinAmount.Value < 0))
+            {
+                return BadRequest("Condition minAmount cannot be negative.");
+            }
+
+            if (request.Conditions.Any(c => c.MinAmount.HasValue && c.MinAmount.Value > MaxMonetaryValue))
+            {
+                return BadRequest($"Condition minAmount cannot exceed {MaxMonetaryValue:0.##}.");
+            }
+
+            if (request.MaxDiscountAmount.HasValue && request.MaxDiscountAmount.Value > MaxMonetaryValue)
+            {
+                return BadRequest($"MaxDiscountAmount cannot exceed {MaxMonetaryValue:0.##}.");
+            }
+
+            if (request.MinAmount.HasValue && request.MinAmount.Value > MaxMonetaryValue)
+            {
+                return BadRequest($"MinAmount cannot exceed {MaxMonetaryValue:0.##}.");
+            }
+
+            if (request.DaysBack > MaxDaysBack)
+            {
+                return BadRequest($"DaysBack cannot exceed {MaxDaysBack}.");
+            }
+
+            if (request.TopUsersCount > MaxTopUsersCount)
+            {
+                return BadRequest($"TopUsersCount cannot exceed {MaxTopUsersCount}.");
+            }
+
             try
             {
                 var adminIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
@@ -244,6 +314,26 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             [FromQuery] int daysBack = 30,
             [FromQuery] int topUsersCount = 100)
         {
+            if (audienceType is < 1 or > 4)
+            {
+                return BadRequest("AudienceType should be between 1 and 4.");
+            }
+
+            if (daysBack is < 1 or > MaxDaysBack)
+            {
+                return BadRequest($"DaysBack should be between 1 and {MaxDaysBack}.");
+            }
+
+            if (topUsersCount < 1)
+            {
+                return BadRequest("TopUsersCount should be greater than 0.");
+            }
+
+            if (topUsersCount > MaxTopUsersCount)
+            {
+                return BadRequest($"TopUsersCount should not exceed {MaxTopUsersCount}.");
+            }
+
             try
             {
                 using var connection = new SqlConnection(_connectionString);
@@ -457,6 +547,17 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             }
 
             return string.Join(", ", parts);
+        }
+
+        private static string NormalizeText(string? value, bool uppercase = false)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return string.Empty;
+            }
+
+            var normalized = Regex.Replace(value.Trim(), @"\s+", " ");
+            return uppercase ? normalized.ToUpperInvariant() : normalized;
         }
     }
 }

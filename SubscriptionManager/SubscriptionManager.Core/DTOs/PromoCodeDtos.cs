@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace SubscriptionManager.Core.DTOs
 {
     public class PromoCodeDto
@@ -21,21 +23,48 @@ namespace SubscriptionManager.Core.DTOs
 
     public class CreatePromoCodeRequest
     {
+        [Required]
+        [MinLength(2)]
+        [MaxLength(64)]
         public string Code { get; set; } = string.Empty;
+
+        [Required]
+        [MinLength(2)]
+        [MaxLength(200)]
         public string Title { get; set; } = string.Empty;
+
+        [MaxLength(1000)]
         public string? Description { get; set; }
+
+        [Range(1, 2)]
         public int DiscountType { get; set; }
+
+        [Range(typeof(decimal), "0.01", "100000")]
         public decimal DiscountValue { get; set; }
+
+        [Range(typeof(decimal), "0.01", "100000")]
         public decimal? MaxDiscountAmount { get; set; }
         public DateTime ValidFrom { get; set; }
         public DateTime ValidTo { get; set; }
+
+        [Range(1, int.MaxValue)]
         public int? TotalUsageLimit { get; set; }
+
+        [Range(1, int.MaxValue)]
         public int PerUserUsageLimit { get; set; } = 1;
         public Guid? SubscriptionId { get; set; }
         public Guid? PeriodId { get; set; }
+
+        [Range(typeof(decimal), "0", "100000")]
         public decimal? MinAmount { get; set; }
+
+        [Range(1, 4)]
         public int AudienceType { get; set; } = 1;
+
+        [Range(1, 365)]
         public int DaysBack { get; set; } = 30;
+
+        [Range(1, 10000)]
         public int TopUsersCount { get; set; } = 100;
         public List<CreatePromoCodeConditionRequest> Conditions { get; set; } = new();
     }
@@ -44,6 +73,8 @@ namespace SubscriptionManager.Core.DTOs
     {
         public Guid? SubscriptionId { get; set; }
         public Guid? PeriodId { get; set; }
+
+        [Range(typeof(decimal), "0", "100000")]
         public decimal? MinAmount { get; set; }
     }
 

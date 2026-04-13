@@ -52,8 +52,14 @@ const defaultForm: PromoCreateRequest = {
   conditions: [{ subscriptionId: undefined, periodId: undefined, minAmount: undefined }],
 };
 
+const MAX_PERCENT_DISCOUNT = 99;
+const MAX_AUDIENCE_DAYS_BACK = 365;
+const MAX_MONETARY_VALUE = 100000;
+const MAX_TOP_USERS_COUNT = 10000;
+
 export const AdminPromoCodesPanel: React.FC = () => {
   const [form, setForm] = useState<PromoCreateRequest>(defaultForm);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [previewUsers, setPreviewUsers] = useState<PromoAudienceUser[]>([]);
   const [promos, setPromos] = useState<PromoCode[]>([]);
   const [selectedPromoId, setSelectedPromoId] = useState<string>('');
@@ -63,6 +69,110 @@ export const AdminPromoCodesPanel: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const removeLeadingSpaces = (value: string): string => value.replace(/^\s+/, '');
+
+  const normalizeText = (value: string, uppercase = false): string => {
+    const normalized = value.replace(/\s+/g, ' ').trim();
+    return uppercase ? normalized.toUpperCase() : normalized;
+  };
+
+  const isPositiveInteger = (value: number): boolean => Number.isInteger(value) && value > 0;
+
+  const validatePromoForm = (candidate: PromoCreateRequest): string[] => {
+    const errors: string[] = [];
+
+    if (!normalizeText(candidate.code)) {
+      errors.push('Введите код промокода.');
+    }
+    if (!normalizeText(candidate.title)) {
+      errors.push('Введите название промокода.');
+    }
+
+    if (candidate.discountType !== 1 && candidate.discountType !== 2) {
+      errors.push('Некорректный тип скидки.');
+    }
+    if (!Number.isFinite(candidate.discountValue) || candidate.discountValue <= 0) {
+      errors.push('Значение скидки должно быть больше 0.');
+    }
+    if (candidate.discountType === 1 && candidate.discountValue > MAX_PERCENT_DISCOUNT) {
+      errors.push(`Процент скидки не может быть больше ${MAX_PERCENT_DISCOUNT}.`);
+    }
+
+    if (candidate.maxDiscountAmount !== undefined) {
+      if (!Number.isFinite(candidate.maxDiscountAmount) || candidate.maxDiscountAmount <= 0) {
+        errors.push('Максимальная сумма скидки должна быть больше 0.');
+      } else if (candidate.maxDiscountAmount > MAX_MONETARY_VALUE) {
+        errors.push(`Максимальная сумма скидки не может быть больше ${MAX_MONETARY_VALUE}.`);
+      }
+    }
+
+    if (candidate.discountType === 2 && candidate.discountValue > MAX_MONETARY_VALUE) {
+      errors.push(`Фиксированная скидка не может быть больше ${MAX_MONETARY_VALUE}.`);
+    }
+
+    if (!isPositiveInteger(candidate.perUserUsageLimit)) {
+      errors.push('Лимит использования на пользователя должен быть целым числом больше 0.');
+    }
+    if (candidate.totalUsageLimit !== undefined) {
+      if (!isPositiveInteger(candidate.totalUsageLimit)) {
+        errors.push('Общий лимит использования должен быть целым числом больше 0.');
+      }
+      if (candidate.totalUsageLimit < candidate.perUserUsageLimit) {
+        errors.push('Общий лимит не может быть меньше лимита на пользователя.');
+      }
+    }
+
+    const validFromDate = new Date(candidate.validFrom);
+    const validToDate = new Date(candidate.validTo);
+    if (Number.isNaN(validFromDate.getTime()) || Number.isNaN(validToDate.getTime())) {
+      errors.push('Укажите корректные даты действия промокода.');
+    } else if (validToDate <= validFromDate) {
+      errors.push('Дата окончания должна быть позже даты начала.');
+    }
+
+    if (![1, 2, 3, 4].includes(candidate.audienceType)) {
+      errors.push('Некорректный тип аудитории.');
+    }
+    if (!isPositiveInteger(candidate.daysBack)) {
+      errors.push('Количество дней должно быть целым числом больше 0.');
+    } else if (candidate.daysBack > MAX_AUDIENCE_DAYS_BACK) {
+      errors.push(`Количество дней не может быть больше ${MAX_AUDIENCE_DAYS_BACK}.`);
+    }
+    if (!isPositiveInteger(candidate.topUsersCount)) {
+      errors.push('Количество пользователей должно быть целым числом больше 0.');
+    } else if (candidate.topUsersCount > MAX_TOP_USERS_COUNT) {
+      errors.push(`Количество пользователей не может быть больше ${MAX_TOP_USERS_COUNT}.`);
+    }
+
+    if (!candidate.conditions.length) {
+      errors.push('Добавьте хотя бы одно условие применимости.');
+    }
+
+    candidate.conditions.forEach((condition, index) => {
+      if (condition.minAmount !== undefined) {
+        if (!Number.isFinite(condition.minAmount) || condition.minAmount < 0) {
+          errors.push(`Минимальная сумма в условии ${index + 1} не может быть отрицательной.`);
+        } else if (condition.minAmount > MAX_MONETARY_VALUE) {
+          errors.push(`Минимальная сумма в условии ${index + 1} не может быть больше ${MAX_MONETARY_VALUE}.`);
+        }
+      }
+    });
+
+    return errors;
+  };
+
+  const sanitizeForm = (candidate: PromoCreateRequest): PromoCreateRequest => ({
+    ...candidate,
+    code: candidate.code.toUpperCase(),
+    title: candidate.title,
+    description: candidate.description,
+    conditions: candidate.conditions.map((condition) => ({
+      subscriptionId: condition.subscriptionId,
+      periodId: condition.periodId,
+      minAmount: condition.minAmount === undefined ? undefined : Number(condition.minAmount),
+    })),
+  });
 
   const loadPromos = async () => {
     const data = await promoService.getAdminPromos();
@@ -125,23 +235,41 @@ export const AdminPromoCodesPanel: React.FC = () => {
 
   const handlePreview = async () => {
     setError(null);
+    const sanitized = sanitizeForm(form);
+    const errors = validatePromoForm(sanitized);
+    setValidationErrors(errors);
+    if (errors.length > 0) {
+      setError('Исправьте ошибки в форме перед предпросмотром аудитории.');
+      return;
+    }
+
     const users = await promoService.getAudiencePreview(
-      form.audienceType,
-      form.daysBack,
-      form.topUsersCount
+      sanitized.audienceType,
+      sanitized.daysBack,
+      sanitized.topUsersCount
     );
+    setForm(sanitized);
     setPreviewUsers(users);
   };
 
   const handleCreate = async () => {
+    const sanitized = sanitizeForm(form);
+    const errors = validatePromoForm(sanitized);
+    setValidationErrors(errors);
+    if (errors.length > 0) {
+      setError('Исправьте ошибки в форме перед созданием промокода.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setSuccess(null);
     try {
-      const result = await promoService.createPromoCode(form);
+      const result = await promoService.createPromoCode(sanitized);
       setSuccess(`Промокод создан и отправлен: ${result.assignedUsersCount} пользователям`);
       setPreviewUsers(result.assignedAccounts);
-      setForm({ ...defaultForm, validFrom: form.validFrom, validTo: form.validTo });
+      setForm({ ...defaultForm, validFrom: sanitized.validFrom, validTo: sanitized.validTo });
+      setValidationErrors([]);
       await loadPromos();
     } catch (e: any) {
       setError(e.response?.data || 'Не удалось создать промокод');
@@ -171,6 +299,11 @@ export const AdminPromoCodesPanel: React.FC = () => {
     <Stack spacing={3}>
       {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
       {success && <Alert severity="success" onClose={() => setSuccess(null)}>{success}</Alert>}
+      {validationErrors.length > 0 && (
+        <Alert severity="warning" onClose={() => setValidationErrors([])}>
+          {validationErrors.map((item) => item).join(' ')}
+        </Alert>
+      )}
 
       <Card>
         <CardContent>
@@ -182,10 +315,27 @@ export const AdminPromoCodesPanel: React.FC = () => {
               1. Основная информация
             </Typography>
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-              <TextField label="Код" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} fullWidth />
-              <TextField label="Название" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} fullWidth />
+              <TextField
+                label="Код"
+                value={form.code}
+                onChange={(e) =>
+                  setForm({ ...form, code: removeLeadingSpaces(e.target.value).toUpperCase() })
+                }
+                fullWidth
+              />
+              <TextField
+                label="Название"
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: removeLeadingSpaces(e.target.value) })}
+                fullWidth
+              />
             </Stack>
-            <TextField label="Описание" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} fullWidth />
+            <TextField
+              label="Описание"
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: removeLeadingSpaces(e.target.value) })}
+              fullWidth
+            />
 
             <Divider />
             <Typography variant="subtitle2" color="text.secondary">
@@ -203,8 +353,8 @@ export const AdminPromoCodesPanel: React.FC = () => {
                   <MenuItem value={2}>Фиксированная сумма</MenuItem>
                 </Select>
               </FormControl>
-              <TextField label="Значение скидки" type="number" value={form.discountValue} onChange={(e) => setForm({ ...form, discountValue: Number(e.target.value) })} fullWidth />
-              <TextField label="Лимит на пользователя" type="number" value={form.perUserUsageLimit} onChange={(e) => setForm({ ...form, perUserUsageLimit: Number(e.target.value) })} fullWidth />
+              <TextField label="Значение скидки" type="number" inputProps={{ min: 0, max: form.discountType === 1 ? MAX_PERCENT_DISCOUNT : MAX_MONETARY_VALUE, step: 'any' }} value={form.discountValue} onChange={(e) => setForm({ ...form, discountValue: Number(e.target.value) })} fullWidth />
+              <TextField label="Лимит на пользователя" type="number" inputProps={{ min: 1, step: 1 }} value={form.perUserUsageLimit} onChange={(e) => setForm({ ...form, perUserUsageLimit: Number(e.target.value) })} fullWidth />
             </Stack>
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
               <TextField label="Действует с" type="datetime-local" value={form.validFrom} onChange={(e) => setForm({ ...form, validFrom: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
@@ -263,6 +413,7 @@ export const AdminPromoCodesPanel: React.FC = () => {
                       <TextField
                         label="Мин. сумма заказа"
                         type="number"
+                        inputProps={{ min: 0, max: MAX_MONETARY_VALUE, step: 'any' }}
                         value={condition.minAmount ?? ''}
                         onChange={(e) =>
                           updateCondition(index, {
@@ -299,8 +450,8 @@ export const AdminPromoCodesPanel: React.FC = () => {
                   <MenuItem value={4}>Не покупали &gt; N дней (реактивация)</MenuItem>
                 </Select>
               </FormControl>
-              <TextField label={translations.promo.daysBackLabel} type="number" value={form.daysBack} onChange={(e) => setForm({ ...form, daysBack: Number(e.target.value) })} fullWidth />
-              <TextField label={translations.promo.topUsersLabel} type="number" value={form.topUsersCount} onChange={(e) => setForm({ ...form, topUsersCount: Number(e.target.value) })} fullWidth />
+              <TextField label={translations.promo.daysBackLabel} type="number" inputProps={{ min: 1, max: MAX_AUDIENCE_DAYS_BACK, step: 1 }} value={form.daysBack} onChange={(e) => setForm({ ...form, daysBack: Number(e.target.value) })} fullWidth />
+              <TextField label={translations.promo.topUsersLabel} type="number" inputProps={{ min: 1, max: MAX_TOP_USERS_COUNT, step: 1 }} value={form.topUsersCount} onChange={(e) => setForm({ ...form, topUsersCount: Number(e.target.value) })} fullWidth />
             </Stack>
             <Stack direction="row" spacing={1}>
               <Button variant="outlined" onClick={handlePreview}>Предпросмотр аудитории</Button>

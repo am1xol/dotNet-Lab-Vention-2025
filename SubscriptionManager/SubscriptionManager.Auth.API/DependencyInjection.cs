@@ -31,6 +31,7 @@ namespace SubscriptionManager.Auth.API
             services.Configure<VerificationCodeOptions>(configuration.GetSection(VerificationCodeOptions.SectionName));
             services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
             services.Configure<MinIOOptions>(configuration.GetSection(MinIOOptions.SectionName));
+            services.Configure<ChatModerationOptions>(configuration.GetSection(ChatModerationOptions.SectionName));
 
             return services;
         }
@@ -51,6 +52,7 @@ namespace SubscriptionManager.Auth.API
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IChatRepository, ChatRepository>();
+            services.AddScoped<IProfanityFilter, ProfanityFilter>();
             services.AddScoped<IFeedbackRepository, FeedbackRepository>();
 
             return services;

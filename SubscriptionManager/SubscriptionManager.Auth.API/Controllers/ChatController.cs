@@ -15,17 +15,20 @@ namespace SubscriptionManager.Auth.API.Controllers
         private readonly IChatRepository _chatRepository;
         private readonly IUserRepository _userRepository;
         private readonly IEmailService _emailService;
+        private readonly IProfanityFilter _profanityFilter;
         private readonly ILogger<ChatController> _logger;
 
         public ChatController(
             IChatRepository chatRepository,
             IUserRepository userRepository,
             IEmailService emailService,
+            IProfanityFilter profanityFilter,
             ILogger<ChatController> logger)
         {
             _chatRepository = chatRepository;
             _userRepository = userRepository;
             _emailService = emailService;
+            _profanityFilter = profanityFilter;
             _logger = logger;
         }
 
@@ -140,6 +143,8 @@ namespace SubscriptionManager.Auth.API.Controllers
                     return BadRequest("Message content cannot be empty");
                 }
 
+                var moderatedContent = _profanityFilter.ModerateText(request.Content);
+
                 var userId = GetUserIdFromClaims();
                 var userRole = IsAdmin() ? "Admin" : "User";
 
@@ -154,11 +159,11 @@ namespace SubscriptionManager.Auth.API.Controllers
                     conversation.Id, 
                     userId, 
                     userRole, 
-                    request.Content);
+                    moderatedContent);
 
                 if (!IsAdmin())
                 {
-                    await NotifyAdminsAboutNewSupportMessageAsync(userId, request.Content);
+                    await NotifyAdminsAboutNewSupportMessageAsync(userId, moderatedContent);
                 }
 
                 if (IsAdmin())
@@ -270,6 +275,8 @@ namespace SubscriptionManager.Auth.API.Controllers
                     return BadRequest("Message content cannot be empty");
                 }
 
+                var moderatedContent = _profanityFilter.ModerateText(request.Content);
+
                 var conversation = await _chatRepository.GetConversationByIdAsync(id);
                 if (conversation == null)
                 {
@@ -281,7 +288,7 @@ namespace SubscriptionManager.Auth.API.Controllers
                     id,
                     adminId,
                     "Admin",
-                    request.Content);
+                    moderatedContent);
 
                 var messageDto = new ChatMessageDto
                 {

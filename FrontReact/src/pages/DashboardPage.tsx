@@ -191,13 +191,25 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
-  const handleFreeze = async (subscriptionId: string, freezeMonths: number) => {
+  const handleFreeze = async (subscriptionId: string) => {
     try {
       setActionLoading(subscriptionId);
-      await userSubscriptionService.freezeSubscription(subscriptionId, freezeMonths);
+      await userSubscriptionService.freezeSubscription(subscriptionId);
       await loadData();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Не удалось приостановить подписку');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleResume = async (subscriptionId: string) => {
+    try {
+      setActionLoading(subscriptionId);
+      await userSubscriptionService.resumeSubscription(subscriptionId);
+      await loadData();
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Не удалось возобновить подписку');
     } finally {
       setActionLoading(null);
     }
@@ -282,6 +294,7 @@ export const DashboardPage: React.FC = () => {
           handleInitiatePayment={handleInitiatePayment}
           handleUnsubscribe={handleUnsubscribe}
           handleFreeze={handleFreeze}
+          handleResume={handleResume}
           handleRestoreCancelled={handleRestoreCancelled}
         />
         <PromoCodeDialog

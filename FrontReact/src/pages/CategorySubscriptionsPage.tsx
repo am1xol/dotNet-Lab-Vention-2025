@@ -477,17 +477,33 @@ export const CategorySubscriptionsPage: React.FC = () => {
     }
   };
 
-  const handleFreeze = async (subscriptionId: string, freezeMonths: number) => {
+  const handleFreeze = async (subscriptionId: string) => {
     if (!isAuthenticated) {
       navigate('/auth/signin');
       return;
     }
     try {
       setActionLoading(subscriptionId);
-      await userSubscriptionService.freezeSubscription(subscriptionId, freezeMonths);
+      await userSubscriptionService.freezeSubscription(subscriptionId);
       await loadMySubscriptions();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Не удалось приостановить подписку');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleResume = async (subscriptionId: string) => {
+    if (!isAuthenticated) {
+      navigate('/auth/signin');
+      return;
+    }
+    try {
+      setActionLoading(subscriptionId);
+      await userSubscriptionService.resumeSubscription(subscriptionId);
+      await loadMySubscriptions();
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Не удалось возобновить подписку');
     } finally {
       setActionLoading(null);
     }
@@ -841,6 +857,7 @@ export const CategorySubscriptionsPage: React.FC = () => {
                           isSubscribed={!!userSub}
                           isCancelled={!!userSub?.cancelledAt && !userSub?.isFrozen}
                           isFrozen={!!userSub?.isFrozen}
+                          frozenAt={userSub?.frozenAt}
                           frozenUntil={userSub?.frozenUntil}
                           canFreezeAndUnsubscribe={canFreeze}
                           canRestoreCancelled={canRestore}
@@ -856,6 +873,7 @@ export const CategorySubscriptionsPage: React.FC = () => {
                             handleOpenUnsubscribeDialog(id, subscription.name)
                           }
                           onFreeze={handleFreeze}
+                          onResume={handleResume}
                           onRestoreCancelled={handleRestoreCancelled}
                           loading={actionLoading === subscription.id}
                         />

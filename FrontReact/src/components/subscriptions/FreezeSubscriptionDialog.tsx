@@ -1,14 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   Button,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Typography,
 } from '@mui/material';
 import { translations } from '../../i18n/translations';
@@ -16,7 +12,7 @@ import { translations } from '../../i18n/translations';
 interface FreezeSubscriptionDialogProps {
   open: boolean;
   onClose: () => void;
-  onConfirm: (freezeMonths: number) => void;
+  onConfirm: () => void;
   subscriptionName: string;
   loading?: boolean;
 }
@@ -28,11 +24,8 @@ export const FreezeSubscriptionDialog: React.FC<FreezeSubscriptionDialogProps> =
   subscriptionName,
   loading = false,
 }) => {
-  const [months, setMonths] = useState(1);
-
   useEffect(() => {
     if (open) {
-      setMonths(1);
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -52,24 +45,6 @@ export const FreezeSubscriptionDialog: React.FC<FreezeSubscriptionDialogProps> =
         <Typography variant="body2" sx={{ mb: 2 }}>
           {translations.subscriptions.freezeDialogDescription}
         </Typography>
-        <FormControl fullWidth size="small">
-          <InputLabel id="freeze-months-label">
-            {translations.subscriptions.freezeMonthsLabel}
-          </InputLabel>
-          <Select
-            labelId="freeze-months-label"
-            value={months}
-            label={translations.subscriptions.freezeMonthsLabel}
-            onChange={(e) => setMonths(Number(e.target.value))}
-            disabled={loading}
-          >
-            {[1, 2, 3, 6, 12].map((m) => (
-              <MenuItem key={m} value={m}>
-                {m}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} disabled={loading}>
@@ -77,7 +52,7 @@ export const FreezeSubscriptionDialog: React.FC<FreezeSubscriptionDialogProps> =
         </Button>
         <Button
           variant="contained"
-          onClick={() => onConfirm(months)}
+          onClick={onConfirm}
           disabled={loading}
           color="primary"
         >

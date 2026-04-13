@@ -55,7 +55,8 @@ interface DashboardTabsProps {
   handleSubscribe: (subscriptionId: string) => Promise<void>;
   handleInitiatePayment: (subscriptionId: string) => Promise<void>;
   handleUnsubscribe: (subscriptionId: string) => Promise<void>;
-  handleFreeze: (subscriptionId: string, freezeMonths: number) => Promise<void>;
+  handleFreeze: (subscriptionId: string) => Promise<void>;
+  handleResume: (subscriptionId: string) => Promise<void>;
   handleRestoreCancelled: (subscriptionId: string) => Promise<void>;
 }
 
@@ -71,6 +72,7 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = memo(({
   handleInitiatePayment,
   handleUnsubscribe,
   handleFreeze,
+  handleResume,
   handleRestoreCancelled,
 }) => {
   return (
@@ -135,6 +137,7 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = memo(({
             handleInitiatePayment={handleInitiatePayment}
             handleUnsubscribe={handleUnsubscribe}
             handleFreeze={handleFreeze}
+            handleResume={handleResume}
             handleRestoreCancelled={handleRestoreCancelled}
           />
         </TabPanel>
@@ -149,6 +152,7 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = memo(({
             handleInitiatePayment={handleInitiatePayment}
             handleUnsubscribe={handleUnsubscribe}
             handleFreeze={handleFreeze}
+            handleResume={handleResume}
             handleRestoreCancelled={handleRestoreCancelled}
           />
         </TabPanel>

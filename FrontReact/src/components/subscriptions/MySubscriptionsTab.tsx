@@ -29,7 +29,8 @@ interface MySubscriptionsTabProps {
     reason?: string,
     customReason?: string
   ) => Promise<void>;
-  handleFreeze: (subscriptionId: string, freezeMonths: number) => Promise<void>;
+  handleFreeze: (subscriptionId: string) => Promise<void>;
+  handleResume: (subscriptionId: string) => Promise<void>;
   handleRestoreCancelled: (subscriptionId: string) => Promise<void>;
 }
 
@@ -43,6 +44,7 @@ export const MySubscriptionsTab: React.FC<MySubscriptionsTabProps> = ({
   handleInitiatePayment,
   handleUnsubscribe,
   handleFreeze,
+  handleResume,
   handleRestoreCancelled,
 }) => {
   const [displayData, setDisplayData] = useState<any>({});
@@ -173,6 +175,7 @@ export const MySubscriptionsTab: React.FC<MySubscriptionsTabProps> = ({
                               !userSubscription.isFrozen
                             }
                             isFrozen={!!userSubscription.isFrozen}
+                            frozenAt={userSubscription.frozenAt}
                             frozenUntil={userSubscription.frozenUntil}
                             canFreezeAndUnsubscribe={canFreeze}
                             canRestoreCancelled={canRestore}
@@ -189,6 +192,7 @@ export const MySubscriptionsTab: React.FC<MySubscriptionsTabProps> = ({
                               )
                             }
                             onFreeze={handleFreeze}
+                            onResume={handleResume}
                             onRestoreCancelled={handleRestoreCancelled}
                             loading={
                               actionLoading === userSubscription.subscription.id

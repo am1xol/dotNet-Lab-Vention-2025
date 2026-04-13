@@ -30,6 +30,7 @@ interface SubscriptionCardProps {
   isSubscribed?: boolean;
   isCancelled?: boolean;
   isFrozen?: boolean;
+  frozenAt?: string;
   frozenUntil?: string;
   canFreezeAndUnsubscribe?: boolean;
   canRestoreCancelled?: boolean;
@@ -38,7 +39,8 @@ interface SubscriptionCardProps {
   onSubscribe: (id: string) => void;
   onInitiatePayment: (id: string) => Promise<void>;
   onUnsubscribe: (subscriptionId: string) => void;
-  onFreeze?: (subscriptionId: string, freezeMonths: number) => Promise<void>;
+  onFreeze?: (subscriptionId: string) => Promise<void>;
+  onResume?: (subscriptionId: string) => Promise<void>;
   onRestoreCancelled?: (subscriptionId: string) => Promise<void>;
   userRole?: string;
   loading?: boolean;
@@ -62,6 +64,7 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   onUnsubscribe,
   onSubscribe,
   onFreeze,
+  onResume,
   onRestoreCancelled,
   userRole,
   loading = false,
@@ -411,24 +414,6 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
             </Box>
           )}
 
-          {isFrozen && frozenUntil && (
-            <Box
-              sx={{
-                mt: 1.5,
-                p: 1,
-                bgcolor: 'info.light',
-                borderRadius: 1,
-                border: '1px solid',
-                borderColor: 'info.main',
-              }}
-            >
-              <Typography variant="caption" color="info.dark" align="center" display="block">
-                <strong>{translations.subscriptions.resumeSubscription}:</strong>{' '}
-                {formatDateLocalized(frozenUntil)}
-              </Typography>
-            </Box>
-          )}
-
           {!isFrozen &&
             status === translations.subscriptions.cancelled &&
             (unsubscribeInfo?.validUntil || validUntil) && (
@@ -490,19 +475,16 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                 {translations.subscriptions.restoreSubscription}
               </Button>
             ) : isFrozen ? (
-              <Tooltip title={translations.subscriptions.frozen} arrow>
-                <span style={{ width: '100%' }}>
-                  <Button
-                    size="medium"
-                    variant="outlined"
-                    color="info"
-                    fullWidth
-                    disabled
-                  >
-                    {translations.subscriptions.frozen}
-                  </Button>
-                </span>
-              </Tooltip>
+              <Button
+                size="medium"
+                variant="outlined"
+                color="info"
+                fullWidth
+                onClick={() => onResume?.(subscription.id)}
+                disabled={finalLoadingState || !onResume}
+              >
+                {translations.subscriptions.resumeSubscription}
+              </Button>
             ) : isCancelled ? (
               <Tooltip title={translations.subscriptions.subscriptionCancelled} arrow>
                 <span style={{ width: '100%' }}>
@@ -635,8 +617,8 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
         <FreezeSubscriptionDialog
           open={freezeDialogOpen}
           onClose={() => setFreezeDialogOpen(false)}
-          onConfirm={async (freezeMonths) => {
-            await onFreeze(subscription.id, freezeMonths);
+          onConfirm={async () => {
+            await onFreeze(subscription.id);
             setFreezeDialogOpen(false);
           }}
           subscriptionName={subscription.name}

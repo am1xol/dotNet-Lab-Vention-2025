@@ -83,21 +83,20 @@ export const userSubscriptionService = {
     return response.data as { message: string; validUntil: string };
   },
 
-  async freezeSubscription(
-    subscriptionId: string,
-    freezeMonths: number = 1
-  ): Promise<{
+  async freezeSubscription(subscriptionId: string): Promise<{
     message: string;
+    frozenAt?: string;
     frozenUntil: string;
     nextBillingDate: string;
     validUntil?: string;
   }> {
     const response = await api.post(
       `${API_BASE_URL}/UserSubscriptions/freeze/${subscriptionId}`,
-      { freezeMonths }
+      {}
     );
     return response.data as {
       message: string;
+      frozenAt?: string;
       frozenUntil: string;
       nextBillingDate: string;
       validUntil?: string;

@@ -418,7 +418,7 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         [HttpPost("freeze/{subscriptionId}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> FreezeSubscription(Guid subscriptionId, [FromBody] FreezeSubscriptionRequest? request)
+        public async Task<IActionResult> FreezeSubscription(Guid subscriptionId)
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
@@ -429,7 +429,6 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             parameters.Add("@UserId", userId);
             parameters.Add("@SubscriptionId", subscriptionId);
             parameters.Add("@Now", DateTime.UtcNow);
-            parameters.Add("@FreezeMonths", Math.Clamp(request?.FreezeMonths ?? 1, 1, 12));
             parameters.Add("@ReturnValue", dbType: DbType.Int32, direction: ParameterDirection.ReturnValue);
 
             var row = await connection.QueryFirstOrDefaultAsync<dynamic>(
@@ -443,6 +442,7 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             return Ok(new
             {
                 Message = "Subscription frozen",
+                frozenAt = row?.FrozenAt,
                 frozenUntil = row?.FrozenUntil,
                 nextBillingDate = row?.NextBillingDate,
                 validUntil = row?.ValidUntil
@@ -470,12 +470,7 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 parameters,
                 commandType: CommandType.StoredProcedure);
 
-            var result = parameters.Get<int>("@ReturnValue");
-
-            if (result == 409)
-                return BadRequest("Freeze period is not over yet");
-
-            if (result == 404)
+            if (parameters.Get<int>("@ReturnValue") == 404)
                 return NotFound("Frozen subscription not found");
 
             return Ok(new

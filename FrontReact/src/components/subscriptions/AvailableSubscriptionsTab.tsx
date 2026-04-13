@@ -31,7 +31,8 @@ interface AvailableSubscriptionsTabProps {
     reason?: string,
     customReason?: string
   ) => Promise<void>;
-  handleFreeze: (subscriptionId: string, freezeMonths: number) => Promise<void>;
+  handleFreeze: (subscriptionId: string) => Promise<void>;
+  handleResume: (subscriptionId: string) => Promise<void>;
   handleRestoreCancelled: (subscriptionId: string) => Promise<void>;
 }
 
@@ -66,6 +67,7 @@ export const AvailableSubscriptionsTab: React.FC<
   handleInitiatePayment,
   handleUnsubscribe,
   handleFreeze,
+  handleResume,
   handleRestoreCancelled,
 }) => {
   const categoriesData = useMemo(
@@ -151,6 +153,7 @@ export const AvailableSubscriptionsTab: React.FC<
                         isSubscribed={!!userSub}
                         isCancelled={!!userSub?.cancelledAt && !userSub?.isFrozen}
                         isFrozen={!!userSub?.isFrozen}
+                        frozenAt={userSub?.frozenAt}
                         frozenUntil={userSub?.frozenUntil}
                         canFreezeAndUnsubscribe={canFreeze}
                         canRestoreCancelled={canRestore}
@@ -162,6 +165,7 @@ export const AvailableSubscriptionsTab: React.FC<
                           handleOpenUnsubscribeDialog(id, subscription.name)
                         }
                         onFreeze={handleFreeze}
+                        onResume={handleResume}
                         onRestoreCancelled={handleRestoreCancelled}
                         loading={actionLoading === subscription.id}
                       />

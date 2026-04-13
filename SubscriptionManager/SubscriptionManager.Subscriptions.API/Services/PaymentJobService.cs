@@ -19,6 +19,7 @@ namespace SubscriptionManager.Subscriptions.API.Services
     public class PaymentJobService : IPaymentJobService
     {
         private const string ExpiryReminderTitle = "Срок подписки скоро истекает";
+        private const int PendingPaymentTimeoutMinutes = 35;
         private readonly string _connectionString;
         private readonly IPaymentGatewayService _gatewayService;
         private readonly INotificationService _notificationService;
@@ -40,17 +41,13 @@ namespace SubscriptionManager.Subscriptions.API.Services
         public async Task<int> CleanupStuckPaymentsAsync(CancellationToken ct)
         {
             using var connection = new SqlConnection(_connectionString);
-            
-            var stuckPayments = await connection.QueryAsync<Payment>(
-                "sp_Jobs_GetStuckPayments", 
-                commandType: System.Data.CommandType.StoredProcedure);
-
-            var stuckList = stuckPayments.ToList();
+            var stuckList = (await GetStuckPaymentsAsync(connection)).ToList();
             if (!stuckList.Any()) return 0;
 
             int updatedCount = 0;
             foreach (var payment in stuckList)
             {
+                ct.ThrowIfCancellationRequested();
                 try
                 {
                     var remoteStatus = await _gatewayService.CheckPaymentStatusAsync(payment.Id.ToString());
@@ -87,6 +84,33 @@ namespace SubscriptionManager.Subscriptions.API.Services
             }
 
             return updatedCount;
+        }
+
+        private async Task<IEnumerable<Payment>> GetStuckPaymentsAsync(SqlConnection connection)
+        {
+            var stuckPayments = await connection.QueryAsync<Payment>(
+                "sp_Jobs_GetStuckPayments",
+                commandType: CommandType.StoredProcedure);
+
+            var fallbackPendingPayments = await connection.QueryAsync<Payment>(
+                """
+                SELECT p.*
+                FROM Payments p
+                WHERE p.Status = @PendingStatus
+                  AND p.PaymentDate <= DATEADD(MINUTE, -@TimeoutMinutes, GETUTCDATE());
+                """,
+                new
+                {
+                    PendingStatus = (int)PaymentStatus.Pending,
+                    TimeoutMinutes = PendingPaymentTimeoutMinutes
+                });
+
+            var mergedById = stuckPayments
+                .Concat(fallbackPendingPayments)
+                .GroupBy(p => p.Id)
+                .Select(g => g.First());
+
+            return mergedById;
         }
 
         public async Task CheckExpiringSubscriptionsAsync(CancellationToken ct)

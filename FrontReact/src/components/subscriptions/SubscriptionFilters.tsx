@@ -66,7 +66,9 @@ export const SubscriptionFilters: React.FC<SubscriptionFiltersProps> = ({
             label="Поиск подписок"
             variant="outlined"
             value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
+            onChange={(e) =>
+              onSearchChange(e.target.value.replace(/^\s+/, ''))
+            }
             placeholder="Введите название или описание..."
             InputProps={{
               startAdornment: <Search sx={{ mr: 1, color: 'action.active' }} />,

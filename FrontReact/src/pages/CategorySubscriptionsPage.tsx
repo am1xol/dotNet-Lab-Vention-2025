@@ -516,7 +516,8 @@ export const CategorySubscriptionsPage: React.FC = () => {
   };
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSearch(event.target.value);
+    const valueWithoutLeadingSpaces = event.target.value.replace(/^\s+/, '');
+    setSearch(valueWithoutLeadingSpaces);
   };
 
   const handlePeriodToggle = (period: string) => {

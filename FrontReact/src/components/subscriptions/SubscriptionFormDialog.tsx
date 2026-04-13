@@ -65,6 +65,7 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
     'Other',
   ];
   const ALLOWED_PRICES = [10, 20, 50];
+  const removeLeadingSpaces = (value: string) => value.replace(/^\s+/, '');
 
   useEffect(() => {
     if (open) {
@@ -155,6 +156,8 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
 
     const finalData = {
       ...formData,
+      name: formData.name.trim(),
+      category: formData.category.trim(),
       description: finalDescription,
       descriptionMarkdown: cleanContent,
     };
@@ -164,8 +167,8 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
   };
 
   const isFormValid =
-    formData.name &&
-    formData.category &&
+    formData.name.trim() &&
+    formData.category.trim() &&
     formData.price >= 0 &&
     (formData.description ||
       (formData.descriptionMarkdown &&
@@ -183,7 +186,9 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
               fullWidth
               label={translations.subscriptions.subscriptionName}
               value={formData.name}
-              onChange={(e) => handleInputChange('name', e.target.value)}
+              onChange={(e) =>
+                handleInputChange('name', removeLeadingSpaces(e.target.value))
+              }
               required
             />
           </Grid>
@@ -195,7 +200,12 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
               multiline
               rows={2}
               value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
+              onChange={(e) =>
+                handleInputChange(
+                  'description',
+                  removeLeadingSpaces(e.target.value)
+                )
+              }
               helperText={translations.subscriptions.briefDescriptionHint}
             />
           </Grid>

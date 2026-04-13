@@ -169,6 +169,13 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<SubscriptionDto>> CreateSubscription(CreateSubscriptionRequest request)
         {
+            if (HasLeadingWhitespace(request.Name) ||
+                HasLeadingWhitespace(request.Description) ||
+                HasLeadingWhitespace(request.Category))
+            {
+                return BadRequest("Name, description and category cannot start with spaces.");
+            }
+
             if (request.IconFileId.HasValue)
             {
                 using var connection = new SqlConnection(_connectionString);
@@ -232,6 +239,13 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<SubscriptionDto>> CreateSubscriptionWithPrice(CreateSubscriptionWithPriceRequest request)
         {
+            if (HasLeadingWhitespace(request.Name) ||
+                HasLeadingWhitespace(request.Description) ||
+                HasLeadingWhitespace(request.Category))
+            {
+                return BadRequest("Name, description and category cannot start with spaces.");
+            }
+
             using var connection = new SqlConnection(_connectionString);
             var subscriptionId = Guid.NewGuid();
 
@@ -294,6 +308,13 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> UpdateSubscription(Guid id, UpdateSubscriptionRequest request)
         {
+            if (HasLeadingWhitespace(request.Name) ||
+                HasLeadingWhitespace(request.Description) ||
+                HasLeadingWhitespace(request.Category))
+            {
+                return BadRequest("Name, description and category cannot start with spaces.");
+            }
+
             if (request.IconFileId.HasValue)
             {
                 using var connection = new SqlConnection(_connectionString);
@@ -455,6 +476,11 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 UpdatedAt = subscription.UpdatedAt,
                 Prices = new List<SubscriptionPriceDto>()
             };
+        }
+
+        private static bool HasLeadingWhitespace(string? value)
+        {
+            return !string.IsNullOrEmpty(value) && char.IsWhiteSpace(value[0]);
         }
     }
 }

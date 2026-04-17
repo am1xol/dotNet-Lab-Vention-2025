@@ -29,7 +29,6 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
   const [formData, setFormData] = useState<ProfileFormData>({
     firstName: user.firstName,
     lastName: user.lastName,
-    email: user.email,
     subscriptionExpiryReminderDays: String(user.subscriptionExpiryReminderDays ?? 3),
   });
 
@@ -47,7 +46,6 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
     setFormData({
       firstName: user.firstName,
       lastName: user.lastName,
-      email: user.email,
       subscriptionExpiryReminderDays: String(user.subscriptionExpiryReminderDays ?? 3),
     });
   }, [user]);
@@ -116,7 +114,6 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
       ...formData,
       firstName: formData.firstName.trim(),
       lastName: formData.lastName.trim(),
-      email: formData.email.trim(),
       subscriptionExpiryReminderDays: Number(formData.subscriptionExpiryReminderDays),
     };
 
@@ -153,7 +150,6 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
   const hasChanges =
     formData.firstName !== user.firstName ||
     formData.lastName !== user.lastName ||
-    formData.email !== user.email ||
     formData.subscriptionExpiryReminderDays !== String(user.subscriptionExpiryReminderDays ?? 3);
 
   const isFormValid =
@@ -188,21 +184,6 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
             required
           />
         </Box>
-
-        <TextField
-          fullWidth
-          label={translations.auth.emailAddress}
-          name="email"
-          type="email"
-          value={formData.email}
-          onChange={handleChange}
-          required
-          helperText={
-            user.isEmailVerified
-              ? translations.profile.emailVerified
-              : translations.profile.emailNotVerified
-          }
-        />
 
         <TextField
           fullWidth

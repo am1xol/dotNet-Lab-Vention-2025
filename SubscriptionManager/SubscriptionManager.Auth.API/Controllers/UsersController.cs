@@ -91,24 +91,10 @@ namespace SubscriptionManager.Auth.API.Controllers
                 return Unauthorized();
             }
 
-            if (user.Email != request.Email && await _userRepository.IsEmailTakenAsync(request.Email, userId))
-            {
-                return Problem(
-                    title: "Email is already taken",
-                    statusCode: StatusCodes.Status409Conflict);
-            }
-
-            var isEmailChanged = !string.Equals(user.Email, request.Email, StringComparison.OrdinalIgnoreCase);
             user.FirstName = request.FirstName;
             user.LastName = request.LastName;
-            user.Email = request.Email;
             user.SubscriptionExpiryReminderDays = request.SubscriptionExpiryReminderDays;
             user.UpdatedAt = DateTime.UtcNow;
-
-            if (isEmailChanged)
-            {
-                user.IsEmailVerified = false;
-            }
 
             await _userRepository.UpdateAsync(user);
             await _userRepository.UpdateSubscriptionExpiryReminderDaysAsync(

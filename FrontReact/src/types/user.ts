@@ -5,7 +5,6 @@ export type UserProfile = User;
 export interface UpdateProfileRequest {
   firstName: string;
   lastName: string;
-  email: string;
   subscriptionExpiryReminderDays: number;
 }
 

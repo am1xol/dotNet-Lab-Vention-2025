@@ -14,11 +14,6 @@ namespace SubscriptionManager.Core.Models.Requests
         [MaxLength(25)]
         public string LastName { get; set; } = string.Empty;
 
-        [Required]
-        [EmailAddress]
-        [MaxLength(254)]
-        public string Email { get; set; } = string.Empty;
-
         [Range(0, 14)]
         public int SubscriptionExpiryReminderDays { get; set; }
     }

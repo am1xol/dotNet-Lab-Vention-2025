@@ -5,7 +5,7 @@ import { formatDistanceToNow } from 'date-fns';
  * @param dateString - строка с датой в формате ISO или UTC
  * @returns объект Date
  */
-function parseUtcDate(dateString: string): Date {
+export function parseUtcDate(dateString: string): Date {
   if (!dateString) return new Date();
   
   let normalizedString = dateString;
@@ -99,4 +99,24 @@ export function formatTime(dateString: string): string {
 export function formatRelativeTime(dateString: string, addSuffix = true): string {
   const date = parseUtcDate(dateString);
   return formatDistanceToNow(date, { addSuffix });
+}
+
+/**
+ * Сколько календарных дней между сегодняшним днём (локально) и целевой датой.
+ */
+export function calendarDaysFromToday(target: Date): number {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const end = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+  return Math.round((end.getTime() - start.getTime()) / 86400000);
+}
+
+/** Склонение «день» для русского (1 день, 2 дня, 5 дней). */
+export function ruDayWord(n: number): string {
+  const k = Math.abs(n) % 100;
+  const j = Math.abs(n) % 10;
+  if (k > 10 && k < 20) return 'дней';
+  if (j === 1) return 'день';
+  if (j >= 2 && j <= 4) return 'дня';
+  return 'дней';
 }

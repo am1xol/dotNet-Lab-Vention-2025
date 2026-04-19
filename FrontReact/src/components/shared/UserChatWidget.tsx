@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Box, Paper, IconButton, TextField, Typography, Badge, Avatar, Fab, Alert, Button } from '@mui/material';
 import { Send as SendIcon, Chat as ChatIcon, Close as CloseIcon, Lock as LockIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 import chatService from '../../services/chat-service';
@@ -196,22 +197,32 @@ const UserChatWidget: React.FC = () => {
       </Fab>
 
       {/* Chat window */}
-      {isOpen && (
-        <Paper
-          elevation={8}
-          sx={{
-            position: 'fixed',
-            bottom: 100,
-            left: 24,
-            width: 380,
-            height: 500,
-            display: 'flex',
-            flexDirection: 'column',
-            zIndex: 1100,
-            borderRadius: 2,
-            overflow: 'hidden',
-          }}
-        >
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            key="user-chat-panel"
+            initial={{ opacity: 0, y: 20, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.96 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 32, mass: 0.85 }}
+            style={{
+              position: 'fixed',
+              bottom: 100,
+              left: 24,
+              width: 380,
+              zIndex: 1100,
+            }}
+          >
+            <Paper
+              elevation={8}
+              sx={{
+                height: 500,
+                display: 'flex',
+                flexDirection: 'column',
+                borderRadius: 2,
+                overflow: 'hidden',
+              }}
+            >
           {/* Header */}
           <Box
             sx={{
@@ -360,8 +371,10 @@ const UserChatWidget: React.FC = () => {
               </Box>
             )}
           </Box>
-        </Paper>
-      )}
+            </Paper>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 };

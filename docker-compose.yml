@@ -6,7 +6,7 @@ services:
       - "18888:18888"
       - "4317:4317"
     environment:
-      - ASPIRE_DASHBOARD_OTLP_PRIMARY_API_KEY=YourSecretKey123!
+      - ASPIRE_DASHBOARD_OTLP_PRIMARY_API_KEY=${ASPIRE_DASHBOARD_OTLP_PRIMARY_API_KEY}
       - DOTNET_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS=true 
       - DOTNET_DASHBOARD_OTLP_ENDPOINT_URL=http://0.0.0.0:4317
     networks:
@@ -20,11 +20,12 @@ services:
       - "127.0.0.1:8090:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Server=sql-server,1433;Database=AuthDb;User=sa;Password=YourPassword123!;TrustServerCertificate=true;
-      - ConnectionStrings__AuthConnection=Server=sql-server,1433;Database=AuthDb;User=sa;Password=YourPassword123!;TrustServerCertificate=true;
+      - ConnectionStrings__DefaultConnection=${AUTH_DB_CONNECTION_STRING}
+      - ConnectionStrings__AuthConnection=${AUTH_DB_CONNECTION_STRING}
+      - Jwt__Secret=${JWT_SECRET}
       - MinIO__Endpoint=minio:9000
-      - MinIO__AccessKey=minioadmin
-      - MinIO__SecretKey=minioadmin
+      - MinIO__AccessKey=${MINIO_ROOT_USER}
+      - MinIO__SecretKey=${MINIO_ROOT_PASSWORD}
       - MinIO__BucketName=subscriptions
       - EmailSettings__EnableSecondaryDelivery=${ENABLE_SECONDARY_EMAIL_DELIVERY:-false}
       - EmailSettings__SecondarySmtpServer=${YANDEX_SMTP_SERVER:-smtp.yandex.com}
@@ -38,7 +39,7 @@ services:
       - EmailSettings__SecondarySenderName=${YANDEX_SENDER_NAME:-}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://aspire-dashboard:4317
       - OTEL_SERVICE_NAME=Auth.API
-      - OTEL_EXPORTER_OTLP_HEADERS=x-otlp-api-key=YourSecretKey123!
+      - OTEL_EXPORTER_OTLP_HEADERS=x-otlp-api-key=${ASPIRE_DASHBOARD_OTLP_PRIMARY_API_KEY}
     depends_on:
       sql-server:
         condition: service_healthy
@@ -61,13 +62,16 @@ services:
       - "127.0.0.1:8081:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Server=sql-server,1433;Database=SubscriptionsDb;User=sa;Password=YourPassword123!;TrustServerCertificate=true;
-      - ConnectionStrings__SubscriptionsConnection=Server=sql-server,1433;Database=SubscriptionsDb;User=sa;Password=YourPassword123!;TrustServerCertificate=true;
-      - ConnectionStrings__AuthConnection=Server=sql-server,1433;Database=AuthDb;User=sa;Password=YourPassword123!;TrustServerCertificate=true;
+      - ConnectionStrings__DefaultConnection=${SUBSCRIPTIONS_DB_CONNECTION_STRING}
+      - ConnectionStrings__SubscriptionsConnection=${SUBSCRIPTIONS_DB_CONNECTION_STRING}
+      - ConnectionStrings__AuthConnection=${AUTH_DB_CONNECTION_STRING}
+      - Jwt__Secret=${JWT_SECRET}
       - MinIO__Endpoint=minio:9000
-      - MinIO__AccessKey=minioadmin
-      - MinIO__SecretKey=minioadmin
+      - MinIO__AccessKey=${MINIO_ROOT_USER}
+      - MinIO__SecretKey=${MINIO_ROOT_PASSWORD}
       - MinIO__BucketName=subscriptions
+      - BePaid__ShopId=${BEPAID_SHOP_ID}
+      - BePaid__SecretKey=${BEPAID_SECRET_KEY}
       - EmailSettings__EnableSecondaryDelivery=${ENABLE_SECONDARY_EMAIL_DELIVERY:-false}
       - EmailSettings__SecondarySmtpServer=${YANDEX_SMTP_SERVER:-smtp.yandex.com}
       - EmailSettings__SecondarySmtpPort=${YANDEX_SMTP_PORT:-465}
@@ -80,7 +84,7 @@ services:
       - EmailSettings__SecondarySenderName=${YANDEX_SENDER_NAME:-}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://aspire-dashboard:4317
       - OTEL_SERVICE_NAME=Subscriptions.API
-      - OTEL_EXPORTER_OTLP_HEADERS=x-otlp-api-key=YourSecretKey123!
+      - OTEL_EXPORTER_OTLP_HEADERS=x-otlp-api-key=${ASPIRE_DASHBOARD_OTLP_PRIMARY_API_KEY}
     depends_on:
       sql-server:
         condition: service_healthy
@@ -111,7 +115,7 @@ services:
   sql-server:
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
-      - SA_PASSWORD=YourPassword123!
+      - SA_PASSWORD=${SQL_SA_PASSWORD}
       - ACCEPT_EULA=Y
       - MSSQL_PID=Developer
     ports:
@@ -121,7 +125,7 @@ services:
     networks:
       - app-network
     healthcheck:
-      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "YourPassword123!", "-C", "-Q", "SELECT 1"]
+      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "${SQL_SA_PASSWORD}", "-C", "-Q", "SELECT 1"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -134,8 +138,8 @@ services:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"
     environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
@@ -148,7 +152,7 @@ services:
       - "127.0.0.1:1025:1025"
       - "127.0.0.1:8025:8025"
     environment:
-      MP_SMTP_AUTH: "testuser:testpassword"
+      MP_SMTP_AUTH: "${MAILPIT_SMTP_AUTH}"
       MP_SMTP_AUTH_ALLOW_INSECURE: 1
       MP_ENABLE_CHAOS: "true"
       MP_CHAOS_TRIGGERS: "Sender:500:25"

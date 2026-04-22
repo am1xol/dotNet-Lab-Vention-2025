@@ -19,73 +19,19 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 ?? throw new InvalidOperationException("Connection string 'SubscriptionsConnection' not found.");
         }
 
-        [HttpGet("active-by-plan")]
-        [ProducesResponseType(typeof(IEnumerable<ActiveSubscriptionsByPlanDto>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<IEnumerable<ActiveSubscriptionsByPlanDto>>> GetActiveSubscriptionsByPlan(
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 50)
-        {
-            using var connection = new SqlConnection(_connectionString);
-            const string sql = "sp_Report_ActiveSubscriptionsByPlan";
-
-            var offset = (page - 1) * pageSize;
-
-            var results = await connection.QueryAsync<ActiveSubscriptionsByPlanDto>(
-                sql,
-                new { Offset = offset, Fetch = pageSize },
-                commandType: System.Data.CommandType.StoredProcedure);
-
-            return Ok(results);
-        }
-
-        [HttpGet("subscriptions-with-plans")]
-        [ProducesResponseType(typeof(IEnumerable<SubscriptionWithPlansDto>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<IEnumerable<SubscriptionWithPlansDto>>> GetSubscriptionsWithPlans(
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 50)
-        {
-            using var connection = new SqlConnection(_connectionString);
-            const string sql = "sp_Report_SubscriptionsWithPlans";
-
-            var offset = (page - 1) * pageSize;
-
-            var results = await connection.QueryAsync<SubscriptionWithPlansDto>(
-                sql,
-                new { Offset = offset, Fetch = pageSize },
-                commandType: System.Data.CommandType.StoredProcedure);
-
-            return Ok(results);
-        }
-
-        [HttpGet("top-popular")]
-        [ProducesResponseType(typeof(IEnumerable<TopPopularSubscriptionDto>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<IEnumerable<TopPopularSubscriptionDto>>> GetTopPopularSubscriptions(
-            [FromQuery] int topCount = 10)
-        {
-            using var connection = new SqlConnection(_connectionString);
-            const string sql = "sp_Report_TopPopularSubscriptions";
-
-            var results = await connection.QueryAsync<TopPopularSubscriptionDto>(
-                sql,
-                new { TopCount = topCount },
-                commandType: System.Data.CommandType.StoredProcedure);
-
-            return Ok(results);
-        }
-
-        [HttpGet("by-month")]
-        [ProducesResponseType(typeof(IEnumerable<SubscriptionsByMonthDto>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<IEnumerable<SubscriptionsByMonthDto>>> GetSubscriptionsByMonth(
+        [HttpGet("user-activity-period")]
+        [ProducesResponseType(typeof(IEnumerable<UserActivityByPeriodDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<IEnumerable<UserActivityByPeriodDto>>> GetUserActivityByPeriod(
             [FromQuery] DateTime? startDate = null,
             [FromQuery] DateTime? endDate = null)
         {
-            var from = startDate ?? DateTime.UtcNow.AddMonths(-12);
+            var from = startDate ?? DateTime.UtcNow.AddDays(-30);
             var to = endDate ?? DateTime.UtcNow;
 
             using var connection = new SqlConnection(_connectionString);
-            const string sql = "sp_Report_SubscriptionsByMonth";
+            const string sql = "dbo.sp_Report_UserActivityByPeriod";
 
-            var results = await connection.QueryAsync<SubscriptionsByMonthDto>(
+            var results = await connection.QueryAsync<UserActivityByPeriodDto>(
                 sql,
                 new { StartDate = from, EndDate = to },
                 commandType: System.Data.CommandType.StoredProcedure);
@@ -93,9 +39,29 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             return Ok(results);
         }
 
-        [HttpGet("user-subscriptions")]
+        [HttpGet("subscriptions-period")]
+        [ProducesResponseType(typeof(IEnumerable<SubscriptionsByPeriodDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<IEnumerable<SubscriptionsByPeriodDto>>> GetSubscriptionsByPeriod(
+            [FromQuery] DateTime? startDate = null,
+            [FromQuery] DateTime? endDate = null)
+        {
+            var from = startDate ?? DateTime.UtcNow.AddDays(-30);
+            var to = endDate ?? DateTime.UtcNow;
+
+            using var connection = new SqlConnection(_connectionString);
+            const string sql = "dbo.sp_Report_SubscriptionsByPeriod";
+
+            var results = await connection.QueryAsync<SubscriptionsByPeriodDto>(
+                sql,
+                new { StartDate = from, EndDate = to },
+                commandType: System.Data.CommandType.StoredProcedure);
+
+            return Ok(results);
+        }
+
+        [HttpGet("subscriber-subscriptions")]
         [ProducesResponseType(typeof(IEnumerable<UserSubscriptionReportItemDto>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<IEnumerable<UserSubscriptionReportItemDto>>> GetUserSubscriptionsReport(
+        public async Task<ActionResult<IEnumerable<UserSubscriptionReportItemDto>>> GetSubscriberSubscriptionsReport(
             [FromQuery] string email)
         {
             if (string.IsNullOrWhiteSpace(email))
@@ -104,7 +70,7 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             }
 
             using var connection = new SqlConnection(_connectionString);
-            const string sql = "sp_Report_UserSubscriptions";
+            const string sql = "dbo.sp_Report_UserSubscriptions";
 
             var results = await connection.QueryAsync<UserSubscriptionReportItemDto>(
                 sql,

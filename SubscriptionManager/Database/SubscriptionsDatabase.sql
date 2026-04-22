@@ -1116,7 +1116,7 @@ BEGIN
             COUNT(*) AS PaymentsCount,
             SUM(p.Amount) AS TotalSpent,
             MAX(p.PaymentDate) AS LastPaymentDate
-        FROM Payments p
+        FROM [SubscriptionsDb].[dbo].[Payments] p
         INNER JOIN AuthDb.dbo.Users u ON u.Id = p.UserId
         WHERE p.Status = 1
             AND p.PaymentDate >= @FromDate
@@ -1455,60 +1455,135 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE [sp_Report_ActiveSubscriptionsByPlan]
-    @Offset INT = 0,
-    @Fetch INT = 50
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SELECT s.Id AS SubscriptionId, s.Name AS SubscriptionName, p.Id AS PeriodId, p.Name AS PeriodName, sp.FinalPrice, COUNT(us.Id) AS ActiveSubscriptionsCount
-    FROM Subscriptions s 
-    INNER JOIN SubscriptionPrices sp ON sp.SubscriptionId = s.Id 
-    INNER JOIN Periods p ON sp.PeriodId = p.Id 
-    LEFT JOIN UserSubscriptions us ON us.SubscriptionPriceId = sp.Id AND us.IsActive = 1 AND (us.CancelledAt IS NULL OR us.ValidUntil >= GETUTCDATE())
-    GROUP BY s.Id, s.Name, p.Id, p.Name, sp.FinalPrice 
-    ORDER BY s.Name, p.Name
-    OFFSET @Offset ROWS FETCH NEXT @Fetch ROWS ONLY;
-END
+DROP PROCEDURE IF EXISTS [dbo].[sp_Report_UserActivityByPeriod];
 GO
-
-CREATE OR ALTER PROCEDURE [sp_Report_SubscriptionsWithPlans]
-    @Offset INT = 0,
-    @Fetch INT = 50
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SELECT s.Id AS SubscriptionId, s.Name AS SubscriptionName, s.Category, s.Price AS BasePrice, p.Id AS PeriodId, p.Name AS PeriodName, p.MonthsCount, sp.Id AS SubscriptionPriceId, sp.FinalPrice
-    FROM Subscriptions s 
-    INNER JOIN SubscriptionPrices sp ON sp.SubscriptionId = s.Id 
-    INNER JOIN Periods p ON sp.PeriodId = p.Id 
-    ORDER BY s.Name, p.MonthsCount
-    OFFSET @Offset ROWS FETCH NEXT @Fetch ROWS ONLY;
-END
-GO
-
-CREATE OR ALTER PROCEDURE [sp_Report_TopPopularSubscriptions]
-    @TopCount INT = 10
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SELECT TOP (@TopCount) s.Id AS SubscriptionId, s.Name AS SubscriptionName, s.Category, COUNT(us.Id) AS TotalSubscriptionsCount
-    FROM Subscriptions s LEFT JOIN SubscriptionPrices sp ON sp.SubscriptionId = s.Id LEFT JOIN UserSubscriptions us ON us.SubscriptionPriceId = sp.Id
-    GROUP BY s.Id, s.Name, s.Category ORDER BY TotalSubscriptionsCount DESC, s.Name;
-END
-GO
-
-CREATE OR ALTER PROCEDURE [sp_Report_SubscriptionsByMonth]
+CREATE OR ALTER PROCEDURE [dbo].[sp_Report_UserActivityByPeriod]
     @StartDate DATETIME2, @EndDate DATETIME2
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT YEAR(us.StartDate) AS [Year], MONTH(us.StartDate) AS [Month], COUNT(us.Id) AS SubscriptionsCount
-    FROM UserSubscriptions us WHERE us.StartDate >= @StartDate AND us.StartDate < @EndDate GROUP BY YEAR(us.StartDate), MONTH(us.StartDate) ORDER BY [Year], [Month];
+
+    ;WITH PaymentStats AS
+    (
+        SELECT
+            p.UserId,
+            COUNT(*) AS SuccessfulPaymentsCount,
+            SUM(p.Amount) AS TotalSpent,
+            MAX(p.PaymentDate) AS LastPaymentDate
+        FROM Payments p
+        WHERE p.Status = 1
+          AND p.PaymentDate >= @StartDate
+          AND p.PaymentDate < @EndDate
+        GROUP BY p.UserId
+    ),
+    StartedStats AS
+    (
+        SELECT
+            us.UserId,
+            COUNT(*) AS SubscriptionsStartedCount,
+            MAX(us.StartDate) AS LastStartDate
+        FROM [SubscriptionsDb].[dbo].[UserSubscriptions] us
+        WHERE us.StartDate >= @StartDate
+          AND us.StartDate < @EndDate
+        GROUP BY us.UserId
+    ),
+    CancelledStats AS
+    (
+        SELECT
+            us.UserId,
+            COUNT(*) AS SubscriptionsCancelledCount,
+            MAX(us.CancelledAt) AS LastCancelledDate
+        FROM [SubscriptionsDb].[dbo].[UserSubscriptions] us
+        WHERE us.CancelledAt IS NOT NULL
+          AND us.CancelledAt >= @StartDate
+          AND us.CancelledAt < @EndDate
+        GROUP BY us.UserId
+    )
+    SELECT
+        u.Id AS UserId,
+        u.Email,
+        ISNULL(u.FirstName, '') AS FirstName,
+        ISNULL(u.LastName, '') AS LastName,
+        ISNULL(ps.SuccessfulPaymentsCount, 0) AS SuccessfulPaymentsCount,
+        ISNULL(ps.TotalSpent, 0) AS TotalSpent,
+        ISNULL(ss.SubscriptionsStartedCount, 0) AS SubscriptionsStartedCount,
+        ISNULL(cs.SubscriptionsCancelledCount, 0) AS SubscriptionsCancelledCount,
+        (
+            SELECT MAX(v.ActivityDate)
+            FROM (VALUES (ps.LastPaymentDate), (ss.LastStartDate), (cs.LastCancelledDate)) v(ActivityDate)
+        ) AS LastActivityAt
+    FROM AuthDb.dbo.Users u
+    LEFT JOIN PaymentStats ps ON ps.UserId = u.Id
+    LEFT JOIN StartedStats ss ON ss.UserId = u.Id
+    LEFT JOIN CancelledStats cs ON cs.UserId = u.Id
+    WHERE ISNULL(ps.SuccessfulPaymentsCount, 0) > 0
+       OR ISNULL(ss.SubscriptionsStartedCount, 0) > 0
+       OR ISNULL(cs.SubscriptionsCancelledCount, 0) > 0
+    ORDER BY LastActivityAt DESC, u.Email ASC;
 END
 GO
 
-CREATE OR ALTER PROCEDURE [sp_Report_UserSubscriptions]
+DROP PROCEDURE IF EXISTS [dbo].[sp_Report_SubscriptionsByPeriod];
+GO
+CREATE OR ALTER PROCEDURE [dbo].[sp_Report_SubscriptionsByPeriod]
+    @StartDate DATETIME2, @EndDate DATETIME2
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    ;WITH NewSubscriptions AS
+    (
+        SELECT
+            us.SubscriptionPriceId,
+            COUNT(*) AS NewSubscriptionsCount
+        FROM [SubscriptionsDb].[dbo].[UserSubscriptions] us
+        WHERE us.StartDate >= @StartDate
+          AND us.StartDate < @EndDate
+        GROUP BY us.SubscriptionPriceId
+    ),
+    ActiveSubscribers AS
+    (
+        SELECT
+            us.SubscriptionPriceId,
+            COUNT(DISTINCT us.UserId) AS ActiveSubscribersCount
+        FROM UserSubscriptions us
+        WHERE us.IsActive = 1
+          AND (us.CancelledAt IS NULL OR us.ValidUntil >= GETUTCDATE())
+        GROUP BY us.SubscriptionPriceId
+    ),
+    PaymentStats AS
+    (
+        SELECT
+            us.SubscriptionPriceId,
+            COUNT(*) AS SuccessfulPaymentsCount,
+            SUM(p.Amount) AS Revenue
+        FROM [SubscriptionsDb].[dbo].[Payments] p
+        INNER JOIN [SubscriptionsDb].[dbo].[UserSubscriptions] us ON us.Id = p.UserSubscriptionId
+        WHERE p.Status = 1
+          AND p.PaymentDate >= @StartDate
+          AND p.PaymentDate < @EndDate
+        GROUP BY us.SubscriptionPriceId
+    )
+    SELECT
+        s.Id AS SubscriptionId,
+        s.Name AS SubscriptionName,
+        per.Id AS PeriodId,
+        per.Name AS PeriodName,
+        ISNULL(ns.NewSubscriptionsCount, 0) AS NewSubscriptionsCount,
+        ISNULL(act.ActiveSubscribersCount, 0) AS ActiveSubscribersCount,
+        ISNULL(pay.SuccessfulPaymentsCount, 0) AS SuccessfulPaymentsCount,
+        ISNULL(pay.Revenue, 0) AS Revenue
+    FROM [SubscriptionsDb].[dbo].[SubscriptionPrices] sp
+    INNER JOIN [SubscriptionsDb].[dbo].[Subscriptions] s ON s.Id = sp.SubscriptionId
+    INNER JOIN [SubscriptionsDb].[dbo].[Periods] per ON per.Id = sp.PeriodId
+    LEFT JOIN NewSubscriptions ns ON ns.SubscriptionPriceId = sp.Id
+    LEFT JOIN ActiveSubscribers act ON act.SubscriptionPriceId = sp.Id
+    LEFT JOIN PaymentStats pay ON pay.SubscriptionPriceId = sp.Id
+    ORDER BY s.Name ASC, per.MonthsCount ASC;
+END
+GO
+
+CREATE OR ALTER PROCEDURE [dbo].[sp_Report_UserSubscriptions]
     @Email NVARCHAR(256)
 AS
 BEGIN

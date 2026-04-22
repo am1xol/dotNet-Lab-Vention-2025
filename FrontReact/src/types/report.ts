@@ -1,35 +1,24 @@
-export interface ActiveSubscriptionsByPlan {
+export interface UserActivityByPeriod {
+  userId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  successfulPaymentsCount: number;
+  totalSpent: number;
+  subscriptionsStartedCount: number;
+  subscriptionsCancelledCount: number;
+  lastActivityAt?: string;
+}
+
+export interface SubscriptionsByPeriod {
   subscriptionId: string;
   subscriptionName: string;
   periodId: string;
   periodName: string;
-  finalPrice: number;
-  activeSubscriptionsCount: number;
-}
-
-export interface SubscriptionWithPlans {
-  subscriptionId: string;
-  subscriptionName: string;
-  category: string;
-  basePrice: number;
-  periodId: string;
-  periodName: string;
-  monthsCount: number;
-  subscriptionPriceId: string;
-  finalPrice: number;
-}
-
-export interface TopPopularSubscription {
-  subscriptionId: string;
-  subscriptionName: string;
-  category: string;
-  totalSubscriptionsCount: number;
-}
-
-export interface SubscriptionsByMonth {
-  year: number;
-  month: number;
-  subscriptionsCount: number;
+  newSubscriptionsCount: number;
+  activeSubscribersCount: number;
+  successfulPaymentsCount: number;
+  revenue: number;
 }
 
 export interface UserSubscriptionReportItem {

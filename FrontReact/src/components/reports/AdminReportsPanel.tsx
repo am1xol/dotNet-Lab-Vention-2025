@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box,
   Typography,
@@ -17,47 +17,41 @@ import {
   TableContainer,
   LinearProgress,
   Stack,
-  IconButton,
-  Select,
-  FormControl,
-  InputLabel,
   Paper,
   Chip,
   Divider,
 } from '@mui/material';
-import {
-  ChevronLeft,
-  ChevronRight,
-  FirstPage,
-} from '@mui/icons-material';
 import { reportService } from '../../services/report-service';
 import {
-  ActiveSubscriptionsByPlan,
-  SubscriptionWithPlans,
-  TopPopularSubscription,
-  SubscriptionsByMonth,
+  UserActivityByPeriod,
+  SubscriptionsByPeriod,
   UserSubscriptionReportItem,
 } from '../../types/report';
 import { translations } from '../../i18n/translations';
 import { formatDateShort } from '../../utils/date-utils';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
+import {
+  Document,
+  Packer,
+  Paragraph,
+  Table as WordTable,
+  TableCell as WordTableCell,
+  TableRow as WordTableRow,
+  TextRun,
+  WidthType,
+  AlignmentType,
+  BorderStyle,
+} from 'docx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
-type ReportType =
-  | 'activeByPlan'
-  | 'subscriptionsWithPlans'
-  | 'topPopular'
-  | 'byMonth'
-  | 'userSubscriptions';
-
-type ExportFormat = 'csv' | 'word';
+type ReportType = 'userActivityPeriod' | 'subscriptionsPeriod' | 'subscriberDetails';
+type ExportFormat = 'excel' | 'word' | 'pdf';
 
 interface AdminReportsPanelProps {
   currentUserEmail?: string;
 }
-
-const normalizeForChart = (values: number[]) => {
-  const max = Math.max(...values, 1);
-  return values.map((v) => (v / max) * 100);
-};
 
 const formatMoney = (value: number) =>
   value.toLocaleString(undefined, {
@@ -65,327 +59,390 @@ const formatMoney = (value: number) =>
     maximumFractionDigits: 2,
   });
 
-const exportToCsv = (filename: string, items: any[]) => {
-  if (!items.length) return;
-  const headers = Object.keys(items[0]);
-  const rows = items.map((item) =>
-    headers
-      .map((h) => {
-        const value = item[h];
-        if (value === null || value === undefined) return '';
-        const stringValue =
-          value instanceof Date ? value.toISOString() : String(value);
-        return `"${stringValue.replace(/"/g, '""')}"`;
+type CellAlign = 'left' | 'right' | 'center';
+type ReportRow = UserActivityByPeriod | SubscriptionsByPeriod | UserSubscriptionReportItem;
+
+interface ReportColumn {
+  header: string;
+  align?: CellAlign;
+  value: (row: ReportRow) => string;
+}
+
+interface ExportPayload {
+  filename: string;
+  title: string;
+  columns: ReportColumn[];
+  rows: ReportRow[];
+}
+
+let timesNewRomanBase64Promise: Promise<string> | null = null;
+
+const loadTimesNewRomanBase64 = async (): Promise<string> => {
+  if (!timesNewRomanBase64Promise) {
+    timesNewRomanBase64Promise = fetch('/fonts/TimesNewRoman.ttf')
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to load TimesNewRoman.ttf: ${response.status}`);
+        }
+
+        const fontBlob = await response.blob();
+        return await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const dataUrl = reader.result;
+            if (typeof dataUrl !== 'string') {
+              reject(new Error('Failed to convert Times New Roman font to base64'));
+              return;
+            }
+
+            const [, base64] = dataUrl.split(',');
+            if (!base64) {
+              reject(new Error('Invalid base64 data for Times New Roman font'));
+              return;
+            }
+
+            resolve(base64);
+          };
+          reader.onerror = () => reject(reader.error ?? new Error('Failed to read Times New Roman font'));
+          reader.readAsDataURL(fontBlob);
+        });
       })
-      .join(',')
+      .catch((error) => {
+        timesNewRomanBase64Promise = null;
+        throw error;
+      });
+  }
+
+  return await timesNewRomanBase64Promise;
+};
+
+const registerTimesNewRomanFont = async (pdf: jsPDF): Promise<void> => {
+  const base64Font = await loadTimesNewRomanBase64();
+  pdf.addFileToVFS('TimesNewRoman.ttf', base64Font);
+  pdf.addFont('TimesNewRoman.ttf', 'TimesNewRoman', 'normal');
+};
+
+const exportToExcel = async (filename: string, title: string, rows: ReportRow[], columns: ReportColumn[]) => {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Report');
+
+  worksheet.columns = columns.map((column, index) => ({
+    header: column.header,
+    key: String(index),
+    width: Math.max(14, column.header.length + 4),
+  }));
+
+  worksheet.mergeCells(1, 1, 1, columns.length);
+  const titleCell = worksheet.getCell(1, 1);
+  titleCell.value = title;
+  titleCell.font = { bold: true, size: 16, color: { argb: 'FF4A148C' } };
+  titleCell.alignment = { horizontal: 'left', vertical: 'middle' };
+  worksheet.getRow(1).height = 26;
+
+  const headerRow = worksheet.getRow(2);
+  columns.forEach((column, index) => {
+    const cell = headerRow.getCell(index + 1);
+    cell.value = column.header;
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF7E57C2' } };
+    cell.alignment = { horizontal: column.align ?? 'left', vertical: 'middle' };
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FFD1C4E9' } },
+      left: { style: 'thin', color: { argb: 'FFD1C4E9' } },
+      bottom: { style: 'thin', color: { argb: 'FFD1C4E9' } },
+      right: { style: 'thin', color: { argb: 'FFD1C4E9' } },
+    };
+  });
+  headerRow.height = 22;
+
+  rows.forEach((row, rowIndex) => {
+    const addedRow = worksheet.addRow(
+      columns.reduce<Record<string, string>>((acc, column, index) => {
+        acc[String(index)] = column.value(row);
+        return acc;
+      }, {})
+    );
+
+    addedRow.eachCell((cell, colNumber) => {
+      const column = columns[colNumber - 1];
+      cell.alignment = { horizontal: column.align ?? 'left', vertical: 'middle' };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFEDE7F6' } },
+        left: { style: 'thin', color: { argb: 'FFEDE7F6' } },
+        bottom: { style: 'thin', color: { argb: 'FFEDE7F6' } },
+        right: { style: 'thin', color: { argb: 'FFEDE7F6' } },
+      };
+      if (rowIndex % 2 === 0) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8F5FF' } };
+      }
+    });
+  });
+
+  worksheet.views = [{ state: 'frozen', ySplit: 2 }];
+  worksheet.autoFilter = {
+    from: { row: 2, column: 1 },
+    to: { row: 2, column: columns.length },
+  };
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  saveAs(new Blob([buffer]), `${filename}.xlsx`);
+};
+
+const exportToWord = async (filename: string, title: string, rows: ReportRow[], columns: ReportColumn[]) => {
+  const headerCells = columns.map(
+    (column) =>
+      new WordTableCell({
+        children: [
+          new Paragraph({
+            children: [new TextRun({ text: column.header, bold: true, color: 'FFFFFF' })],
+            alignment: AlignmentType.CENTER,
+          }),
+        ],
+        shading: { fill: '7E57C2' },
+      })
   );
 
-  const csvContent = [headers.join(','), ...rows].join('\r\n');
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.setAttribute('download', `${filename}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-};
+  const bodyRows = rows.map(
+    (row) =>
+      new WordTableRow({
+        children: columns.map(
+          (column) =>
+            new WordTableCell({
+              children: [
+                new Paragraph({
+                  text: column.value(row),
+                  alignment:
+                    column.align === 'right'
+                      ? AlignmentType.RIGHT
+                      : column.align === 'center'
+                        ? AlignmentType.CENTER
+                        : AlignmentType.LEFT,
+                }),
+              ],
+            })
+        ),
+      })
+  );
 
-const exportToWord = (filename: string, title: string, items: any[]) => {
-  if (!items.length) return;
-  const headers = Object.keys(items[0]);
-
-  const headerRow = headers.map((h) => `<th>${h}</th>`).join('');
-  const bodyRows = items
-    .map((item) => {
-      const tds = headers
-        .map((h) => {
-          const value = item[h];
-          if (value === null || value === undefined) return '<td></td>';
-          return `<td>${String(value)}</td>`;
-        })
-        .join('');
-      return `<tr>${tds}</tr>`;
-    })
-    .join('');
-
-  const htmlContent = `
-    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-    <head><meta charset="utf-8"><title>${title}</title></head>
-    <body>
-      <h2>${title}</h2>
-      <table border="1" cellpadding="4" cellspacing="0">
-        <thead><tr>${headerRow}</tr></thead>
-        <tbody>${bodyRows}</tbody>
-      </table>
-    </body>
-    </html>`;
-
-  const blob = new Blob(['\ufeff', htmlContent], {
-    type: 'application/msword;charset=utf-8;',
+  const table = new WordTable({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [new WordTableRow({ children: headerCells }), ...bodyRows],
+    borders: {
+      top: { style: BorderStyle.SINGLE, size: 1, color: 'D1C4E9' },
+      bottom: { style: BorderStyle.SINGLE, size: 1, color: 'D1C4E9' },
+      left: { style: BorderStyle.SINGLE, size: 1, color: 'D1C4E9' },
+      right: { style: BorderStyle.SINGLE, size: 1, color: 'D1C4E9' },
+      insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: 'EDE7F6' },
+      insideVertical: { style: BorderStyle.SINGLE, size: 1, color: 'EDE7F6' },
+    },
   });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.setAttribute('download', `${filename}.doc`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+
+  const document = new Document({
+    sections: [
+      {
+        children: [
+          new Paragraph({
+            children: [new TextRun({ text: title, bold: true, size: 32, color: '4A148C' })],
+            spacing: { after: 300 },
+          }),
+          table,
+        ],
+      },
+    ],
+  });
+
+  const blob = await Packer.toBlob(document);
+  saveAs(blob, `${filename}.docx`);
 };
 
-export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
-  currentUserEmail,
-}) => {
-  const [tab, setTab] = useState<ReportType>('activeByPlan');
+const exportToPdf = async (filename: string, title: string, rows: ReportRow[], columns: ReportColumn[]) => {
+  const pdf = new jsPDF({
+    orientation: 'landscape',
+    unit: 'pt',
+    format: 'a4',
+  });
+
+  let tableFont = 'helvetica';
+  try {
+    await registerTimesNewRomanFont(pdf);
+    pdf.setFont('TimesNewRoman', 'normal');
+    tableFont = 'TimesNewRoman';
+  } catch (error) {
+    console.warn('Times New Roman font registration failed, using fallback PDF font.', error);
+  }
+
+  pdf.setFontSize(16);
+  pdf.text(title, 40, 40);
+
+  autoTable(pdf, {
+    startY: 56,
+    head: [columns.map((column) => column.header)],
+    body: rows.map((row) => columns.map((column) => column.value(row))),
+    theme: 'grid',
+    styles: {
+      font: tableFont,
+      fontSize: 9,
+      cellPadding: 6,
+      lineColor: [220, 220, 220],
+      lineWidth: 0.4,
+    },
+    headStyles: {
+      fillColor: [126, 87, 194],
+      textColor: [255, 255, 255],
+      fontStyle: 'normal',
+    },
+    alternateRowStyles: {
+      fillColor: [248, 245, 255],
+    },
+  });
+
+  pdf.save(`${filename}.pdf`);
+};
+
+export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({ currentUserEmail }) => {
+  const [tab, setTab] = useState<ReportType>('userActivityPeriod');
   const [loading, setLoading] = useState(false);
 
-  const [activeByPlan, setActiveByPlan] = useState<ActiveSubscriptionsByPlan[]>([]);
-  const [subsWithPlans, setSubsWithPlans] = useState<SubscriptionWithPlans[]>([]);
-  const [topPopular, setTopPopular] = useState<TopPopularSubscription[]>([]);
-  const [byMonth, setByMonth] = useState<SubscriptionsByMonth[]>([]);
-  const [userSubs, setUserSubs] = useState<UserSubscriptionReportItem[]>([]);
-
-  const [topCount, setTopCount] = useState(5);
   const [periodFrom, setPeriodFrom] = useState('');
   const [periodTo, setPeriodTo] = useState('');
   const [userEmail, setUserEmail] = useState(currentUserEmail || '');
 
-  const [activePage, setActivePage] = useState(1);
-  const [activePageSize, setActivePageSize] = useState(50);
-
-  const [subsPage, setSubsPage] = useState(1);
-  const [subsPageSize, setSubsPageSize] = useState(50);
-
-  const hasNextActive = activeByPlan.length === activePageSize;
-  const hasNextSubs = subsWithPlans.length === subsPageSize;
-
-  useEffect(() => {
-    loadCurrentTab();
-  }, [tab, activePage, activePageSize, subsPage, subsPageSize, topCount, periodFrom, periodTo, userEmail]);
+  const [userActivity, setUserActivity] = useState<UserActivityByPeriod[]>([]);
+  const [subscriptionsByPeriod, setSubscriptionsByPeriod] = useState<SubscriptionsByPeriod[]>([]);
+  const [subscriberDetails, setSubscriberDetails] = useState<UserSubscriptionReportItem[]>([]);
 
   const loadCurrentTab = async () => {
     try {
       setLoading(true);
-      switch (tab) {
-        case 'activeByPlan':
-          const activeData = await reportService.getActiveByPlan(activePage, activePageSize);
-          setActiveByPlan(activeData);
-          break;
-        case 'subscriptionsWithPlans':
-          const subsData = await reportService.getSubscriptionsWithPlans(subsPage, subsPageSize);
-          setSubsWithPlans(subsData);
-          break;
-        case 'topPopular':
-          const popularData = await reportService.getTopPopular(topCount);
-          setTopPopular(popularData);
-          break;
-        case 'byMonth':
-          const monthData = await reportService.getByMonth(periodFrom, periodTo);
-          setByMonth(monthData);
-          break;
-        case 'userSubscriptions':
-          if (userEmail) {
-            const userData = await reportService.getUserSubscriptions(userEmail);
-            setUserSubs(userData);
-          } else {
-            setUserSubs([]);
-          }
-          break;
+      if (tab === 'userActivityPeriod') {
+        setUserActivity(await reportService.getUserActivityByPeriod(periodFrom, periodTo));
+      } else if (tab === 'subscriptionsPeriod') {
+        setSubscriptionsByPeriod(await reportService.getSubscriptionsByPeriod(periodFrom, periodTo));
+      } else if (userEmail.trim()) {
+        setSubscriberDetails(await reportService.getSubscriberSubscriptions(userEmail.trim()));
+      } else {
+        setSubscriberDetails([]);
       }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleExport = (format: ExportFormat) => {
-    let filename = 'report';
-    let title = 'Report';
-    let data: any[] = [];
+  useEffect(() => {
+    loadCurrentTab();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
-    switch (tab) {
-      case 'activeByPlan':
-        filename = 'active-subscriptions-by-plan';
-        title = 'Active subscriptions by plan';
-        data = activeByPlan;
-        break;
-      case 'subscriptionsWithPlans':
-        filename = 'subscriptions-with-plans';
-        title = 'Subscriptions with plans';
-        data = subsWithPlans;
-        break;
-      case 'topPopular':
-        filename = 'top-popular-subscriptions';
-        title = 'Top popular subscriptions';
-        data = topPopular;
-        break;
-      case 'byMonth':
-        filename = 'subscriptions-by-month';
-        title = 'Subscriptions by month';
-        data = byMonth;
-        break;
-      case 'userSubscriptions':
-        filename = 'user-subscriptions';
-        title = 'User subscriptions';
-        data = userSubs;
-        break;
+  const getExportPayload = (): ExportPayload => {
+    if (tab === 'userActivityPeriod') {
+      return {
+        filename: 'user-activity-period',
+        title: 'Активность пользователей за период',
+        rows: userActivity,
+        columns: [
+          { header: 'Email', value: (row) => (row as UserActivityByPeriod).email },
+          {
+            header: 'Имя',
+            value: (row) => {
+              const userRow = row as UserActivityByPeriod;
+              return `${userRow.firstName} ${userRow.lastName}`.trim() || '-';
+            },
+          },
+          { header: 'Платежей', align: 'right', value: (row) => String((row as UserActivityByPeriod).successfulPaymentsCount) },
+          { header: 'Сумма', align: 'right', value: (row) => formatMoney((row as UserActivityByPeriod).totalSpent) },
+          { header: 'Стартов подписок', align: 'right', value: (row) => String((row as UserActivityByPeriod).subscriptionsStartedCount) },
+          { header: 'Отмен подписок', align: 'right', value: (row) => String((row as UserActivityByPeriod).subscriptionsCancelledCount) },
+          {
+            header: 'Последняя активность',
+            value: (row) => {
+              const value = (row as UserActivityByPeriod).lastActivityAt;
+              return value ? formatDateShort(value) : '-';
+            },
+          },
+        ],
+      };
     }
 
-    if (!data.length) return;
-
-    if (format === 'csv') {
-      exportToCsv(filename, data);
-    } else {
-      exportToWord(filename, title, data);
+    if (tab === 'subscriptionsPeriod') {
+      return {
+        filename: 'subscriptions-period',
+        title: 'Подписки за период',
+        rows: subscriptionsByPeriod,
+        columns: [
+          { header: 'Подписка', value: (row) => (row as SubscriptionsByPeriod).subscriptionName },
+          { header: 'Период', value: (row) => (row as SubscriptionsByPeriod).periodName },
+          { header: 'Новых', align: 'right', value: (row) => String((row as SubscriptionsByPeriod).newSubscriptionsCount) },
+          { header: 'Активных', align: 'right', value: (row) => String((row as SubscriptionsByPeriod).activeSubscribersCount) },
+          { header: 'Успешных платежей', align: 'right', value: (row) => String((row as SubscriptionsByPeriod).successfulPaymentsCount) },
+          { header: 'Выручка', align: 'right', value: (row) => formatMoney((row as SubscriptionsByPeriod).revenue) },
+        ],
+      };
     }
+
+    return {
+      filename: 'subscriber-subscriptions-details',
+      title: 'Детализация по подписчику',
+      rows: subscriberDetails,
+      columns: [
+        { header: 'Подписка', value: (row) => (row as UserSubscriptionReportItem).subscriptionName },
+        { header: 'Категория', value: (row) => (row as UserSubscriptionReportItem).category },
+        { header: 'Период', value: (row) => (row as UserSubscriptionReportItem).periodName },
+        { header: 'Цена', align: 'right', value: (row) => formatMoney((row as UserSubscriptionReportItem).finalPrice) },
+        { header: 'Начало', value: (row) => formatDateShort((row as UserSubscriptionReportItem).startDate) },
+        {
+          header: 'Действует до',
+          value: (row) => {
+            const value = (row as UserSubscriptionReportItem).validUntil;
+            return value ? formatDateShort(value) : '-';
+          },
+        },
+        { header: 'Статус', value: (row) => ((row as UserSubscriptionReportItem).isActive ? 'Активна' : 'Неактивна') },
+      ],
+    };
   };
 
-  const chartData = useMemo(() => {
-    if (tab === 'topPopular') {
-      const counts = topPopular.map((x) => x.totalSubscriptionsCount);
-      const percents = normalizeForChart(counts);
-      return topPopular.map((x, idx) => ({
-        label: x.subscriptionName,
-        value: x.totalSubscriptionsCount,
-        percent: percents[idx],
-      }));
+  const handleExport = async (format: ExportFormat) => {
+    const { filename, title, rows, columns } = getExportPayload();
+    if (!rows.length) return;
+
+    if (format === 'excel') {
+      await exportToExcel(filename, title, rows, columns);
+      return;
     }
 
-    if (tab === 'activeByPlan') {
-      const counts = activeByPlan.map((x) => x.activeSubscriptionsCount);
-      const percents = normalizeForChart(counts);
-      return activeByPlan.map((x, idx) => ({
-        label: `${x.subscriptionName} (${x.periodName})`,
-        value: x.activeSubscriptionsCount,
-        percent: percents[idx],
-      }));
+    if (format === 'word') {
+      await exportToWord(filename, title, rows, columns);
+      return;
     }
 
-    if (tab === 'byMonth') {
-      const counts = byMonth.map((x) => x.subscriptionsCount);
-      const percents = normalizeForChart(counts);
-      return byMonth.map((x, idx) => ({
-        label: `${x.year}-${String(x.month).padStart(2, '0')}`,
-        value: x.subscriptionsCount,
-        percent: percents[idx],
-      }));
-    }
-
-    return [];
-  }, [tab, topPopular, activeByPlan, byMonth]);
-
-  const overviewMetrics = useMemo(() => {
-    if (tab === 'activeByPlan') {
-      const totalActive = activeByPlan.reduce((sum, item) => sum + item.activeSubscriptionsCount, 0);
-      const avgPrice = activeByPlan.length
-        ? activeByPlan.reduce((sum, item) => sum + item.finalPrice, 0) / activeByPlan.length
-        : 0;
-      return [
-        { label: translations.admin.rows, value: activeByPlan.length },
-        { label: translations.admin.activeCount, value: totalActive },
-        { label: translations.admin.price, value: formatMoney(avgPrice) },
-      ];
-    }
-
-    if (tab === 'subscriptionsWithPlans') {
-      const avgBase = subsWithPlans.length
-        ? subsWithPlans.reduce((sum, item) => sum + item.basePrice, 0) / subsWithPlans.length
-        : 0;
-      const avgFinal = subsWithPlans.length
-        ? subsWithPlans.reduce((sum, item) => sum + item.finalPrice, 0) / subsWithPlans.length
-        : 0;
-      return [
-        { label: translations.admin.rows, value: subsWithPlans.length },
-        { label: translations.admin.basePrice, value: formatMoney(avgBase) },
-        { label: translations.admin.finalPrice, value: formatMoney(avgFinal) },
-      ];
-    }
-
-    if (tab === 'topPopular') {
-      const total = topPopular.reduce((sum, item) => sum + item.totalSubscriptionsCount, 0);
-      return [
-        { label: translations.admin.rows, value: topPopular.length },
-        { label: translations.admin.totalSubscriptionsCount, value: total },
-        { label: translations.admin.topN, value: topCount },
-      ];
-    }
-
-    if (tab === 'byMonth') {
-      const total = byMonth.reduce((sum, item) => sum + item.subscriptionsCount, 0);
-      const peak = byMonth.reduce((max, item) => Math.max(max, item.subscriptionsCount), 0);
-      return [
-        { label: translations.admin.rows, value: byMonth.length },
-        { label: translations.admin.subscriptionsCount, value: total },
-        { label: translations.admin.activeCount, value: peak },
-      ];
-    }
-
-    const activeCount = userSubs.filter((item) => item.isActive).length;
-    return [
-      { label: translations.admin.rows, value: userSubs.length },
-      { label: translations.admin.activeStatus, value: activeCount },
-      { label: translations.admin.inactiveStatus, value: userSubs.length - activeCount },
-    ];
-  }, [tab, activeByPlan, subsWithPlans, topPopular, byMonth, userSubs, topCount]);
-
-  const renderChart = () => {
-    if (!chartData.length) return null;
-
-    return (
-      <Box sx={{ mt: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          {translations.admin.visualOverview}
-        </Typography>
-        <Stack spacing={1.5}>
-          {chartData.map((item) => (
-            <Box key={item.label}>
-              <Box
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-                mb={0.5}
-              >
-                <Typography variant="body2">{item.label}</Typography>
-                <Typography variant="body2" fontWeight={600}>
-                  {item.value}
-                </Typography>
-              </Box>
-              <LinearProgress
-                variant="determinate"
-                value={item.percent}
-                sx={{ height: 8, borderRadius: 4 }}
-              />
-            </Box>
-          ))}
-        </Stack>
-      </Box>
-    );
+    await exportToPdf(filename, title, rows, columns);
   };
 
   const renderTable = () => {
-    if (tab === 'activeByPlan' && activeByPlan.length) {
+    if (tab === 'userActivityPeriod' && userActivity.length) {
       return (
         <Table stickyHeader size="small">
           <TableHead>
             <TableRow>
-              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.subscription}</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.plan}</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.price}</TableCell>
-              <TableCell sx={{ fontWeight: 700 }} align="right">{translations.admin.activeCount}</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.userEmail}</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>Имя</TableCell>
+              <TableCell sx={{ fontWeight: 700 }} align="right">Платежей</TableCell>
+              <TableCell sx={{ fontWeight: 700 }} align="right">Сумма</TableCell>
+              <TableCell sx={{ fontWeight: 700 }} align="right">Стартов подписок</TableCell>
+              <TableCell sx={{ fontWeight: 700 }} align="right">Отмен подписок</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>Последняя активность</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {activeByPlan.map((row) => (
-              <TableRow
-                key={`${row.subscriptionId}-${row.periodId}`}
-                hover
-                sx={{ '&:nth-of-type(odd)': { backgroundColor: 'rgba(126,87,194,0.04)' } }}
-              >
-                <TableCell>{row.subscriptionName}</TableCell>
-                <TableCell>{row.periodName}</TableCell>
-                <TableCell>{formatMoney(row.finalPrice)}</TableCell>
-                <TableCell align="right">
-                  {row.activeSubscriptionsCount}
-                </TableCell>
+            {userActivity.map((row) => (
+              <TableRow key={row.userId} hover>
+                <TableCell>{row.email}</TableCell>
+                <TableCell>{`${row.firstName} ${row.lastName}`.trim() || '-'}</TableCell>
+                <TableCell align="right">{row.successfulPaymentsCount}</TableCell>
+                <TableCell align="right">{formatMoney(row.totalSpent)}</TableCell>
+                <TableCell align="right">{row.subscriptionsStartedCount}</TableCell>
+                <TableCell align="right">{row.subscriptionsCancelledCount}</TableCell>
+                <TableCell>{row.lastActivityAt ? formatDateShort(row.lastActivityAt) : '-'}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -393,32 +450,28 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
       );
     }
 
-    if (tab === 'subscriptionsWithPlans' && subsWithPlans.length) {
+    if (tab === 'subscriptionsPeriod' && subscriptionsByPeriod.length) {
       return (
         <Table stickyHeader size="small">
           <TableHead>
             <TableRow>
               <TableCell sx={{ fontWeight: 700 }}>{translations.admin.subscription}</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.category}</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.basePrice}</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>{translations.admin.period}</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.months}</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.finalPrice}</TableCell>
+              <TableCell sx={{ fontWeight: 700 }} align="right">Новых</TableCell>
+              <TableCell sx={{ fontWeight: 700 }} align="right">Активных</TableCell>
+              <TableCell sx={{ fontWeight: 700 }} align="right">Успешных платежей</TableCell>
+              <TableCell sx={{ fontWeight: 700 }} align="right">Выручка</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {subsWithPlans.map((row) => (
-              <TableRow
-                key={row.subscriptionPriceId}
-                hover
-                sx={{ '&:nth-of-type(odd)': { backgroundColor: 'rgba(126,87,194,0.04)' } }}
-              >
+            {subscriptionsByPeriod.map((row) => (
+              <TableRow key={`${row.subscriptionId}-${row.periodId}`} hover>
                 <TableCell>{row.subscriptionName}</TableCell>
-                <TableCell>{row.category}</TableCell>
-                <TableCell>{formatMoney(row.basePrice)}</TableCell>
                 <TableCell>{row.periodName}</TableCell>
-                <TableCell>{row.monthsCount}</TableCell>
-                <TableCell>{formatMoney(row.finalPrice)}</TableCell>
+                <TableCell align="right">{row.newSubscriptionsCount}</TableCell>
+                <TableCell align="right">{row.activeSubscribersCount}</TableCell>
+                <TableCell align="right">{row.successfulPaymentsCount}</TableCell>
+                <TableCell align="right">{formatMoney(row.revenue)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -426,68 +479,7 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
       );
     }
 
-    if (tab === 'topPopular' && topPopular.length) {
-      return (
-        <Table stickyHeader size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.subscription}</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.category}</TableCell>
-              <TableCell sx={{ fontWeight: 700 }} align="right">{translations.admin.totalSubscriptionsCount}</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {topPopular.map((row, index) => (
-              <TableRow
-                key={row.subscriptionId}
-                hover
-                sx={{ '&:nth-of-type(odd)': { backgroundColor: 'rgba(126,87,194,0.04)' } }}
-              >
-                <TableCell>{row.subscriptionName}</TableCell>
-                <TableCell>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Chip size="small" color="secondary" label={`#${index + 1}`} />
-                    <span>{row.category}</span>
-                  </Stack>
-                </TableCell>
-                <TableCell align="right">
-                  {row.totalSubscriptionsCount}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      );
-    }
-
-    if (tab === 'byMonth' && byMonth.length) {
-      return (
-        <Table stickyHeader size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.year}</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>{translations.admin.month}</TableCell>
-              <TableCell sx={{ fontWeight: 700 }} align="right">{translations.admin.subscriptionsCount}</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {byMonth.map((row) => (
-              <TableRow
-                key={`${row.year}-${row.month}`}
-                hover
-                sx={{ '&:nth-of-type(odd)': { backgroundColor: 'rgba(126,87,194,0.04)' } }}
-              >
-                <TableCell>{row.year}</TableCell>
-                <TableCell>{row.month}</TableCell>
-                <TableCell align="right">{row.subscriptionsCount}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      );
-    }
-
-    if (tab === 'userSubscriptions' && userSubs.length) {
+    if (tab === 'subscriberDetails' && subscriberDetails.length) {
       return (
         <Table stickyHeader size="small">
           <TableHead>
@@ -502,24 +494,14 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
             </TableRow>
           </TableHead>
           <TableBody>
-            {userSubs.map((row) => (
-              <TableRow
-                key={row.userSubscriptionId}
-                hover
-                sx={{ '&:nth-of-type(odd)': { backgroundColor: 'rgba(126,87,194,0.04)' } }}
-              >
+            {subscriberDetails.map((row) => (
+              <TableRow key={row.userSubscriptionId} hover>
                 <TableCell>{row.subscriptionName}</TableCell>
                 <TableCell>{row.category}</TableCell>
                 <TableCell>{row.periodName}</TableCell>
                 <TableCell>{formatMoney(row.finalPrice)}</TableCell>
-                <TableCell>
-                  {formatDateShort(row.startDate)}
-                </TableCell>
-                <TableCell>
-                  {row.validUntil
-                    ? formatDateShort(row.validUntil)
-                    : '-'}
-                </TableCell>
+                <TableCell>{formatDateShort(row.startDate)}</TableCell>
+                <TableCell>{row.validUntil ? formatDateShort(row.validUntil) : '-'}</TableCell>
                 <TableCell>
                   <Chip
                     size="small"
@@ -542,240 +524,52 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
     );
   };
 
-  const renderPagination = () => {
-    if (tab === 'activeByPlan') {
-      return (
-        <Stack direction="row" spacing={1} alignItems="center">
-          <IconButton
-            size="small"
-            onClick={() => setActivePage(1)}
-            disabled={activePage === 1}
-          >
-            <FirstPage />
-          </IconButton>
-          <IconButton
-            size="small"
-            onClick={() => setActivePage((p) => Math.max(1, p - 1))}
-            disabled={activePage === 1}
-          >
-            <ChevronLeft />
-          </IconButton>
-          <Typography variant="body2">
-            {translations.admin.page} {activePage}
-          </Typography>
-          <IconButton
-            size="small"
-            onClick={() => setActivePage((p) => p + 1)}
-            disabled={!hasNextActive}
-          >
-            <ChevronRight />
-          </IconButton>
-          <FormControl size="small" sx={{ minWidth: 80 }}>
-            <InputLabel id="active-page-size-label">{translations.admin.rows}</InputLabel>
-            <Select
-              labelId="active-page-size-label"
-              value={activePageSize}
-              label={translations.admin.rows}
-              onChange={(e) => {
-                setActivePageSize(Number(e.target.value));
-                setActivePage(1);
-              }}
-            >
-              <MenuItem value={10}>10</MenuItem>
-              <MenuItem value={25}>25</MenuItem>
-              <MenuItem value={50}>50</MenuItem>
-              <MenuItem value={100}>100</MenuItem>
-            </Select>
-          </FormControl>
-        </Stack>
-      );
-    }
-
-    if (tab === 'subscriptionsWithPlans') {
-      return (
-        <Stack direction="row" spacing={1} alignItems="center">
-          <IconButton
-            size="small"
-            onClick={() => setSubsPage(1)}
-            disabled={subsPage === 1}
-          >
-            <FirstPage />
-          </IconButton>
-          <IconButton
-            size="small"
-            onClick={() => setSubsPage((p) => Math.max(1, p - 1))}
-            disabled={subsPage === 1}
-          >
-            <ChevronLeft />
-          </IconButton>
-          <Typography variant="body2">
-            {translations.admin.page} {subsPage}
-          </Typography>
-          <IconButton
-            size="small"
-            onClick={() => setSubsPage((p) => p + 1)}
-            disabled={!hasNextSubs}
-          >
-            <ChevronRight />
-          </IconButton>
-          <FormControl size="small" sx={{ minWidth: 80 }}>
-            <InputLabel id="subs-page-size-label">{translations.admin.rows}</InputLabel>
-            <Select
-              labelId="subs-page-size-label"
-              value={subsPageSize}
-              label={translations.admin.rows}
-              onChange={(e) => {
-                setSubsPageSize(Number(e.target.value));
-                setSubsPage(1);
-              }}
-            >
-              <MenuItem value={10}>10</MenuItem>
-              <MenuItem value={25}>25</MenuItem>
-              <MenuItem value={50}>50</MenuItem>
-              <MenuItem value={100}>100</MenuItem>
-            </Select>
-          </FormControl>
-        </Stack>
-      );
-    }
-
-    return null;
-  };
-
-  const renderControls = () => {
-    if (tab === 'topPopular') {
-      return (
-        <TextField
-          label={translations.admin.topN}
-          type="number"
-          size="small"
-          value={topCount}
-          onChange={(e) => setTopCount(Number(e.target.value) || 1)}
-          sx={{ width: 120 }}
-        />
-      );
-    }
-
-    if (tab === 'byMonth') {
-      return (
-        <Stack direction="row" spacing={2}>
-          <TextField
-            label={translations.admin.fromDate}
-            size="small"
-            value={periodFrom}
-            onChange={(e) => setPeriodFrom(e.target.value)}
-          />
-          <TextField
-            label={translations.admin.toDate}
-            size="small"
-            value={periodTo}
-            onChange={(e) => setPeriodTo(e.target.value)}
-          />
-        </Stack>
-      );
-    }
-
-    if (tab === 'userSubscriptions') {
-      return (
-        <TextField
-          label={translations.admin.userEmail}
-          size="small"
-          value={userEmail}
-          onChange={(e) => setUserEmail(e.target.value)}
-          fullWidth
-        />
-      );
-    }
-
-    return null;
-  };
-
   return (
-    <Card
-      sx={{
-        borderRadius: 3,
-        background: 'rgba(255,255,255,0.85)',
-        boxShadow: '0 8px 32px rgba(126, 87, 194, 0.15)',
-      }}
-    >
+    <Card sx={{ borderRadius: 3, background: 'rgba(255,255,255,0.85)' }}>
       <CardContent>
-        <Typography
-          variant="h5"
-          gutterBottom
-          sx={{ color: '#7E57C2', fontWeight: 700 }}
-        >
+        <Typography variant="h5" gutterBottom sx={{ color: '#7E57C2', fontWeight: 700 }}>
           {translations.admin.reportsTitle}
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           {translations.admin.reportsSubtitle}
         </Typography>
 
-        <Tabs
-          value={tab}
-          onChange={(_, v) => setTab(v)}
-          sx={{ mb: 2 }}
-          variant="scrollable"
-          allowScrollButtonsMobile
-          textColor="inherit"
-          indicatorColor="secondary"
-        >
-          <Tab label={translations.admin.activeByPlan} value="activeByPlan" />
-          <Tab label={translations.admin.subscriptionsPlans} value="subscriptionsWithPlans" />
-          <Tab label={translations.admin.topPopular} value="topPopular" />
-          <Tab label={translations.admin.byMonth} value="byMonth" />
-          <Tab label={translations.admin.byUser} value="userSubscriptions" />
+        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }} variant="scrollable">
+          <Tab label="Активность пользователей за период" value="userActivityPeriod" />
+          <Tab label="Подписки за период" value="subscriptionsPeriod" />
+          <Tab label="Детализация по подписчику" value="subscriberDetails" />
         </Tabs>
 
-        <Paper
-          variant="outlined"
-          sx={{
-            p: 2,
-            borderRadius: 2.5,
-            mb: 2,
-            borderColor: 'rgba(126,87,194,0.2)',
-            backgroundColor: 'rgba(126,87,194,0.02)',
-          }}
-        >
-          <Stack direction="row" spacing={1.5} useFlexGap flexWrap="wrap">
-            {overviewMetrics.map((metric) => (
-              <Box
-                key={metric.label}
-                sx={{
-                  minWidth: 130,
-                  px: 1.5,
-                  py: 1,
-                  borderRadius: 1.5,
-                  backgroundColor: 'rgba(255,255,255,0.9)',
-                  border: '1px solid rgba(126,87,194,0.16)',
-                }}
-              >
-                <Typography variant="caption" color="text.secondary">
-                  {metric.label}
-                </Typography>
-                <Typography variant="h6" sx={{ fontWeight: 700, color: '#5E35B1', lineHeight: 1.2 }}>
-                  {metric.value}
-                </Typography>
-              </Box>
-            ))}
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} gap={2} flexWrap="wrap">
+          <Stack direction="row" spacing={2}>
+            {tab !== 'subscriberDetails' ? (
+              <>
+                <TextField
+                  label={translations.admin.fromDate}
+                  size="small"
+                  value={periodFrom}
+                  onChange={(e) => setPeriodFrom(e.target.value)}
+                />
+                <TextField
+                  label={translations.admin.toDate}
+                  size="small"
+                  value={periodTo}
+                  onChange={(e) => setPeriodTo(e.target.value)}
+                />
+              </>
+            ) : (
+              <TextField
+                label={translations.admin.userEmail}
+                size="small"
+                value={userEmail}
+                onChange={(e) => setUserEmail(e.target.value)}
+                sx={{ minWidth: 320 }}
+              />
+            )}
           </Stack>
-        </Paper>
 
-        <Box
-          display="flex"
-          justifyContent="space-between"
-          alignItems="center"
-          mb={2}
-          gap={2}
-          flexWrap="wrap"
-        >
-          <Box>{renderControls()}</Box>
-          <Box display="flex" gap={1} alignItems="center">
-            <Button
-              variant="outlined"
-              size="small"
-              onClick={() => loadCurrentTab()}
-              disabled={loading}
-            >
+          <Box display="flex" gap={1}>
+            <Button variant="outlined" size="small" onClick={loadCurrentTab} disabled={loading}>
               {translations.admin.refresh}
             </Button>
             <TextField
@@ -786,8 +580,9 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
               onChange={(e) => handleExport(e.target.value as ExportFormat)}
               sx={{ minWidth: 140 }}
             >
-              <MenuItem value="csv">{translations.admin.csvExcel}</MenuItem>
+              <MenuItem value="excel">{translations.admin.csvExcel}</MenuItem>
               <MenuItem value="word">{translations.admin.wordDoc}</MenuItem>
+              <MenuItem value="pdf">PDF</MenuItem>
             </TextField>
           </Box>
         </Box>
@@ -795,24 +590,9 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({
         {loading && <LinearProgress sx={{ mb: 2 }} />}
         <Divider sx={{ mb: 2 }} />
 
-        <TableContainer
-          component={Paper}
-          variant="outlined"
-          sx={{
-            overflowX: 'auto',
-            maxHeight: 440,
-            borderRadius: 2.5,
-            borderColor: 'rgba(126,87,194,0.2)',
-          }}
-        >
+        <TableContainer component={Paper} variant="outlined" sx={{ overflowX: 'auto', maxHeight: 500 }}>
           {renderTable()}
         </TableContainer>
-
-        <Box mt={2} display="flex" justifyContent="flex-end">
-          {renderPagination()}
-        </Box>
-
-        {renderChart()}
       </CardContent>
     </Card>
   );

@@ -21,7 +21,6 @@ import { DashboardHeader } from '../components/dashboard/DashboardHeader';
 import { DashboardTabs } from '../components/dashboard/DashboardTabs';
 import { translations } from '../i18n/translations';
 import {
-  countMySubscriptionsTabItems,
   matchesUserSubscriptionCatalog,
 } from '../utils/subscription-utils';
 
@@ -50,6 +49,13 @@ export const DashboardPage: React.FC = () => {
   } | null>(null);
 
   const { isAuthenticated } = useAuthStore();
+  const allMySubscriptions = Object.values(mySubscriptions).flat();
+  const totalMySubscriptionsCount = allMySubscriptions.filter(
+    (s) => s.isActive || !!s.isFrozen
+  ).length;
+  const activeMySubscriptionsCount = allMySubscriptions.filter(
+    (s) => s.isActive && !s.isFrozen
+  ).length;
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -275,8 +281,8 @@ export const DashboardPage: React.FC = () => {
             <UserStatistics
               statistics={{
                 ...statistics,
-                totalSubscriptionsCount:
-                  countMySubscriptionsTabItems(mySubscriptions),
+                activeSubscriptionsCount: activeMySubscriptionsCount,
+                totalSubscriptionsCount: totalMySubscriptionsCount,
               }}
             />
           </motion.div>

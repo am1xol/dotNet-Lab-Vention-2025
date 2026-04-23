@@ -57,14 +57,38 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                     return NotFound("Payment not found");
                 }
 
+                PaymentStatus? targetStatus = webhookData.Transaction.Status switch
+                {
+                    "successful" => PaymentStatus.Completed,
+                    "failed" or "error" or "expired" => PaymentStatus.Failed,
+                    _ => null
+                };
+
+                if (!targetStatus.HasValue)
+                {
+                    _logger.LogInformation("Unhandled status: {Status}. Ignoring webhook.", webhookData.Transaction.Status);
+                    await transaction.CommitAsync();
+                    return Ok(new { message = "Webhook ignored" });
+                }
+
+                if (payment.Status == targetStatus.Value)
+                {
+                    _logger.LogInformation(
+                        "Duplicate webhook ignored for payment {PaymentId}: status {Status} is already applied.",
+                        paymentId,
+                        webhookData.Transaction.Status);
+                    await transaction.CommitAsync();
+                    return Ok(new { message = "Duplicate webhook ignored" });
+                }
+
                 var paymentParams = new DynamicParameters();
                 paymentParams.Add("@Id", paymentId);
                 paymentParams.Add("@ExternalTransactionId", webhookData.Transaction.Id);
+                paymentParams.Add("@Status", targetStatus.Value);
 
                 switch (webhookData.Transaction.Status)
                 {
                     case "successful":
-                        paymentParams.Add("@Status", PaymentStatus.Completed);
                         paymentParams.Add("@CardLastFour", webhookData.Transaction.CreditCard?.Last4 ?? "");
                         paymentParams.Add("@CardBrand", webhookData.Transaction.CreditCard?.Brand ?? "");
                         break;
@@ -72,15 +96,9 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                     case "failed":
                     case "error":
                     case "expired":
-                        paymentParams.Add("@Status", PaymentStatus.Failed);
                         paymentParams.Add("@CardLastFour", (string?)null);
                         paymentParams.Add("@CardBrand", (string?)null);
                         break;
-
-                    default:
-                        _logger.LogInformation("Unhandled status: {Status}. Ignoring webhook.", webhookData.Transaction.Status);
-                        await transaction.CommitAsync();
-                        return Ok(new { message = "Webhook ignored" });
                 }
 
                 await connection.ExecuteAsync(

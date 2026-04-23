@@ -19,7 +19,7 @@ namespace SubscriptionManager.Subscriptions.API.Services
     public class PaymentJobService : IPaymentJobService
     {
         private const string ExpiryReminderTitle = "Срок подписки скоро истекает";
-        private const int PendingPaymentTimeoutMinutes = 35;
+        private const int PendingPaymentTimeoutMinutes = 5;
         private readonly string _connectionString;
         private readonly IPaymentGatewayService _gatewayService;
         private readonly INotificationService _notificationService;

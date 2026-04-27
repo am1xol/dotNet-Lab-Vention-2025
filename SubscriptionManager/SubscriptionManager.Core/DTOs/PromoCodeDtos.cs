@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using SubscriptionManager.Core.Validation;
 
 namespace SubscriptionManager.Core.DTOs
 {
@@ -39,10 +40,10 @@ namespace SubscriptionManager.Core.DTOs
         [Range(1, 2)]
         public int DiscountType { get; set; }
 
-        [Range(typeof(decimal), "0.01", "100000")]
+        [InvariantDecimalRange(0.01, 100000)]
         public decimal DiscountValue { get; set; }
 
-        [Range(typeof(decimal), "0.01", "100000")]
+        [InvariantDecimalRange(0.01, 100000)]
         public decimal? MaxDiscountAmount { get; set; }
         public DateTime ValidFrom { get; set; }
         public DateTime ValidTo { get; set; }
@@ -55,7 +56,7 @@ namespace SubscriptionManager.Core.DTOs
         public Guid? SubscriptionId { get; set; }
         public Guid? PeriodId { get; set; }
 
-        [Range(typeof(decimal), "0", "100000")]
+        [InvariantDecimalRange(0, 100000)]
         public decimal? MinAmount { get; set; }
 
         [Range(1, 4)]
@@ -74,7 +75,7 @@ namespace SubscriptionManager.Core.DTOs
         public Guid? SubscriptionId { get; set; }
         public Guid? PeriodId { get; set; }
 
-        [Range(typeof(decimal), "0", "100000")]
+        [InvariantDecimalRange(0, 100000)]
         public decimal? MinAmount { get; set; }
     }
 

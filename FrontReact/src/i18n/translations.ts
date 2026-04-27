@@ -767,6 +767,8 @@ export const translations = {
     title: 'Статьи и вопросы',
     articles: 'Статьи',
     faq: 'Часто задаваемые вопросы',
+    openUserGuide: 'Открыть руководство пользователя',
+    userGuideHint: 'Нужна полная инструкция по системе?',
     readMore: 'Читать далее',
     minutesRead: 'мин. чтения',
     allCategories: 'Все категории',

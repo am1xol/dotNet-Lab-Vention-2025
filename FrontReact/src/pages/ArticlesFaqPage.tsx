@@ -449,6 +449,42 @@ const ArticlesFaqPage: React.FC = () => {
         {/* FAQ Tab */}
         {activeTab === 1 && (
           <>
+            <Card
+              sx={{
+                mb: 3,
+                p: 2.5,
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                boxShadow: '0 4px 20px rgba(126, 87, 194, 0.1)',
+              }}
+            >
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={2}
+                alignItems={{ xs: 'flex-start', sm: 'center' }}
+                justifyContent="space-between"
+              >
+                <Typography variant="body1" sx={{ color: 'text.secondary' }}>
+                  {translations.articlesFaq?.userGuideHint || 'Нужна полная инструкция по системе?'}
+                </Typography>
+                <Button
+                  variant="contained"
+                  startIcon={<ArticleIcon />}
+                  href="/docs/user-guide.pdf"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{
+                    background: 'linear-gradient(135deg, #7E57C2 0%, #5E35B1 100%)',
+                    fontWeight: 600,
+                    '&:hover': {
+                      background: 'linear-gradient(135deg, #6D4CB0 0%, #4A2A8B 100%)',
+                    },
+                  }}
+                >
+                  {translations.articlesFaq?.openUserGuide || 'Открыть руководство пользователя'}
+                </Button>
+              </Stack>
+            </Card>
+
             {/* Category Filter */}
             <Stack direction="row" spacing={1} sx={{ mb: 3, flexWrap: 'wrap', gap: 1 }}>
               {faqCategories.map((category) => (

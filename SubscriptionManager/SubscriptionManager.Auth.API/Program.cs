@@ -13,5 +13,6 @@ builder.Services.AddSharedObservability(builder.Configuration, "Auth.API");
 var app = builder.Build();
 
 app.UseCors(SharedConstants.CorsPolicy);
+app.UseRateLimiter();
 app.ConfigureAuthApi();
 app.Run();

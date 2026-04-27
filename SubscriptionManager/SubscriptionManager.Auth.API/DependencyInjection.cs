@@ -1,8 +1,9 @@
-﻿using SubscriptionManager.Auth.Infrastructure.Repositories;
+using SubscriptionManager.Auth.Infrastructure.Repositories;
 using SubscriptionManager.Auth.Infrastructure.Services;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Options;
 using SubscriptionManager.Infrastructure.Shared;
+using System.Threading.RateLimiting;
 
 namespace SubscriptionManager.Auth.API
 {
@@ -11,6 +12,7 @@ namespace SubscriptionManager.Auth.API
         public static IServiceCollection AddAuthApiServices(this IServiceCollection services, IConfiguration configuration)
         {
             services.ConfigureOptions(configuration);
+            services.AddAuthProtection();
             services.AddSharedAuthentication(configuration);
             services.AddAuthDatabase(configuration);
             services.AddAuthApplicationServices();
@@ -24,6 +26,62 @@ namespace SubscriptionManager.Auth.API
             return services;
         }
 
+        private static IServiceCollection AddAuthProtection(this IServiceCollection services)
+        {
+            services.AddMemoryCache();
+            services.AddRateLimiter(options =>
+            {
+                options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+                options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                {
+                    var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip";
+                    return RateLimitPartition.GetSlidingWindowLimiter(
+                        $"global:{ip}",
+                        _ => new SlidingWindowRateLimiterOptions
+                        {
+                            PermitLimit = 120,
+                            Window = TimeSpan.FromMinutes(1),
+                            SegmentsPerWindow = 6,
+                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                            QueueLimit = 0
+                        });
+                });
+
+                options.AddPolicy("auth-login", context =>
+                {
+                    var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip";
+                    return RateLimitPartition.GetSlidingWindowLimiter(
+                        $"auth-login:{ip}",
+                        _ => new SlidingWindowRateLimiterOptions
+                        {
+                            PermitLimit = 10,
+                            Window = TimeSpan.FromMinutes(1),
+                            SegmentsPerWindow = 6,
+                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                            QueueLimit = 0
+                        });
+                });
+
+                options.AddPolicy("auth-sensitive", context =>
+                {
+                    var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip";
+                    return RateLimitPartition.GetSlidingWindowLimiter(
+                        $"auth-sensitive:{ip}",
+                        _ => new SlidingWindowRateLimiterOptions
+                        {
+                            PermitLimit = 6,
+                            Window = TimeSpan.FromMinutes(1),
+                            SegmentsPerWindow = 6,
+                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                            QueueLimit = 0
+                        });
+                });
+            });
+
+            return services;
+        }
+
         private static IServiceCollection ConfigureOptions(this IServiceCollection services, IConfiguration configuration)
         {
             services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
@@ -32,6 +90,7 @@ namespace SubscriptionManager.Auth.API
             services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
             services.Configure<MinIOOptions>(configuration.GetSection(MinIOOptions.SectionName));
             services.Configure<ChatModerationOptions>(configuration.GetSection(ChatModerationOptions.SectionName));
+            services.Configure<AuthSecurityOptions>(configuration.GetSection(AuthSecurityOptions.SectionName));
 
             return services;
         }
@@ -51,6 +110,7 @@ namespace SubscriptionManager.Auth.API
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
             services.AddScoped<IAuthService, AuthService>();
+            services.AddSingleton<IAuthAttemptProtectionService, AuthAttemptProtectionService>();
             services.AddScoped<IChatRepository, ChatRepository>();
             services.AddScoped<IProfanityFilter, ProfanityFilter>();
             services.AddScoped<IFeedbackRepository, FeedbackRepository>();

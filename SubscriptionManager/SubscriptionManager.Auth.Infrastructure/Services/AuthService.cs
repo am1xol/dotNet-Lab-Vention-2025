@@ -1,11 +1,13 @@
 using DeviceDetectorNET;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using SubscriptionManager.Core.Constants;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Models;
 using SubscriptionManager.Core.Models.Requests;
 using SubscriptionManager.Core.Models.Responses;
+using SubscriptionManager.Core.Options;
 
 namespace SubscriptionManager.Auth.Infrastructure.Services;
 
@@ -21,6 +23,8 @@ public class AuthService : IAuthService
     private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly ILogger<AuthService> _logger;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IAuthAttemptProtectionService _attemptProtectionService;
+    private readonly AuthSecurityOptions _authSecurityOptions;
 
     public AuthService(
         IUserRepository userRepository,
@@ -30,7 +34,9 @@ public class AuthService : IAuthService
         ITokenService tokenService,
         IRefreshTokenRepository refreshTokenRepository,
         ILogger<AuthService> logger,
-        IHttpContextAccessor httpContextAccessor)
+        IHttpContextAccessor httpContextAccessor,
+        IAuthAttemptProtectionService attemptProtectionService,
+        IOptions<AuthSecurityOptions> authSecurityOptions)
     {
         _userRepository = userRepository;
         _passwordHasher = passwordHasher;
@@ -40,6 +46,8 @@ public class AuthService : IAuthService
         _refreshTokenRepository = refreshTokenRepository;
         _logger = logger;
         _httpContextAccessor = httpContextAccessor;
+        _attemptProtectionService = attemptProtectionService;
+        _authSecurityOptions = authSecurityOptions.Value;
     }
 
     private string GetDeviceDescription()
@@ -141,9 +149,18 @@ public class AuthService : IAuthService
 
     public async Task<AuthResult> VerifyEmailAsync(VerifyEmailRequest request)
     {
+        if (TryGetActiveLockout("verify-email", request.Email, out var verifyRetryAfter))
+        {
+            return new AuthResult
+            {
+                Error = $"Too many attempts. Try again in {Math.Ceiling(verifyRetryAfter.TotalSeconds)} seconds."
+            };
+        }
+
         var user = await _userRepository.GetByEmailAsync(request.Email);
         if (user == null)
         {
+            _attemptProtectionService.RegisterFailure("verify-email", request.Email, GetClientIpAddress(), _authSecurityOptions.VerificationMaxFailures);
             return new AuthResult { Error = "User not found" };
         }
 
@@ -154,22 +171,33 @@ public class AuthService : IAuthService
 
         if (user.EmailVerificationCode != request.VerificationCode)
         {
+            _attemptProtectionService.RegisterFailure("verify-email", request.Email, GetClientIpAddress(), _authSecurityOptions.VerificationMaxFailures);
             return new AuthResult { Error = "Invalid verification code" };
         }
 
         var now = DateTime.UtcNow;
         if (user.EmailVerificationCodeExpiresAt < now)
         {
+            _attemptProtectionService.RegisterFailure("verify-email", request.Email, GetClientIpAddress(), _authSecurityOptions.VerificationMaxFailures);
             return new AuthResult { Error = "Verification code has expired" };
         }
 
         await _userRepository.VerifyEmailAsync(user.Id);
+        _attemptProtectionService.RegisterSuccess("verify-email", request.Email, GetClientIpAddress());
 
         return new AuthResult { UserId = user.Id.ToString() };
     }
 
     public async Task<LoginResponse> LoginAsync(LoginRequest request)
     {
+        if (TryGetActiveLockout("login", request.Email, out var loginRetryAfter))
+        {
+            return new LoginResponse
+            {
+                Error = $"Too many login attempts. Try again in {Math.Ceiling(loginRetryAfter.TotalSeconds)} seconds."
+            };
+        }
+
         if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
         {
             return new LoginResponse { Error = "Email and password are required" };
@@ -178,6 +206,7 @@ public class AuthService : IAuthService
         var user = await _userRepository.GetByEmailAsync(request.Email);
         if (user == null)
         {
+            _attemptProtectionService.RegisterFailure("login", request.Email, GetClientIpAddress(), _authSecurityOptions.LoginMaxFailures);
             return new LoginResponse { Error = "Invalid email or password" };
         }
 
@@ -188,13 +217,17 @@ public class AuthService : IAuthService
 
         if (!_passwordHasher.VerifyPassword(request.Password, user.PasswordHash))
         {
+            _attemptProtectionService.RegisterFailure("login", request.Email, GetClientIpAddress(), _authSecurityOptions.LoginMaxFailures);
             return new LoginResponse { Error = "Invalid email or password" };
         }
 
         if (user.IsBlocked)
         {
+            _attemptProtectionService.RegisterFailure("login", request.Email, GetClientIpAddress(), _authSecurityOptions.LoginMaxFailures);
             return new LoginResponse { Error = "Your account has been blocked." };
         }
+
+        _attemptProtectionService.RegisterSuccess("login", request.Email, GetClientIpAddress());
 
         var accessToken = _tokenService.GenerateAccessToken(user);
         var refreshToken = _tokenService.GenerateRefreshToken();
@@ -323,9 +356,18 @@ public class AuthService : IAuthService
 
     public async Task<ForgotPasswordResponse> ForgotPasswordAsync(ForgotPasswordRequest request)
     {
+        if (TryGetActiveLockout("forgot-password", request.Email, out var forgotRetryAfter))
+        {
+            return new ForgotPasswordResponse
+            {
+                Error = $"Too many requests. Try again in {Math.Ceiling(forgotRetryAfter.TotalSeconds)} seconds."
+            };
+        }
+
         var user = await _userRepository.GetByEmailAsync(request.Email);
         if (user == null)
         {
+            _attemptProtectionService.RegisterFailure("forgot-password", request.Email, GetClientIpAddress(), _authSecurityOptions.PasswordResetMaxFailures);
             return new ForgotPasswordResponse { Message = "If the email exists, a reset code has been sent." };
         }
 
@@ -341,6 +383,7 @@ public class AuthService : IAuthService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send password reset email to {Email} after retries", user.Email);
+            _attemptProtectionService.RegisterFailure("forgot-password", request.Email, GetClientIpAddress(), _authSecurityOptions.PasswordResetMaxFailures);
 
             return new ForgotPasswordResponse
             {
@@ -348,25 +391,37 @@ public class AuthService : IAuthService
             };
         }
 
+        _attemptProtectionService.RegisterSuccess("forgot-password", request.Email, GetClientIpAddress());
         return new ForgotPasswordResponse { Message = "If the email exists, a reset code has been sent." };
     }
 
     public async Task<ForgotPasswordResponse> ResetPasswordAsync(ResetPasswordRequest request)
     {
+        if (TryGetActiveLockout("reset-password", request.Email, out var resetRetryAfter))
+        {
+            return new ForgotPasswordResponse
+            {
+                Error = $"Too many reset attempts. Try again in {Math.Ceiling(resetRetryAfter.TotalSeconds)} seconds."
+            };
+        }
+
         var user = await _userRepository.GetByEmailAsync(request.Email);
         if (user == null)
         {
+            _attemptProtectionService.RegisterFailure("reset-password", request.Email, GetClientIpAddress(), _authSecurityOptions.PasswordResetMaxFailures);
             return new ForgotPasswordResponse { Error = "Invalid reset token" };
         }
 
         if (user.PasswordResetCode != request.ResetToken ||
             user.PasswordResetExpiresAt < DateTime.UtcNow)
         {
+            _attemptProtectionService.RegisterFailure("reset-password", request.Email, GetClientIpAddress(), _authSecurityOptions.PasswordResetMaxFailures);
             return new ForgotPasswordResponse { Error = "Invalid or expired reset code" };
         }
 
         var newPasswordHash = _passwordHasher.HashPassword(request.NewPassword);
         await _userRepository.UpdatePasswordAsync(user.Id, newPasswordHash);
+        _attemptProtectionService.RegisterSuccess("reset-password", request.Email, GetClientIpAddress());
 
         return new ForgotPasswordResponse { Message = "Password has been reset successfully" };
     }
@@ -375,6 +430,14 @@ public class AuthService : IAuthService
 
     public async Task<AuthResult> ResendVerificationCodeAsync(ResendVerificationCodeRequest request)
     {
+        if (TryGetActiveLockout("resend-verification", request.Email, out var resendRetryAfter))
+        {
+            return new AuthResult
+            {
+                Error = $"Too many requests. Try again in {Math.Ceiling(resendRetryAfter.TotalSeconds)} seconds."
+            };
+        }
+
         if (string.IsNullOrEmpty(request.Email))
         {
             return new AuthResult { Error = "Email is required." };
@@ -385,6 +448,7 @@ public class AuthService : IAuthService
         if (user == null)
         {
             _logger.LogWarning("Attempt to resend code for non-existent email: {Email}", request.Email);
+            _attemptProtectionService.RegisterFailure("resend-verification", request.Email, GetClientIpAddress(), _authSecurityOptions.VerificationMaxFailures);
             return new AuthResult { UserId = null };
         }
 
@@ -420,6 +484,7 @@ public class AuthService : IAuthService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send verification email during resend for user {UserId}", user.Id);
+            _attemptProtectionService.RegisterFailure("resend-verification", request.Email, GetClientIpAddress(), _authSecurityOptions.VerificationMaxFailures);
 
             return new AuthResult
             {
@@ -427,6 +492,17 @@ public class AuthService : IAuthService
             };
         }
 
+        _attemptProtectionService.RegisterSuccess("resend-verification", request.Email, GetClientIpAddress());
         return new AuthResult { UserId = user.Id.ToString() };
+    }
+
+    private string GetClientIpAddress()
+    {
+        return _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip";
+    }
+
+    private bool TryGetActiveLockout(string action, string? accountKey, out TimeSpan retryAfter)
+    {
+        return _attemptProtectionService.IsLocked(action, accountKey, GetClientIpAddress(), out retryAfter);
     }
 }

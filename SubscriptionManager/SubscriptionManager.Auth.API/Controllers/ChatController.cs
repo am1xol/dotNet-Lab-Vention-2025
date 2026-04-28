@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using SubscriptionManager.Auth.API.Realtime;
+using SubscriptionManager.Auth.API.Services;
 using SubscriptionManager.Core.DTOs;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Constants;
@@ -13,73 +16,30 @@ namespace SubscriptionManager.Auth.API.Controllers
     public class ChatController : ControllerBase
     {
         private readonly IChatRepository _chatRepository;
-        private readonly IUserRepository _userRepository;
-        private readonly IEmailService _emailService;
         private readonly IProfanityFilter _profanityFilter;
+        private readonly IAdminSupportNotificationQueue _notificationQueue;
+        private readonly IHubContext<ChatHub> _chatHubContext;
         private readonly ILogger<ChatController> _logger;
 
         public ChatController(
             IChatRepository chatRepository,
-            IUserRepository userRepository,
-            IEmailService emailService,
             IProfanityFilter profanityFilter,
+            IAdminSupportNotificationQueue notificationQueue,
+            IHubContext<ChatHub> chatHubContext,
             ILogger<ChatController> logger)
         {
             _chatRepository = chatRepository;
-            _userRepository = userRepository;
-            _emailService = emailService;
             _profanityFilter = profanityFilter;
+            _notificationQueue = notificationQueue;
+            _chatHubContext = chatHubContext;
             _logger = logger;
         }
 
-        private async Task NotifyAdminsAboutNewSupportMessageAsync(Guid senderUserId, string messageContent)
+        private bool TryGetUserIdFromClaims(out Guid userId)
         {
-            try
-            {
-                var users = await _userRepository.GetAllUsersAsync();
-                var adminEmails = users
-                    .Where(u => u.Role == RoleConstants.Admin && !string.IsNullOrWhiteSpace(u.Email))
-                    .Select(u => u.Email)
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-
-                if (adminEmails.Count == 0)
-                {
-                    _logger.LogWarning("Support message email notification skipped: no admin emails found.");
-                    return;
-                }
-
-                var title = "Новое сообщение в чате поддержки";
-                var trimmedMessage = messageContent.Length > 500
-                    ? $"{messageContent[..500]}..."
-                    : messageContent;
-                var body = $"""
-                    Пользователь отправил новое сообщение в чате поддержки.
-
-                    ID пользователя: {senderUserId}
-                    Сообщение:
-                    {trimmedMessage}
-                    """;
-
-                foreach (var adminEmail in adminEmails)
-                {
-                    await _emailService.SendNotificationEmailAsync(adminEmail, title, body);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to send support chat email notifications to admins.");
-            }
-        }
-
-        private Guid GetUserIdFromClaims()
-        {
+            userId = Guid.Empty;
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
-            if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
-            {
-                throw new UnauthorizedAccessException("Invalid token");
-            }
-            return userId;
+            return userIdClaim != null && Guid.TryParse(userIdClaim.Value, out userId);
         }
 
         private string GetUserRole()
@@ -92,15 +52,70 @@ namespace SubscriptionManager.Auth.API.Controllers
             return GetUserRole() == RoleConstants.Admin;
         }
 
+        private static ChatMessageDto MapMessageDto(Core.Models.ChatMessage message)
+        {
+            return new ChatMessageDto
+            {
+                Id = message.Id,
+                ConversationId = message.ConversationId,
+                SenderId = message.SenderId,
+                SenderRole = message.SenderRole.ToString(),
+                Content = message.Content,
+                IsRead = message.IsRead,
+                CreatedAt = message.CreatedAt
+            };
+        }
+
+        private async Task PublishConversationUpdatedAsync(Guid conversationId)
+        {
+            await _chatHubContext.Clients.Group(ChatHubGroups.Admins)
+                .SendAsync(ChatHubEvents.ConversationUpdated, conversationId);
+        }
+
+        private async Task PublishMessageAndUnreadEventsAsync(ChatMessageDto messageDto)
+        {
+            await _chatHubContext.Clients.Group(ChatHubGroups.Admins)
+                .SendAsync(ChatHubEvents.MessageReceived, messageDto);
+
+            if (messageDto.SenderRole == "Admin")
+            {
+                var conversation = await _chatRepository.GetConversationByIdAsync(messageDto.ConversationId);
+                if (conversation != null)
+                {
+                    await _chatHubContext.Clients.Group(ChatHubGroups.User(conversation.UserId))
+                        .SendAsync(ChatHubEvents.MessageReceived, messageDto);
+
+                    var unreadForUser = await _chatRepository.GetUnreadCountForUserAsync(conversation.Id, conversation.UserId);
+                    await _chatHubContext.Clients.Group(ChatHubGroups.User(conversation.UserId))
+                        .SendAsync(ChatHubEvents.UnreadCountChanged, unreadForUser);
+                }
+            }
+            else
+            {
+                await _chatHubContext.Clients.Group(ChatHubGroups.User(messageDto.SenderId))
+                    .SendAsync(ChatHubEvents.MessageReceived, messageDto);
+
+                var unreadAdminMessages = await _chatRepository.GetUnreadMessagesForAdminAsync();
+                await _chatHubContext.Clients.Group(ChatHubGroups.Admins)
+                    .SendAsync(ChatHubEvents.UnreadCountChanged, unreadAdminMessages.Count());
+            }
+        }
+
         [HttpGet("conversation")]
+        [Authorize]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<ChatWithUserDto>> GetMyConversation()
         {
             try
             {
-                var userId = GetUserIdFromClaims();
-                var conversation = await _chatRepository.GetOrCreateConversationAsync(userId);
+                if (!TryGetUserIdFromClaims(out var userId))
+                {
+                    return Unauthorized();
+                }
+
+                var conversation = await _chatRepository.GetConversationByUserIdAsync(userId)
+                    ?? await _chatRepository.CreateNewConversationAsync(userId);
                 var messages = await _chatRepository.GetMessagesByConversationAsync(conversation.Id);
                 var unreadCount = await _chatRepository.GetUnreadCountForUserAsync(conversation.Id, userId);
 
@@ -134,6 +149,7 @@ namespace SubscriptionManager.Auth.API.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [Authorize]
         public async Task<ActionResult<ChatMessageDto>> SendMessage([FromBody] SendMessageRequest request)
         {
             try
@@ -145,10 +161,15 @@ namespace SubscriptionManager.Auth.API.Controllers
 
                 var moderatedContent = _profanityFilter.ModerateText(request.Content);
 
-                var userId = GetUserIdFromClaims();
+                if (!TryGetUserIdFromClaims(out var userId))
+                {
+                    return Unauthorized();
+                }
+
                 var userRole = IsAdmin() ? "Admin" : "User";
 
-                var conversation = await _chatRepository.GetOrCreateConversationAsync(userId);
+                var conversation = await _chatRepository.GetConversationByUserIdAsync(userId)
+                    ?? await _chatRepository.CreateNewConversationAsync(userId);
                 
                 if (!IsAdmin() && conversation.Status == Core.Models.ChatConversationStatus.Closed)
                 {
@@ -163,7 +184,7 @@ namespace SubscriptionManager.Auth.API.Controllers
 
                 if (!IsAdmin())
                 {
-                    await NotifyAdminsAboutNewSupportMessageAsync(userId, moderatedContent);
+                    await _notificationQueue.EnqueueAsync(new AdminSupportNotificationJob(userId, moderatedContent));
                 }
 
                 if (IsAdmin())
@@ -171,16 +192,9 @@ namespace SubscriptionManager.Auth.API.Controllers
                     await _chatRepository.UpdateConversationStatusAsync(conversation.Id, "Open", userId);
                 }
 
-                var messageDto = new ChatMessageDto
-                {
-                    Id = message.Id,
-                    ConversationId = message.ConversationId,
-                    SenderId = message.SenderId,
-                    SenderRole = message.SenderRole.ToString(),
-                    Content = message.Content,
-                    IsRead = message.IsRead,
-                    CreatedAt = message.CreatedAt
-                };
+                var messageDto = MapMessageDto(message);
+                await PublishConversationUpdatedAsync(message.ConversationId);
+                await PublishMessageAndUnreadEventsAsync(messageDto);
 
                 return Ok(messageDto);
             }
@@ -228,9 +242,16 @@ namespace SubscriptionManager.Auth.API.Controllers
                 }
 
                 var messages = await _chatRepository.GetMessagesByConversationAsync(id);
-                
-                var adminId = GetUserIdFromClaims();
+
+                if (!TryGetUserIdFromClaims(out var adminId))
+                {
+                    return Unauthorized();
+                }
+
                 await _chatRepository.MarkMessagesAsReadAsync(id, adminId);
+                var unreadAdminMessages = await _chatRepository.GetUnreadMessagesForAdminAsync();
+                await _chatHubContext.Clients.Group(ChatHubGroups.Admins)
+                    .SendAsync(ChatHubEvents.UnreadCountChanged, unreadAdminMessages.Count());
 
                 var conversationDto = new ChatConversationDto
                 {
@@ -283,23 +304,20 @@ namespace SubscriptionManager.Auth.API.Controllers
                     return NotFound("Conversation not found");
                 }
 
-                var adminId = GetUserIdFromClaims();
+                if (!TryGetUserIdFromClaims(out var adminId))
+                {
+                    return Unauthorized();
+                }
+
                 var message = await _chatRepository.AddMessageAsync(
                     id,
                     adminId,
                     "Admin",
                     moderatedContent);
 
-                var messageDto = new ChatMessageDto
-                {
-                    Id = message.Id,
-                    ConversationId = message.ConversationId,
-                    SenderId = message.SenderId,
-                    SenderRole = message.SenderRole.ToString(),
-                    Content = message.Content,
-                    IsRead = message.IsRead,
-                    CreatedAt = message.CreatedAt
-                };
+                var messageDto = MapMessageDto(message);
+                await PublishConversationUpdatedAsync(message.ConversationId);
+                await PublishMessageAndUnreadEventsAsync(messageDto);
 
                 return Ok(messageDto);
             }
@@ -327,6 +345,7 @@ namespace SubscriptionManager.Auth.API.Controllers
                 }
 
                 await _chatRepository.UpdateConversationStatusAsync(id, "Closed");
+                await PublishConversationUpdatedAsync(id);
                 return Ok();
             }
             catch (Exception ex)
@@ -357,16 +376,23 @@ namespace SubscriptionManager.Auth.API.Controllers
         [HttpPut("conversation/read")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [Authorize]
         public async Task<IActionResult> MarkAsRead()
         {
             try
             {
-                var userId = GetUserIdFromClaims();
+                if (!TryGetUserIdFromClaims(out var userId))
+                {
+                    return Unauthorized();
+                }
+
                 var conversation = await _chatRepository.GetConversationByUserIdAsync(userId);
                 
                 if (conversation != null)
                 {
                     await _chatRepository.MarkMessagesAsReadAsync(conversation.Id, userId);
+                    await _chatHubContext.Clients.Group(ChatHubGroups.User(userId))
+                        .SendAsync(ChatHubEvents.UnreadCountChanged, 0);
                 }
                 
                 return Ok();
@@ -381,11 +407,16 @@ namespace SubscriptionManager.Auth.API.Controllers
         [HttpPost("conversation/new")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [Authorize]
         public async Task<ActionResult<ChatWithUserDto>> CreateNewConversation()
         {
             try
             {
-                var userId = GetUserIdFromClaims();
+                if (!TryGetUserIdFromClaims(out var userId))
+                {
+                    return Unauthorized();
+                }
+
                 var conversation = await _chatRepository.CreateNewConversationAsync(userId);
                 var messages = await _chatRepository.GetMessagesByConversationAsync(conversation.Id);
                 var unreadCount = await _chatRepository.GetUnreadCountForUserAsync(conversation.Id, userId);

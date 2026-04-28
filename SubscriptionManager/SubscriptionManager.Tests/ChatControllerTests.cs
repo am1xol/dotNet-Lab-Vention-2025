@@ -1,8 +1,11 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Moq;
 using SubscriptionManager.Auth.API.Controllers;
+using SubscriptionManager.Auth.API.Realtime;
+using SubscriptionManager.Auth.API.Services;
 using SubscriptionManager.Core.DTOs;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Models;
@@ -14,8 +17,12 @@ public class ChatControllerTests
 {
     private readonly Mock<IChatRepository> _chatRepositoryMock = new();
     private readonly Mock<IUserRepository> _userRepositoryMock = new();
-    private readonly Mock<IEmailService> _emailServiceMock = new();
     private readonly Mock<IProfanityFilter> _profanityFilterMock = new();
+    private readonly Mock<IAdminSupportNotificationQueue> _notificationQueueMock = new();
+    private readonly Mock<IHubContext<ChatHub>> _hubContextMock = new();
+    private readonly Mock<IHubClients> _hubClientsMock = new();
+    private readonly Mock<IGroupManager> _groupManagerMock = new();
+    private readonly Mock<IClientProxy> _clientProxyMock = new();
     private readonly ChatController _controller;
 
     public ChatControllerTests()
@@ -24,12 +31,18 @@ public class ChatControllerTests
         _profanityFilterMock
             .Setup(x => x.ModerateText(It.IsAny<string>()))
             .Returns<string>(x => x);
+        _hubClientsMock.Setup(x => x.Group(It.IsAny<string>())).Returns(_clientProxyMock.Object);
+        _clientProxyMock
+            .Setup(x => x.SendCoreAsync(It.IsAny<string>(), It.IsAny<object?[]>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        _hubContextMock.SetupGet(x => x.Clients).Returns(_hubClientsMock.Object);
+        _hubContextMock.SetupGet(x => x.Groups).Returns(_groupManagerMock.Object);
 
         _controller = new ChatController(
             _chatRepositoryMock.Object,
-            _userRepositoryMock.Object,
-            _emailServiceMock.Object,
             _profanityFilterMock.Object,
+            _notificationQueueMock.Object,
+            _hubContextMock.Object,
             logger.Object);
     }
 
@@ -51,7 +64,7 @@ public class ChatControllerTests
         var userId = Guid.NewGuid();
         SetUser(userId, "User");
         _chatRepositoryMock
-            .Setup(x => x.GetOrCreateConversationAsync(userId))
+            .Setup(x => x.GetConversationByUserIdAsync(userId))
             .ReturnsAsync(new ChatConversation
             {
                 Id = Guid.NewGuid(),
@@ -90,6 +103,38 @@ public class ChatControllerTests
 
         var notFound = Assert.IsType<NotFoundObjectResult>(result.Result);
         Assert.Equal("Conversation not found", notFound.Value);
+    }
+
+    [Fact]
+    public async Task GetMyConversation_WithoutUserClaim_ReturnsUnauthorized()
+    {
+        _controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity())
+            }
+        };
+
+        var result = await _controller.GetMyConversation();
+
+        Assert.IsType<UnauthorizedResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task SendMessage_WithoutUserClaim_ReturnsUnauthorized()
+    {
+        _controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity())
+            }
+        };
+
+        var result = await _controller.SendMessage(new SendMessageRequest { Content = "Hi" });
+
+        Assert.IsType<UnauthorizedResult>(result.Result);
     }
 
     private void SetUser(Guid userId, string role)

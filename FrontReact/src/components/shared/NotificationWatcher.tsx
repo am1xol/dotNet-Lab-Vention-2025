@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useSnackbar } from 'notistack';
 import { useNavigate } from 'react-router-dom';
 import { notificationService } from '../../services/notification-service';
+import { chatRealtimeService } from '../../services/chat-realtime-service';
 import { useAuthStore } from '../../store/auth-store';
 import { Notification } from '../../types/notification';
 import { translations } from '../../i18n/translations';
@@ -54,8 +55,21 @@ export const NotificationWatcher: React.FC = () => {
     };
 
     checkForNewNotifications();
+
+    const unsubscribeUnread = chatRealtimeService.onUnreadCountChanged(() => {
+      checkForNewNotifications();
+    });
+
+    const unsubscribeConversation = chatRealtimeService.onConversationUpdated(() => {
+      checkForNewNotifications();
+    });
+
     const intervalId = setInterval(checkForNewNotifications, POLLING_INTERVAL);
-    return () => clearInterval(intervalId);
+    return () => {
+      unsubscribeUnread();
+      unsubscribeConversation();
+      clearInterval(intervalId);
+    };
   }, [isAuthenticated, enqueueSnackbar, navigate]);
 
   return null;

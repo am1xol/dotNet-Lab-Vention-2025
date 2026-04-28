@@ -1,5 +1,6 @@
 using SubscriptionManager.Auth.Infrastructure.Repositories;
 using SubscriptionManager.Auth.Infrastructure.Services;
+using SubscriptionManager.Auth.API.Services;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Options;
 using SubscriptionManager.Infrastructure.Shared;
@@ -18,6 +19,7 @@ namespace SubscriptionManager.Auth.API
             services.AddAuthApplicationServices();
 
             services.AddControllers();
+            services.AddSignalR();
             services.AddEndpointsApiExplorer();
             services.AddSharedSwagger("Auth API");
             services.AddSharedHealthChecks(configuration);
@@ -114,6 +116,8 @@ namespace SubscriptionManager.Auth.API
             services.AddScoped<IChatRepository, ChatRepository>();
             services.AddScoped<IProfanityFilter, ProfanityFilter>();
             services.AddScoped<IFeedbackRepository, FeedbackRepository>();
+            services.AddSingleton<IAdminSupportNotificationQueue, AdminSupportNotificationQueue>();
+            services.AddHostedService<AdminSupportNotificationWorker>();
 
             return services;
         }

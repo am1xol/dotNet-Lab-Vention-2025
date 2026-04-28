@@ -1,4 +1,5 @@
 ﻿using SubscriptionManager.Infrastructure.Shared;
+using SubscriptionManager.Auth.API.Realtime;
 
 namespace SubscriptionManager.Auth.API
 {
@@ -40,6 +41,7 @@ namespace SubscriptionManager.Auth.API
         private static WebApplication ConfigureEndpoints(this WebApplication app)
         {
             app.MapControllers();
+            app.MapHub<ChatHub>("/hubs/chat");
             app.MapSharedHealthChecks();
 
             return app;

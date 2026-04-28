@@ -8,6 +8,7 @@ import { GlobalStyles } from '@mui/material';
 import { lazy, Suspense, useEffect } from 'react';
 import { useAuthStore } from './store/auth-store';
 import { userService } from './services/user-service';
+import { chatRealtimeService } from './services/chat-realtime-service';
 
 const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.default })));
 const SignIn = lazy(() => import('./components/auth/SignIn').then(m => ({ default: m.SignIn })));
@@ -89,6 +90,30 @@ function App() {
       isMounted = false;
     };
   }, [isAuthenticated, accessToken, user?.firstName, user?.email, setUser, logout]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const syncRealtimeConnection = async () => {
+      try {
+        if (isAuthenticated && accessToken) {
+          await chatRealtimeService.connect();
+        } else {
+          await chatRealtimeService.disconnect();
+        }
+      } catch {
+        if (isActive) {
+          console.error('Failed to sync chat realtime connection');
+        }
+      }
+    };
+
+    syncRealtimeConnection();
+
+    return () => {
+      isActive = false;
+    };
+  }, [isAuthenticated, accessToken]);
 
   return (
     <>

@@ -23,8 +23,9 @@ public class ChatRepository : IChatRepository
     public async Task<ChatConversation?> GetConversationByUserIdAsync(Guid userId)
     {
         const string sql = @"
-            SELECT * FROM [ChatConversations] 
-            WHERE [UserId] = @UserId";
+            SELECT TOP 1 * FROM [ChatConversations] 
+            WHERE [UserId] = @UserId
+            ORDER BY COALESCE([LastMessageAt], [CreatedAt]) DESC, [CreatedAt] DESC";
         
         using var connection = CreateConnection();
         return await connection.QueryFirstOrDefaultAsync<ChatConversation>(
@@ -158,36 +159,43 @@ public class ChatRepository : IChatRepository
 
     public async Task<ChatConversation> CreateNewConversationAsync(Guid userId)
     {
-        var existingConversation = await GetConversationByUserIdAsync(userId);
-        if (existingConversation != null && existingConversation.Status == ChatConversationStatus.Open)
-        {
-            return existingConversation;
-        }
-
-        if (existingConversation != null && existingConversation.Status == ChatConversationStatus.Closed)
-        {
-            await UpdateConversationStatusAsync(existingConversation.Id, "Open");
-            return await GetConversationByIdAsync(existingConversation.Id) 
-                ?? throw new InvalidOperationException("Failed to reopen conversation");
-        }
-
         const string sql = @"
             INSERT INTO [ChatConversations] (Id, UserId, Status, CreatedAt, UpdatedAt, LastMessageAt)
             VALUES (@Id, @UserId, 'Open', @CreatedAt, @UpdatedAt, @LastMessageAt);
             SELECT * FROM [ChatConversations] WHERE Id = @Id;";
 
         using var connection = CreateConnection();
-        var newConversation = await connection.QueryFirstAsync<ChatConversation>(
-            sql,
-            new
-            {
-                Id = Guid.NewGuid(),
-                UserId = userId,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
-                LastMessageAt = DateTime.UtcNow
-            });
+        try
+        {
+            var newConversation = await connection.QueryFirstAsync<ChatConversation>(
+                sql,
+                new
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = userId,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    LastMessageAt = DateTime.UtcNow
+                });
 
-        return newConversation;
+            return newConversation;
+        }
+        catch (SqlException ex) when (ex.Number is 2601 or 2627)
+        {
+            var existingConversation = await GetConversationByUserIdAsync(userId);
+            if (existingConversation == null)
+            {
+                throw;
+            }
+
+            if (existingConversation.Status == ChatConversationStatus.Closed)
+            {
+                await UpdateConversationStatusAsync(existingConversation.Id, "Open");
+                return await GetConversationByIdAsync(existingConversation.Id)
+                    ?? throw new InvalidOperationException("Failed to load reopened conversation.");
+            }
+
+            return existingConversation;
+        }
     }
 }

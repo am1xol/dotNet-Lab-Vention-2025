@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Box, Paper, IconButton, TextField, Typography, Badge, Avatar, Fab, Alert, Button } from '@mui/material';
 import { Send as SendIcon, Chat as ChatIcon, Close as CloseIcon, Lock as LockIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 import chatService from '../../services/chat-service';
+import { chatRealtimeService } from '../../services/chat-realtime-service';
 import { ChatMessageDto } from '../../types/chat';
 import { useAuthStore } from '../../store/auth-store';
 import { translations } from '../../i18n/translations';
@@ -21,6 +22,7 @@ const UserChatWidget: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevMessagesLengthRef = useRef<number>(0);
+  const activeConversationIdRef = useRef<string | null>(null);
   
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
@@ -33,6 +35,7 @@ const UserChatWidget: React.FC = () => {
         setMessages(data.messages);
         prevMessagesLengthRef.current = data.messages.length;
       }
+      activeConversationIdRef.current = data.conversation.id;
       setUnreadCount(data.conversation.unreadCount);
       setIsClosed(data.conversation.status === 'Closed');
       setError(null);
@@ -59,18 +62,11 @@ const UserChatWidget: React.FC = () => {
 
     try {
       const data = await chatService.getMyConversation();
+      activeConversationIdRef.current = data.conversation.id;
       setUnreadCount(data.conversation.unreadCount);
       setIsClosed(data.conversation.status === 'Closed');
       setError(null);
     } catch (error: any) {
-      // Fallback to dedicated unread endpoint if conversation is unavailable.
-      try {
-        const count = await chatService.getUnreadCount();
-        setUnreadCount(count);
-      } catch (unreadError) {
-        console.error('Error loading unread count:', unreadError);
-      }
-
       if (error?.response?.status === 403) {
         setError(error.response.data);
         setIsClosed(true);
@@ -83,6 +79,8 @@ const UserChatWidget: React.FC = () => {
       setIsLoading(true);
       const data = await chatService.createNewConversation();
       setMessages(data.messages);
+      prevMessagesLengthRef.current = data.messages.length;
+      activeConversationIdRef.current = data.conversation.id;
       setUnreadCount(0);
       setIsClosed(false);
       setError(null);
@@ -99,7 +97,9 @@ const UserChatWidget: React.FC = () => {
       loadConversation();
       markAsRead();
       pollIntervalRef.current = setInterval(() => {
-        loadConversation();
+        if (!chatRealtimeService.isConnected()) {
+          loadConversation();
+        }
       }, POLL_INTERVAL);
     }
     
@@ -132,11 +132,60 @@ const UserChatWidget: React.FC = () => {
 
     loadUnreadCount();
     const unreadPollInterval = setInterval(() => {
-      loadUnreadCount();
+      if (!chatRealtimeService.isConnected()) {
+        loadUnreadCount();
+      }
     }, POLL_INTERVAL);
 
     return () => clearInterval(unreadPollInterval);
   }, [isAuthenticated, isOpen, loadUnreadCount]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    const unsubscribeMessage = chatRealtimeService.onMessageReceived((message) => {
+      const isCurrentConversation = activeConversationIdRef.current === message.conversationId;
+      const shouldAutoRead = isOpen && isCurrentConversation && message.senderRole === 'Admin';
+
+      if (message.senderRole === 'Admin' && !shouldAutoRead) {
+        setUnreadCount((prev) => prev + 1);
+      }
+
+      if (isCurrentConversation) {
+        setMessages((prev) => {
+          if (prev.some((item) => item.id === message.id)) {
+            return prev;
+          }
+
+          prevMessagesLengthRef.current = prev.length + 1;
+          return [...prev, message];
+        });
+
+        if (shouldAutoRead) {
+          markAsRead();
+          setUnreadCount(0);
+        }
+      }
+    });
+
+    const unsubscribeConversation = chatRealtimeService.onConversationUpdated((conversationId) => {
+      if (activeConversationIdRef.current === conversationId) {
+        loadConversation();
+      }
+    });
+
+    const unsubscribeUnread = chatRealtimeService.onUnreadCountChanged((count) => {
+      setUnreadCount(count);
+    });
+
+    return () => {
+      unsubscribeMessage();
+      unsubscribeConversation();
+      unsubscribeUnread();
+    };
+  }, [isAuthenticated, isOpen, loadConversation, markAsRead]);
 
   useEffect(() => {
     if (messages.length > prevMessagesLengthRef.current) {
@@ -150,6 +199,7 @@ const UserChatWidget: React.FC = () => {
     try {
       const message = await chatService.sendMessage(newMessage.trim());
       setMessages((prev) => [...prev, message]);
+      prevMessagesLengthRef.current += 1;
       setNewMessage('');
       setError(null);
       loadConversation();

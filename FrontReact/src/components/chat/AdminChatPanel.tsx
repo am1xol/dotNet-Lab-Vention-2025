@@ -17,6 +17,7 @@ import {
 } from '@mui/material';
 import { Send as SendIcon, Close as CloseIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 import chatService from '../../services/chat-service';
+import { chatRealtimeService } from '../../services/chat-realtime-service';
 import { formatRelativeTime } from '../../utils/date-utils';
 import { ChatConversationDto, ChatMessageDto } from '../../types/chat';
 import { translations } from '../../i18n/translations';
@@ -28,6 +29,7 @@ export const AdminChatPanel: React.FC = () => {
   const [newMessage, setNewMessage] = useState('');
   const [filter, setFilter] = useState<string>('all');
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const selectedConversationPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadConversations = async () => {
     try {
@@ -42,7 +44,9 @@ export const AdminChatPanel: React.FC = () => {
   useEffect(() => {
     loadConversations();
     pollIntervalRef.current = setInterval(() => {
-      loadConversations();
+      if (!chatRealtimeService.isConnected()) {
+        loadConversations();
+      }
     }, 3000);
 
     return () => {
@@ -51,6 +55,61 @@ export const AdminChatPanel: React.FC = () => {
       }
     };
   }, [filter]);
+
+  useEffect(() => {
+    if (!selectedConversation) {
+      if (selectedConversationPollRef.current) {
+        clearInterval(selectedConversationPollRef.current);
+        selectedConversationPollRef.current = null;
+      }
+      return;
+    }
+
+    selectedConversationPollRef.current = setInterval(() => {
+      if (!chatRealtimeService.isConnected()) {
+        loadConversationMessages(selectedConversation.id);
+      }
+    }, 3000);
+
+    return () => {
+      if (selectedConversationPollRef.current) {
+        clearInterval(selectedConversationPollRef.current);
+        selectedConversationPollRef.current = null;
+      }
+    };
+  }, [selectedConversation]);
+
+  useEffect(() => {
+    const unsubscribeMessage = chatRealtimeService.onMessageReceived((message) => {
+      if (!selectedConversation) {
+        return;
+      }
+
+      if (message.conversationId !== selectedConversation.id) {
+        return;
+      }
+
+      setMessages((prev) => {
+        if (prev.some((item) => item.id === message.id)) {
+          return prev;
+        }
+        return [...prev, message];
+      });
+    });
+
+    const unsubscribeConversation = chatRealtimeService.onConversationUpdated((conversationId) => {
+      loadConversations();
+
+      if (selectedConversation && selectedConversation.id === conversationId) {
+        loadConversationMessages(conversationId);
+      }
+    });
+
+    return () => {
+      unsubscribeMessage();
+      unsubscribeConversation();
+    };
+  }, [selectedConversation, filter]);
 
   const loadConversationMessages = async (conversationId: string) => {
     try {

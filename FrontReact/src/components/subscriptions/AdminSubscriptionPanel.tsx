@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -7,6 +7,8 @@ import {
   Switch,
   FormControlLabel,
   Grid,
+  Chip,
+  Stack,
 } from '@mui/material';
 import { Add } from '@mui/icons-material';
 import { subscriptionService } from '../../services/subscription-service';
@@ -14,6 +16,7 @@ import {
   Subscription,
   CreateSubscriptionRequest,
   UpdateSubscriptionRequest,
+  GroupedSubscriptions,
 } from '../../types/subscription';
 
 import { AdminSubscriptionStats } from './AdminSubscriptionStats';
@@ -34,7 +37,11 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
   onSubscriptionUpdated,
   onSubscriptionDeleted,
 }) => {
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [groupedSubscriptions, setGroupedSubscriptions] =
+    useState<GroupedSubscriptions>({});
+  const [selectedCategory, setSelectedCategory] = useState<string | 'all' | null>(
+    null
+  );
   const [showOnlyActive, setShowOnlyActive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,8 +59,13 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
     try {
       setLoading(true);
       const data = await subscriptionService.getSubscriptionsForAdmin();
-      const allSubscriptions = Object.values(data).flat();
-      setSubscriptions(allSubscriptions);
+      setGroupedSubscriptions(data);
+      const keys = Object.keys(data).sort((a, b) => a.localeCompare(b, 'ru'));
+      setSelectedCategory((prev) => {
+        if (prev === 'all') return 'all';
+        if (prev != null && keys.includes(prev)) return prev;
+        return keys[0] ?? 'all';
+      });
     } catch (err) {
       setError(translations.admin.failedToLoadSubscriptions);
       console.error('Error loading subscriptions:', err);
@@ -61,6 +73,32 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
       setLoading(false);
     }
   }, []);
+
+  const allSubscriptionsFlat = useMemo(
+    () => Object.values(groupedSubscriptions).flat(),
+    [groupedSubscriptions]
+  );
+
+  const sortedCategoryKeys = useMemo(
+    () => Object.keys(groupedSubscriptions).sort((a, b) => a.localeCompare(b, 'ru')),
+    [groupedSubscriptions]
+  );
+
+  const visibleSubscriptions = useMemo(() => {
+    if (selectedCategory === null) {
+      return [];
+    }
+    const base =
+      selectedCategory !== 'all'
+        ? groupedSubscriptions[selectedCategory] ?? []
+        : allSubscriptionsFlat;
+    return showOnlyActive ? base.filter((sub) => sub.isActive) : base;
+  }, [
+    groupedSubscriptions,
+    selectedCategory,
+    showOnlyActive,
+    allSubscriptionsFlat,
+  ]);
 
   useEffect(() => {
     loadSubscriptions();
@@ -132,13 +170,15 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
         newActiveStatus
       );
 
-      setSubscriptions((prev) =>
-        prev.map((sub) =>
-          sub.id === subscription.id
-            ? { ...sub, isActive: newActiveStatus }
-            : sub
-        )
-      );
+      setGroupedSubscriptions((prev) => {
+        const next: GroupedSubscriptions = {};
+        for (const [cat, subs] of Object.entries(prev)) {
+          next[cat] = subs.map((sub) =>
+            sub.id === subscription.id ? { ...sub, isActive: newActiveStatus } : sub
+          );
+        }
+        return next;
+      });
 
       if (!newActiveStatus) {
         setError(
@@ -165,12 +205,6 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
     setDeleteDialogOpen(true);
   };
 
-  const getFilteredSubscriptions = () => {
-    return showOnlyActive
-      ? subscriptions.filter((sub) => sub.isActive)
-      : subscriptions;
-  };
-
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" py={8}>
@@ -178,8 +212,6 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
       </Box>
     );
   }
-
-  const filteredSubscriptions = getFilteredSubscriptions();
 
   return (
     <Box>
@@ -226,7 +258,38 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
       </Box>
 
       {/* Stats component */}
-      <AdminSubscriptionStats subscriptions={subscriptions} />
+      <AdminSubscriptionStats subscriptions={allSubscriptionsFlat} />
+
+      {/* Category chips */}
+      <Stack
+        direction="row"
+        spacing={1}
+        flexWrap="wrap"
+        useFlexGap
+        sx={{ gap: 1, mb: 3 }}
+      >
+        <Chip
+          label={translations.admin.allSubscriptionsChip}
+          color={selectedCategory === 'all' ? 'secondary' : 'default'}
+          variant={selectedCategory === 'all' ? 'filled' : 'outlined'}
+          onClick={() => setSelectedCategory('all')}
+          sx={{ fontWeight: selectedCategory === 'all' ? 600 : 400 }}
+        />
+        {sortedCategoryKeys.map((cat) => {
+          const count = groupedSubscriptions[cat]?.length ?? 0;
+          const isSelected = selectedCategory === cat;
+          return (
+            <Chip
+              key={cat}
+              label={`${cat} (${count})`}
+              color={isSelected ? 'secondary' : 'default'}
+              variant={isSelected ? 'filled' : 'outlined'}
+              onClick={() => setSelectedCategory(cat)}
+              sx={{ fontWeight: isSelected ? 600 : 400 }}
+            />
+          );
+        })}
+      </Stack>
 
       {/* Controls */}
       <Box
@@ -238,7 +301,7 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
         }}
       >
         <Typography variant="body2" color="text.secondary">
-          {translations.admin.shownCount.replace('{count}', filteredSubscriptions.length.toString()).replace('{total}', subscriptions.length.toString())}
+          {translations.admin.shownCount.replace('{count}', visibleSubscriptions.length.toString()).replace('{total}', allSubscriptionsFlat.length.toString())}
         </Typography>
         <FormControlLabel
           control={
@@ -253,7 +316,7 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
       </Box>
 
       {/* Subscriptions Grid */}
-      {filteredSubscriptions.length === 0 ? (
+      {visibleSubscriptions.length === 0 ? (
         <Box
           display="flex"
           justifyContent="center"
@@ -273,7 +336,7 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
         </Box>
       ) : (
         <Grid container spacing={3}>
-          {filteredSubscriptions.map((subscription, index) => (
+          {visibleSubscriptions.map((subscription, index) => (
             <Grid size={{ xs: 12, md: 6, lg: 4 }} key={subscription.id}>
               <AdminSubscriptionCard
                 subscription={subscription}

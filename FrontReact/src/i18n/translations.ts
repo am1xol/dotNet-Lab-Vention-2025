@@ -583,6 +583,7 @@ export const translations = {
     manageSubscriptions: 'Управление подписками',
     subscriptionManagement: 'Создание, редактирование и управление подписками',
     showOnlyActive: 'Только активные',
+    allSubscriptionsChip: 'Все подписки',
     shownCount: 'Показано {count} из {total} подписок',
     noActiveSubscriptions: 'Нет активных подписок',
     subscriptionsNotFound: 'Подписки не найдены',

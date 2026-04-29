@@ -28,7 +28,7 @@ import {
   UserSubscriptionReportItem,
 } from '../../types/report';
 import { translations } from '../../i18n/translations';
-import { formatDateShort } from '../../utils/date-utils';
+import { formatDateNumeric, formatDateShort } from '../../utils/date-utils';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import {
@@ -73,7 +73,33 @@ interface ExportPayload {
   title: string;
   columns: ReportColumn[];
   rows: ReportRow[];
+  subtitle?: string;
 }
+
+interface ReportExportMeta {
+  organizationName: string;
+  reportNumber: string;
+  formedAtDisplay: string;
+  subtitle?: string;
+}
+
+const REPORT_DOC_KIND_LABEL = 'Документ: Отчёт';
+
+const buildReportExportMeta = (subtitle?: string): ReportExportMeta => {
+  const organizationName =
+    import.meta.env.VITE_REPORT_ORGANIZATION_NAME?.trim() || 'SubMan';
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const reportNumber = `OT-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  const formedAtDisplay = now.toLocaleString('ru-RU', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  return { organizationName, reportNumber, formedAtDisplay, subtitle };
+};
 
 let timesNewRomanBase64Promise: Promise<string> | null = null;
 
@@ -122,24 +148,52 @@ const registerTimesNewRomanFont = async (pdf: jsPDF): Promise<void> => {
   pdf.addFont('TimesNewRoman.ttf', 'TimesNewRoman', 'normal');
 };
 
-const exportToExcel = async (filename: string, title: string, rows: ReportRow[], columns: ReportColumn[]) => {
+const exportToExcel = async (
+  filename: string,
+  title: string,
+  rows: ReportRow[],
+  columns: ReportColumn[],
+  meta: ReportExportMeta
+) => {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('Report');
+  const colCount = columns.length;
 
-  worksheet.columns = columns.map((column, index) => ({
-    header: column.header,
-    key: String(index),
-    width: Math.max(14, column.header.length + 4),
-  }));
+  columns.forEach((column, index) => {
+    worksheet.getColumn(index + 1).width = Math.max(14, column.header.length + 4);
+  });
 
-  worksheet.mergeCells(1, 1, 1, columns.length);
-  const titleCell = worksheet.getCell(1, 1);
-  titleCell.value = title;
-  titleCell.font = { bold: true, size: 16, color: { argb: 'FF4A148C' } };
-  titleCell.alignment = { horizontal: 'left', vertical: 'middle' };
-  worksheet.getRow(1).height = 26;
+  const mergeRowText = (
+    rowIndex: number,
+    text: string,
+    font: Partial<ExcelJS.Font>,
+    rowHeight?: number
+  ) => {
+    worksheet.mergeCells(rowIndex, 1, rowIndex, colCount);
+    const cell = worksheet.getCell(rowIndex, 1);
+    cell.value = text;
+    cell.font = font;
+    cell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+    if (rowHeight !== undefined) {
+      worksheet.getRow(rowIndex).height = rowHeight;
+    }
+  };
 
-  const headerRow = worksheet.getRow(2);
+  mergeRowText(1, meta.organizationName, { bold: true, size: 12, color: { argb: 'FF333333' } }, 22);
+  mergeRowText(2, REPORT_DOC_KIND_LABEL, { size: 11 }, 18);
+  mergeRowText(3, `Номер отчёта: ${meta.reportNumber}`, { size: 11 }, 18);
+  mergeRowText(4, `Дата и время формирования: ${meta.formedAtDisplay}`, { size: 11 }, 18);
+  worksheet.getRow(5).height = 10;
+
+  mergeRowText(6, title, { bold: true, size: 16, color: { argb: 'FF4A148C' } }, 26);
+
+  let headerRowIndex = 7;
+  if (meta.subtitle) {
+    mergeRowText(7, meta.subtitle, { italic: true, size: 11, color: { argb: 'FF555555' } }, 20);
+    headerRowIndex = 8;
+  }
+
+  const headerRow = worksheet.getRow(headerRowIndex);
   columns.forEach((column, index) => {
     const cell = headerRow.getCell(index + 1);
     cell.value = column.header;
@@ -156,12 +210,7 @@ const exportToExcel = async (filename: string, title: string, rows: ReportRow[],
   headerRow.height = 22;
 
   rows.forEach((row, rowIndex) => {
-    const addedRow = worksheet.addRow(
-      columns.reduce<Record<string, string>>((acc, column, index) => {
-        acc[String(index)] = column.value(row);
-        return acc;
-      }, {})
-    );
+    const addedRow = worksheet.addRow(columns.map((column) => column.value(row)));
 
     addedRow.eachCell((cell, colNumber) => {
       const column = columns[colNumber - 1];
@@ -178,17 +227,23 @@ const exportToExcel = async (filename: string, title: string, rows: ReportRow[],
     });
   });
 
-  worksheet.views = [{ state: 'frozen', ySplit: 2 }];
+  worksheet.views = [{ state: 'frozen', ySplit: headerRowIndex }];
   worksheet.autoFilter = {
-    from: { row: 2, column: 1 },
-    to: { row: 2, column: columns.length },
+    from: { row: headerRowIndex, column: 1 },
+    to: { row: headerRowIndex, column: colCount },
   };
 
   const buffer = await workbook.xlsx.writeBuffer();
   saveAs(new Blob([buffer]), `${filename}.xlsx`);
 };
 
-const exportToWord = async (filename: string, title: string, rows: ReportRow[], columns: ReportColumn[]) => {
+const exportToWord = async (
+  filename: string,
+  title: string,
+  rows: ReportRow[],
+  columns: ReportColumn[],
+  meta: ReportExportMeta
+) => {
   const headerCells = columns.map(
     (column) =>
       new WordTableCell({
@@ -237,16 +292,42 @@ const exportToWord = async (filename: string, title: string, rows: ReportRow[], 
     },
   });
 
+  const headingBlocks = [
+    new Paragraph({
+      children: [new TextRun({ text: meta.organizationName, bold: true, size: 28 })],
+      spacing: { after: 120 },
+    }),
+    new Paragraph({
+      children: [new TextRun(REPORT_DOC_KIND_LABEL)],
+      spacing: { after: 80 },
+    }),
+    new Paragraph({
+      children: [new TextRun(`Номер отчёта: ${meta.reportNumber}`)],
+      spacing: { after: 80 },
+    }),
+    new Paragraph({
+      children: [new TextRun(`Дата и время формирования: ${meta.formedAtDisplay}`)],
+      spacing: { after: 200 },
+    }),
+    new Paragraph({
+      children: [new TextRun({ text: title, bold: true, size: 32, color: '4A148C' })],
+      spacing: { after: meta.subtitle ? 120 : 300 },
+    }),
+  ];
+
+  if (meta.subtitle) {
+    headingBlocks.push(
+      new Paragraph({
+        children: [new TextRun({ text: meta.subtitle, italics: true, size: 22 })],
+        spacing: { after: 300 },
+      })
+    );
+  }
+
   const document = new Document({
     sections: [
       {
-        children: [
-          new Paragraph({
-            children: [new TextRun({ text: title, bold: true, size: 32, color: '4A148C' })],
-            spacing: { after: 300 },
-          }),
-          table,
-        ],
+        children: [...headingBlocks, table],
       },
     ],
   });
@@ -255,7 +336,13 @@ const exportToWord = async (filename: string, title: string, rows: ReportRow[], 
   saveAs(blob, `${filename}.docx`);
 };
 
-const exportToPdf = async (filename: string, title: string, rows: ReportRow[], columns: ReportColumn[]) => {
+const exportToPdf = async (
+  filename: string,
+  title: string,
+  rows: ReportRow[],
+  columns: ReportColumn[],
+  meta: ReportExportMeta
+) => {
   const pdf = new jsPDF({
     orientation: 'landscape',
     unit: 'pt',
@@ -271,11 +358,32 @@ const exportToPdf = async (filename: string, title: string, rows: ReportRow[], c
     console.warn('Times New Roman font registration failed, using fallback PDF font.', error);
   }
 
+  let cursorY = 36;
+  const lineGap = 14;
+  const marginX = 40;
+
+  pdf.setFontSize(11);
+  pdf.text(meta.organizationName, marginX, cursorY);
+  cursorY += lineGap;
+  pdf.text(REPORT_DOC_KIND_LABEL, marginX, cursorY);
+  cursorY += lineGap;
+  pdf.text(`Номер отчёта: ${meta.reportNumber}`, marginX, cursorY);
+  cursorY += lineGap;
+  pdf.text(`Дата и время формирования: ${meta.formedAtDisplay}`, marginX, cursorY);
+  cursorY += lineGap + 4;
+
+  if (meta.subtitle) {
+    pdf.setFontSize(10);
+    pdf.text(meta.subtitle, marginX, cursorY);
+    cursorY += lineGap + 4;
+  }
+
   pdf.setFontSize(16);
-  pdf.text(title, 40, 40);
+  pdf.text(title, marginX, cursorY);
+  cursorY += 26;
 
   autoTable(pdf, {
-    startY: 56,
+    startY: cursorY + 8,
     head: [columns.map((column) => column.header)],
     body: rows.map((row) => columns.map((column) => column.value(row))),
     theme: 'grid',
@@ -340,7 +448,6 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({ currentUse
 
   useEffect(() => {
     loadCurrentTab();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
   const getExportPayload = (): ExportPayload => {
@@ -348,6 +455,10 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({ currentUse
       return {
         filename: 'user-activity-period',
         title: 'Активность пользователей за период',
+        subtitle:
+          periodFrom && periodTo
+            ? `Период: ${formatDateNumeric(periodFrom)} — ${formatDateNumeric(periodTo)}`
+            : undefined,
         rows: userActivity,
         columns: [
           { header: 'Email', value: (row) => (row as UserActivityByPeriod).email },
@@ -377,6 +488,10 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({ currentUse
       return {
         filename: 'subscriptions-period',
         title: 'Подписки за период',
+        subtitle:
+          periodFrom && periodTo
+            ? `Период: ${formatDateNumeric(periodFrom)} — ${formatDateNumeric(periodTo)}`
+            : undefined,
         rows: subscriptionsByPeriod,
         columns: [
           { header: 'Подписка', value: (row) => (row as SubscriptionsByPeriod).subscriptionName },
@@ -392,6 +507,7 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({ currentUse
     return {
       filename: 'subscriber-subscriptions-details',
       title: 'Детализация по подписчику',
+      subtitle: userEmail.trim() ? `Подписчик: ${userEmail.trim()}` : undefined,
       rows: subscriberDetails,
       columns: [
         { header: 'Подписка', value: (row) => (row as UserSubscriptionReportItem).subscriptionName },
@@ -412,20 +528,22 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({ currentUse
   };
 
   const handleExport = async (format: ExportFormat) => {
-    const { filename, title, rows, columns } = getExportPayload();
+    const { filename, title, rows, columns, subtitle } = getExportPayload();
     if (!rows.length) return;
 
+    const meta = buildReportExportMeta(subtitle);
+
     if (format === 'excel') {
-      await exportToExcel(filename, title, rows, columns);
+      await exportToExcel(filename, title, rows, columns, meta);
       return;
     }
 
     if (format === 'word') {
-      await exportToWord(filename, title, rows, columns);
+      await exportToWord(filename, title, rows, columns, meta);
       return;
     }
 
-    await exportToPdf(filename, title, rows, columns);
+    await exportToPdf(filename, title, rows, columns, meta);
   };
 
   const renderTable = () => {

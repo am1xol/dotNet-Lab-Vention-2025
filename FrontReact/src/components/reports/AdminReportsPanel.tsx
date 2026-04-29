@@ -306,12 +306,22 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({ currentUse
   const [periodFrom, setPeriodFrom] = useState('');
   const [periodTo, setPeriodTo] = useState('');
   const [userEmail, setUserEmail] = useState(currentUserEmail || '');
+  const todayDate = new Date().toISOString().slice(0, 10);
 
   const [userActivity, setUserActivity] = useState<UserActivityByPeriod[]>([]);
   const [subscriptionsByPeriod, setSubscriptionsByPeriod] = useState<SubscriptionsByPeriod[]>([]);
   const [subscriberDetails, setSubscriberDetails] = useState<UserSubscriptionReportItem[]>([]);
 
+  const periodFromError = Boolean(periodFrom) && periodFrom > todayDate;
+  const periodToError = Boolean(periodFrom && periodTo) && periodTo < periodFrom;
+  const isPeriodRangeValid = !periodFromError && !periodToError;
+  const canRefreshPeriodReport = Boolean(periodFrom && periodTo) && isPeriodRangeValid;
+
   const loadCurrentTab = async () => {
+    if (tab !== 'subscriberDetails' && !canRefreshPeriodReport) {
+      return;
+    }
+
     try {
       setLoading(true);
       if (tab === 'userActivityPeriod') {
@@ -547,14 +557,34 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({ currentUse
                 <TextField
                   label={translations.admin.fromDate}
                   size="small"
+                  type="date"
                   value={periodFrom}
-                  onChange={(e) => setPeriodFrom(e.target.value)}
+                  onChange={(e) => {
+                    const nextFrom = e.target.value;
+                    setPeriodFrom(nextFrom);
+                    if (periodTo && periodTo < nextFrom) {
+                      setPeriodTo('');
+                    }
+                  }}
+                  error={periodFromError}
+                  helperText={periodFromError ? 'Дата начала не может быть позже сегодняшнего дня' : ' '}
+                  slotProps={{
+                    inputLabel: { shrink: true },
+                    htmlInput: { max: todayDate },
+                  }}
                 />
                 <TextField
                   label={translations.admin.toDate}
                   size="small"
+                  type="date"
                   value={periodTo}
                   onChange={(e) => setPeriodTo(e.target.value)}
+                  error={periodToError}
+                  helperText={periodToError ? 'Дата окончания не может быть раньше даты начала' : ' '}
+                  slotProps={{
+                    inputLabel: { shrink: true },
+                    htmlInput: { min: periodFrom || undefined },
+                  }}
                 />
               </>
             ) : (
@@ -569,7 +599,12 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({ currentUse
           </Stack>
 
           <Box display="flex" gap={1}>
-            <Button variant="outlined" size="small" onClick={loadCurrentTab} disabled={loading}>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={loadCurrentTab}
+              disabled={loading || (tab !== 'subscriberDetails' && !canRefreshPeriodReport)}
+            >
               {translations.admin.refresh}
             </Button>
             <TextField

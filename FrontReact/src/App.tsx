@@ -9,6 +9,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { useAuthStore } from './store/auth-store';
 import { userService } from './services/user-service';
 import { chatRealtimeService } from './services/chat-realtime-service';
+import { notificationRealtimeService } from './services/notification-realtime-service';
 
 const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.default })));
 const SignIn = lazy(() => import('./components/auth/SignIn').then(m => ({ default: m.SignIn })));
@@ -98,8 +99,10 @@ function App() {
       try {
         if (isAuthenticated && accessToken) {
           await chatRealtimeService.connect();
+          await notificationRealtimeService.connect();
         } else {
           await chatRealtimeService.disconnect();
+          await notificationRealtimeService.disconnect();
         }
       } catch {
         if (isActive) {

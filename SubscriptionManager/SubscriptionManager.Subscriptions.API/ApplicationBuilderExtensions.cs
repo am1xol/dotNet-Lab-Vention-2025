@@ -1,4 +1,5 @@
 ﻿using SubscriptionManager.Infrastructure.Shared;
+using SubscriptionManager.Subscriptions.API.Realtime;
 
 namespace SubscriptionManager.Subscriptions.API
 {
@@ -41,6 +42,7 @@ namespace SubscriptionManager.Subscriptions.API
         private static WebApplication ConfigureEndpoints(this WebApplication app)
         {
             app.MapControllers();
+            app.MapHub<NotificationsHub>("/hubs/notifications");
             app.MapSharedHealthChecks();
 
             return app;

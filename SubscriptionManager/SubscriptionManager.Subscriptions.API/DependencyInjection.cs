@@ -4,6 +4,7 @@ using SubscriptionManager.Auth.Infrastructure.Services;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Options;
 using SubscriptionManager.Infrastructure.Shared;
+using SubscriptionManager.Subscriptions.API.Realtime;
 using SubscriptionManager.Subscriptions.API.Services;
 using SubscriptionManager.Subscriptions.Infrastructure.Services;
 using System.Net.Http.Headers;
@@ -28,6 +29,7 @@ namespace SubscriptionManager.Subscriptions.API
             services.AddControllers();
             services.AddEndpointsApiExplorer();
             services.AddAutoMapper(cfg => cfg.AddMaps(AppDomain.CurrentDomain.GetAssemblies()));
+            services.AddSignalR();
 
             return services;
         }
@@ -44,6 +46,7 @@ namespace SubscriptionManager.Subscriptions.API
             services.AddScoped<ISubscriptionService, SubscriptionService>();
             services.AddScoped<IFileStorageService, FileStorageService>();
             services.AddScoped<INotificationService, NotificationService>();
+            services.AddScoped<INotificationRealtimePublisher, SignalRNotificationRealtimePublisher>();
             services.AddScoped<IPaymentJobService, PaymentJobService>();
             services.AddHostedService<PaymentCleanupBackgroundWorker>();
             services.AddScoped<IUserRepository, UserRepository>();

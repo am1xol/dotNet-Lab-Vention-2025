@@ -99,7 +99,9 @@ namespace SubscriptionManager.Infrastructure.Shared
                         OnMessageReceived = context =>
                         {
                             var accessToken = context.Request.Query["access_token"];
-                            var isHubRequest = context.HttpContext.Request.Path.StartsWithSegments("/hubs/chat", StringComparison.OrdinalIgnoreCase);
+                            var isHubRequest =
+                                context.HttpContext.Request.Path.StartsWithSegments("/hubs/chat", StringComparison.OrdinalIgnoreCase) ||
+                                context.HttpContext.Request.Path.StartsWithSegments("/hubs/notifications", StringComparison.OrdinalIgnoreCase);
 
                             if (!string.IsNullOrWhiteSpace(accessToken) && isHubRequest)
                             {

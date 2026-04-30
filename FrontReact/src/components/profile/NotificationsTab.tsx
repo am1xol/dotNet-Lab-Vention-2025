@@ -27,6 +27,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatRelativeTime } from '../../utils/date-utils';
 import { Notification, NotificationType } from '../../types/notification';
 import { notificationService } from '../../services/notification-service';
+import { notificationRealtimeService } from '../../services/notification-realtime-service';
 import { translations } from '../../i18n/translations';
 
 interface NotificationsTabProps {
@@ -51,6 +52,33 @@ export const NotificationsTab: React.FC<NotificationsTabProps> = ({
   useEffect(() => {
     initLoad();
   }, []);
+
+  useEffect(() => {
+    const unsubscribeCreated = notificationRealtimeService.onNotificationCreated(
+      async (notification: Notification) => {
+        let hasInserted = false;
+        setNotifications((prev) => {
+          if (prev.some((item) => item.id === notification.id)) {
+            return prev;
+          }
+
+          hasInserted = true;
+          return [notification, ...prev];
+        });
+
+        if (!hasInserted) {
+          return;
+        }
+
+        setTotalCount((prev) => prev + 1);
+        await onUnreadCountChanged?.();
+      }
+    );
+
+    return () => {
+      unsubscribeCreated();
+    };
+  }, [onUnreadCountChanged]);
 
   const initLoad = async () => {
     try {

@@ -24,12 +24,14 @@ namespace SubscriptionManager.Subscriptions.Infrastructure.Services
         private readonly string _authConnectionString;
         private readonly IUserRepository _userRepository;
         private readonly IEmailService _emailService;
+        private readonly INotificationRealtimePublisher _notificationRealtimePublisher;
         private readonly ILogger<NotificationService> _logger;
 
         public NotificationService(
             IConfiguration configuration,
             IUserRepository userRepository,
             IEmailService emailService,
+            INotificationRealtimePublisher notificationRealtimePublisher,
             ILogger<NotificationService> logger)
         {
             _subscriptionsConnectionString = configuration.GetConnectionString("SubscriptionsConnection")
@@ -38,22 +40,44 @@ namespace SubscriptionManager.Subscriptions.Infrastructure.Services
                 ?? throw new InvalidOperationException("Connection string 'AuthDb' not found.");
             _userRepository = userRepository;
             _emailService = emailService;
+            _notificationRealtimePublisher = notificationRealtimePublisher;
             _logger = logger;
         }
 
         public async Task CreateAsync(Guid userId, string title, string message, NotificationType type)
         {
             using var connection = new SqlConnection(_subscriptionsConnectionString);
+            var notificationId = Guid.NewGuid();
+            var createdAt = DateTime.UtcNow;
             const string sql = "sp_Notifications_Create";
             await connection.ExecuteAsync(sql, new
             {
-                Id = Guid.NewGuid(),
+                Id = notificationId,
                 UserId = userId,
                 Title = title,
                 Message = message,
                 Type = (int)type,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = createdAt
             }, commandType: CommandType.StoredProcedure);
+
+            try
+            {
+                await _notificationRealtimePublisher.PublishCreatedAsync(
+                    userId,
+                    new NotificationDto
+                    {
+                        Id = notificationId,
+                        Title = title,
+                        Message = message,
+                        Type = type.ToString(),
+                        IsRead = false,
+                        CreatedAt = createdAt
+                    });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to publish realtime notification for user {UserId}", userId);
+            }
 
             try
             {

@@ -564,15 +564,6 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER PROCEDURE [sp_UserSubscriptions_Insert]
-    @Id UNIQUEIDENTIFIER, @UserId UNIQUEIDENTIFIER, @SubscriptionPriceId UNIQUEIDENTIFIER, @StartDate DATETIME2, @NextBillingDate DATETIME2, @IsActive BIT = 0
-AS
-BEGIN
-    INSERT INTO [UserSubscriptions] (Id, UserId, SubscriptionPriceId, StartDate, NextBillingDate, IsActive, CreatedAt, UpdatedAt)
-    VALUES (@Id, @UserId, @SubscriptionPriceId, @StartDate, @NextBillingDate, @IsActive, GETUTCDATE(), GETUTCDATE());
-END
-GO
-
 CREATE OR ALTER PROCEDURE [sp_UserSubscriptions_Update]
     @Id UNIQUEIDENTIFIER, @CancelledAt DATETIME2 = NULL, @ValidUntil DATETIME2 = NULL, @NextBillingDate DATETIME2 = NULL, @IsActive BIT = NULL
 AS
@@ -677,15 +668,6 @@ GO
 /* =========================================================================================
    ПЛАТЕЖИ И БИЛЛИНГ (PAYMENTS)
 ========================================================================================= */
-
-CREATE OR ALTER PROCEDURE [sp_Payments_Insert]
-    @Id UNIQUEIDENTIFIER, @UserSubscriptionId UNIQUEIDENTIFIER, @UserId UNIQUEIDENTIFIER, @Amount DECIMAL(18,2), @Currency NVARCHAR(3), @ExternalTransactionId NVARCHAR(100), @Status INT, @PeriodStart DATETIME2, @PeriodEnd DATETIME2
-AS
-BEGIN
-    INSERT INTO [Payments] (Id, UserSubscriptionId, UserId, Amount, Currency, ExternalTransactionId, Status, PaymentDate, PeriodStart, PeriodEnd)
-    VALUES (@Id, @UserSubscriptionId, @UserId, @Amount, @Currency, @ExternalTransactionId, @Status, GETUTCDATE(), @PeriodStart, @PeriodEnd);
-END
-GO
 
 CREATE OR ALTER PROCEDURE [sp_Payments_UpdateStatus]
     @Id UNIQUEIDENTIFIER, @Status INT, @ExternalTransactionId NVARCHAR(100) = NULL, @CardLastFour NVARCHAR(4) = NULL, @CardBrand NVARCHAR(20) = NULL

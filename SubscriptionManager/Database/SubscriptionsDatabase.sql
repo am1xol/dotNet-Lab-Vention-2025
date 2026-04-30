@@ -360,12 +360,12 @@ CREATE OR ALTER PROCEDURE [sp_Subscriptions_Update]
     @Price DECIMAL(18,2),
     @Category NVARCHAR(MAX),
     @IconFileId UNIQUEIDENTIFIER = NULL,
-    @IsActive BIT
+    @IsActive BIT = NULL
 AS
 BEGIN
     UPDATE [Subscriptions]
     SET [Name] = @Name, [Description] = @Description, [DescriptionMarkdown] = @DescriptionMarkdown, [Price] = @Price,
-        [Category] = @Category, [IconFileId] = @IconFileId, [IsActive] = @IsActive, [UpdatedAt] = GETUTCDATE()
+        [Category] = @Category, [IconFileId] = @IconFileId, [IsActive] = ISNULL(@IsActive, [IsActive]), [UpdatedAt] = GETUTCDATE()
     WHERE [Id] = @Id;
 END
 GO

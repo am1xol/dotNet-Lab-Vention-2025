@@ -330,6 +330,9 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             if (!subExists)
                 return NotFound();
 
+            const string currentActiveSql = "SELECT IsActive FROM Subscriptions WHERE Id = @Id";
+            var currentIsActive = await connection2.ExecuteScalarAsync<bool>(currentActiveSql, new { Id = id });
+
             if (!AllowedPrices.Contains(request.Price))
                 return BadRequest($"Invalid price. Allowed prices are: {string.Join(", ", AllowedPrices)}");
 
@@ -343,7 +346,7 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                 request.Price,
                 request.Category,
                 request.IconFileId,
-                IsActive = true
+                IsActive = currentIsActive
             }, commandType: CommandType.StoredProcedure);
 
             return NoContent();

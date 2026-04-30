@@ -32,7 +32,7 @@ interface SubscriptionFormDialogProps {
   onClose: () => void;
   isEditMode: boolean;
   initialData?: Subscription | null;
-  onSave: (data: SubscriptionFormData) => void;
+  onSave: (data: SubscriptionFormData) => Promise<void> | void;
   uploading: boolean;
 }
 
@@ -55,6 +55,9 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileUploadError, setFileUploadError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [initialIconFileId, setInitialIconFileId] = useState<string | undefined>(
+    undefined
+  );
 
   const categories = [
     'Streaming',
@@ -79,6 +82,7 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
           iconFileId: initialData.iconFileId,
         });
         setSelectedFile(null);
+        setInitialIconFileId(initialData.iconFileId);
       } else {
         setFormData({
           name: '',
@@ -89,6 +93,7 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
           iconFileId: undefined,
         });
         setSelectedFile(null);
+        setInitialIconFileId(undefined);
       }
       setFileUploadError(null);
     }
@@ -131,7 +136,7 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
   };
 
   const handleRemoveFile = async () => {
-    if (formData.iconFileId) {
+    if (selectedFile && formData.iconFileId && formData.iconFileId !== initialIconFileId) {
       try {
         await fileService.deleteFile(formData.iconFileId);
       } catch (err) {
@@ -142,7 +147,7 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
     handleInputChange('iconFileId', undefined);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const rawContent = formData.descriptionMarkdown || '';
     const cleanContent = rawContent === '<p><br></p>' ? '' : rawContent;
     const plainTextDescription = cleanContent.replace(/<[^>]+>/g, ' ');
@@ -162,7 +167,7 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
       descriptionMarkdown: cleanContent,
     };
 
-    onSave(finalData);
+    await Promise.resolve(onSave(finalData));
     onClose();
   };
 

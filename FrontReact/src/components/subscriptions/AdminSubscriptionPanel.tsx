@@ -45,6 +45,7 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
   const [showOnlyActive, setShowOnlyActive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [pricesDialogOpen, setPricesDialogOpen] = useState(false);
   const [selectedForPrices, setSelectedForPrices] =
     useState<Subscription | null>(null);
@@ -68,6 +69,7 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
       });
     } catch (err) {
       setError(translations.admin.failedToLoadSubscriptions);
+      setInfoMessage(null);
       console.error('Error loading subscriptions:', err);
     } finally {
       setLoading(false);
@@ -109,10 +111,12 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
       await subscriptionService.createSubscription(formData);
       setCreateDialogOpen(false);
       setError(null);
+      setInfoMessage(null);
       onSubscriptionCreated();
       await loadSubscriptions();
     } catch (err: any) {
       setError(err.response?.data?.message || translations.admin.failedToCreateSubscription);
+      setInfoMessage(null);
     }
   };
 
@@ -131,10 +135,12 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
       );
       setEditDialogOpen(false);
       setError(null);
+      setInfoMessage(null);
       onSubscriptionUpdated();
       await loadSubscriptions();
     } catch (err: any) {
       setError(err.response?.data?.message || translations.admin.failedToUpdateSubscription);
+      setInfoMessage(null);
     }
   };
 
@@ -146,11 +152,13 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
       setDeleteDialogOpen(false);
       setSelectedSubscription(null);
       setError(null);
+      setInfoMessage(null);
       onSubscriptionDeleted();
       await loadSubscriptions();
     } catch (err: any) {
       const errorMessage = err.message || translations.admin.failedToDeleteSubscription;
       setError(errorMessage);
+      setInfoMessage(null);
     }
   };
 
@@ -181,16 +189,19 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
       });
 
       if (!newActiveStatus) {
-        setError(
+        setInfoMessage(
           translations.admin.subscriptionDeactivated.replace('{name}', subscription.name)
         );
+        setError(null);
       } else {
+        setInfoMessage(null);
         setError(null);
       }
     } catch (err: any) {
       setError(
         err.response?.data?.message || translations.admin.failedToUpdateStatus
       );
+      setInfoMessage(null);
       await loadSubscriptions();
     }
   };
@@ -218,6 +229,11 @@ export const AdminSubscriptionPanel: React.FC<AdminSubscriptionPanelProps> = ({
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
           {error}
+        </Alert>
+      )}
+      {infoMessage && (
+        <Alert severity="success" sx={{ mb: 3 }} onClose={() => setInfoMessage(null)}>
+          {infoMessage}
         </Alert>
       )}
 

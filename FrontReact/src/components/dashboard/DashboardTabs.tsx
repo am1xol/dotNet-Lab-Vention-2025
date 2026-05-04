@@ -11,6 +11,7 @@ import { MySubscriptionsTab } from '../subscriptions/MySubscriptionsTab';
 import { PaymentHistoryTab } from '../payment/PaymentHistoryTab';
 import { SubscriptionHistoryTab } from '../subscriptions/SubscriptionHistoryTab';
 import { translations } from '../../i18n/translations';
+import { UpcomingPayment } from '../../types/payment';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -58,6 +59,9 @@ interface DashboardTabsProps {
   handleFreeze: (subscriptionId: string) => Promise<void>;
   handleResume: (subscriptionId: string) => Promise<void>;
   handleRestoreCancelled: (subscriptionId: string) => Promise<void>;
+  paymentOverview: {
+    upcomingPayments: UpcomingPayment[];
+  };
 }
 
 export const DashboardTabs: React.FC<DashboardTabsProps> = memo(({
@@ -74,6 +78,7 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = memo(({
   handleFreeze,
   handleResume,
   handleRestoreCancelled,
+  paymentOverview,
 }) => {
   return (
     <motion.div
@@ -121,7 +126,7 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = memo(({
           >
             <Tab label={translations.subscriptions.availableSubscriptions} />
             <Tab label={translations.subscriptions.mySubscriptions} />
-            <Tab label={translations.payments.paymentHistory} />
+            <Tab label={translations.payments.paymentsTab} />
             <Tab label={translations.subscriptions.subscriptionHistory} />
           </Tabs>
         </Box>
@@ -159,7 +164,9 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = memo(({
 
         {/* Payment History Tab */}
         <TabPanel value={tabValue} index={2}>
-          <PaymentHistoryTab />
+          <PaymentHistoryTab
+            upcomingPayments={paymentOverview.upcomingPayments}
+          />
         </TabPanel>
 
         {/* Subscription History Tab */}

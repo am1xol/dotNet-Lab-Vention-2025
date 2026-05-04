@@ -302,6 +302,9 @@ export const DashboardPage: React.FC = () => {
           handleFreeze={handleFreeze}
           handleResume={handleResume}
           handleRestoreCancelled={handleRestoreCancelled}
+          paymentOverview={{
+            upcomingPayments: statistics?.upcomingPayments ?? [],
+          }}
         />
         <PromoCodeDialog
           open={promoDialogOpen}

@@ -384,6 +384,8 @@ export const translations = {
   payments: {
     title: 'Платежи',
     paymentHistory: 'История платежей',
+    paymentsTab: 'Платежи',
+    allTransactions: 'Все транзакции',
     makePayment: 'Оплатить',
     paymentDetails: 'Детали платежа',
     amount: 'Сумма',

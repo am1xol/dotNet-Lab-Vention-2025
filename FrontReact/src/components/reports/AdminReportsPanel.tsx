@@ -83,8 +83,6 @@ interface ReportExportMeta {
   subtitle?: string;
 }
 
-const REPORT_DOC_KIND_LABEL = 'Документ: Отчёт';
-
 const buildReportExportMeta = (subtitle?: string): ReportExportMeta => {
   const organizationName =
     import.meta.env.VITE_REPORT_ORGANIZATION_NAME?.trim() || 'SubMan';
@@ -167,31 +165,32 @@ const exportToExcel = async (
     rowIndex: number,
     text: string,
     font: Partial<ExcelJS.Font>,
-    rowHeight?: number
+    rowHeight?: number,
+    horizontal: 'left' | 'center' = 'left'
   ) => {
     worksheet.mergeCells(rowIndex, 1, rowIndex, colCount);
     const cell = worksheet.getCell(rowIndex, 1);
     cell.value = text;
     cell.font = font;
-    cell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+    cell.alignment = { horizontal, vertical: 'middle', wrapText: true };
     if (rowHeight !== undefined) {
       worksheet.getRow(rowIndex).height = rowHeight;
     }
   };
 
-  mergeRowText(1, meta.organizationName, { bold: true, size: 12, color: { argb: 'FF333333' } }, 22);
-  mergeRowText(2, REPORT_DOC_KIND_LABEL, { size: 11 }, 18);
-  mergeRowText(3, `Номер отчёта: ${meta.reportNumber}`, { size: 11 }, 18);
-  mergeRowText(4, `Дата и время формирования: ${meta.formedAtDisplay}`, { size: 11 }, 18);
-  worksheet.getRow(5).height = 10;
-
-  mergeRowText(6, title, { bold: true, size: 16, color: { argb: 'FF4A148C' } }, 26);
-
-  let headerRowIndex = 7;
+  let row = 1;
+  mergeRowText(row++, title, { bold: true, size: 16, color: { argb: 'FF4A148C' } }, 26, 'center');
   if (meta.subtitle) {
-    mergeRowText(7, meta.subtitle, { italic: true, size: 11, color: { argb: 'FF555555' } }, 20);
-    headerRowIndex = 8;
+    mergeRowText(row++, meta.subtitle, { italic: true, size: 11, color: { argb: 'FF555555' } }, 20, 'center');
   }
+  worksheet.getRow(row++).height = 10;
+
+  mergeRowText(row++, meta.organizationName, { bold: true, size: 12, color: { argb: 'FF333333' } }, 22);
+  mergeRowText(row++, `Номер отчёта: ${meta.reportNumber}`, { size: 11 }, 18);
+  mergeRowText(row++, `Дата и время формирования: ${meta.formedAtDisplay}`, { size: 11 }, 18);
+  worksheet.getRow(row++).height = 10;
+
+  const headerRowIndex = row;
 
   const headerRow = worksheet.getRow(headerRowIndex);
   columns.forEach((column, index) => {
@@ -294,12 +293,26 @@ const exportToWord = async (
 
   const headingBlocks = [
     new Paragraph({
+      children: [new TextRun({ text: title, bold: true, size: 32, color: '4A148C' })],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: meta.subtitle ? 160 : 240 },
+    }),
+  ];
+
+  if (meta.subtitle) {
+    headingBlocks.push(
+      new Paragraph({
+        children: [new TextRun({ text: meta.subtitle, italics: true, size: 22 })],
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 240 },
+      })
+    );
+  }
+
+  headingBlocks.push(
+    new Paragraph({
       children: [new TextRun({ text: meta.organizationName, bold: true, size: 28 })],
       spacing: { after: 120 },
-    }),
-    new Paragraph({
-      children: [new TextRun(REPORT_DOC_KIND_LABEL)],
-      spacing: { after: 80 },
     }),
     new Paragraph({
       children: [new TextRun(`Номер отчёта: ${meta.reportNumber}`)],
@@ -308,21 +321,8 @@ const exportToWord = async (
     new Paragraph({
       children: [new TextRun(`Дата и время формирования: ${meta.formedAtDisplay}`)],
       spacing: { after: 200 },
-    }),
-    new Paragraph({
-      children: [new TextRun({ text: title, bold: true, size: 32, color: '4A148C' })],
-      spacing: { after: meta.subtitle ? 120 : 300 },
-    }),
-  ];
-
-  if (meta.subtitle) {
-    headingBlocks.push(
-      new Paragraph({
-        children: [new TextRun({ text: meta.subtitle, italics: true, size: 22 })],
-        spacing: { after: 300 },
-      })
-    );
-  }
+    })
+  );
 
   const document = new Document({
     sections: [
@@ -361,26 +361,34 @@ const exportToPdf = async (
   let cursorY = 36;
   const lineGap = 14;
   const marginX = 40;
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const centerBlockWidth = pageWidth - marginX * 2;
+
+  const drawCenteredLines = (lines: string[], fontSize: number, lineStep: number) => {
+    pdf.setFontSize(fontSize);
+    lines.forEach((line) => {
+      pdf.text(line, pageWidth / 2, cursorY, { align: 'center' });
+      cursorY += lineStep;
+    });
+  };
+
+  pdf.setFont(tableFont, 'normal');
+  drawCenteredLines(pdf.splitTextToSize(title, centerBlockWidth), 16, 20);
+
+  if (meta.subtitle) {
+    pdf.setFont(tableFont, 'normal');
+    drawCenteredLines(pdf.splitTextToSize(meta.subtitle, centerBlockWidth), 11, lineGap);
+  }
+
+  cursorY += 8;
 
   pdf.setFontSize(11);
   pdf.text(meta.organizationName, marginX, cursorY);
-  cursorY += lineGap;
-  pdf.text(REPORT_DOC_KIND_LABEL, marginX, cursorY);
   cursorY += lineGap;
   pdf.text(`Номер отчёта: ${meta.reportNumber}`, marginX, cursorY);
   cursorY += lineGap;
   pdf.text(`Дата и время формирования: ${meta.formedAtDisplay}`, marginX, cursorY);
   cursorY += lineGap + 4;
-
-  if (meta.subtitle) {
-    pdf.setFontSize(10);
-    pdf.text(meta.subtitle, marginX, cursorY);
-    cursorY += lineGap + 4;
-  }
-
-  pdf.setFontSize(16);
-  pdf.text(title, marginX, cursorY);
-  cursorY += 26;
 
   autoTable(pdf, {
     startY: cursorY + 8,

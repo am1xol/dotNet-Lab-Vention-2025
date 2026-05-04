@@ -332,7 +332,8 @@ BEGIN
     SELECT s.* FROM Subscriptions s INNER JOIN @PageIds p ON s.Id = p.Id;
     SELECT sp.*, p.Name AS PeriodName, p.MonthsCount FROM SubscriptionPrices sp
     INNER JOIN Periods p ON sp.PeriodId = p.Id
-    INNER JOIN @PageIds p_id ON sp.SubscriptionId = p_id.Id;
+    INNER JOIN @PageIds p_id ON sp.SubscriptionId = p_id.Id
+    WHERE sp.FinalPrice > 0;
 END
 GO
 
@@ -424,7 +425,9 @@ BEGIN
 
         SELECT * FROM Subscriptions WHERE Id = @Id;
         SELECT sp.*, p.Name AS PeriodName, p.MonthsCount FROM SubscriptionPrices sp
-        INNER JOIN Periods p ON sp.PeriodId = p.Id WHERE sp.SubscriptionId = @Id;
+        INNER JOIN Periods p ON sp.PeriodId = p.Id
+        WHERE sp.SubscriptionId = @Id
+          AND sp.FinalPrice > 0;
     END TRY
     BEGIN CATCH
         IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
@@ -446,7 +449,8 @@ BEGIN
     SELECT sp.*, p.Name AS PeriodName, p.MonthsCount
     FROM SubscriptionPrices sp
     INNER JOIN Periods p ON sp.PeriodId = p.Id
-    WHERE sp.SubscriptionId = @SubscriptionId;
+    WHERE sp.SubscriptionId = @SubscriptionId
+      AND sp.FinalPrice > 0;
 END
 GO
 
@@ -460,7 +464,13 @@ BEGIN
     SET NOCOUNT ON;
     IF NOT EXISTS (SELECT 1 FROM Subscriptions WHERE Id = @SubscriptionId) THROW 50001, 'Subscription not found', 1;
     IF NOT EXISTS (SELECT 1 FROM Periods WHERE Id = @PeriodId) THROW 50002, 'Period not found', 1;
-    IF EXISTS (SELECT 1 FROM SubscriptionPrices WHERE SubscriptionId = @SubscriptionId AND PeriodId = @PeriodId) THROW 50003, 'Price for this subscription and period already exists', 1;
+    IF EXISTS (
+        SELECT 1
+        FROM SubscriptionPrices
+        WHERE SubscriptionId = @SubscriptionId
+          AND PeriodId = @PeriodId
+          AND FinalPrice > 0
+    ) THROW 50003, 'Price for this subscription and period already exists', 1;
 
     INSERT INTO SubscriptionPrices (Id, SubscriptionId, PeriodId, FinalPrice)
     VALUES (@Id, @SubscriptionId, @PeriodId, @FinalPrice);
@@ -468,7 +478,8 @@ BEGIN
     SELECT sp.*, p.Name AS PeriodName, p.MonthsCount
     FROM SubscriptionPrices sp
     INNER JOIN Periods p ON sp.PeriodId = p.Id
-    WHERE sp.Id = @Id;
+    WHERE sp.Id = @Id
+      AND sp.FinalPrice > 0;
 END
 GO
 
@@ -477,14 +488,49 @@ CREATE OR ALTER PROCEDURE [sp_SubscriptionPrices_Delete]
 AS
 BEGIN
     SET NOCOUNT ON;
-    IF NOT EXISTS (SELECT 1 FROM SubscriptionPrices WHERE Id = @Id) RETURN 404;
-    IF EXISTS (
-        SELECT 1 FROM UserSubscriptions WHERE SubscriptionPriceId = @Id
-        AND (IsActive = 1 OR (FrozenUntil IS NOT NULL AND FrozenUntil > GETUTCDATE()))
-    ) RETURN 400;
+    IF NOT EXISTS (
+        SELECT 1
+        FROM SubscriptionPrices sp
+        WHERE sp.Id = @Id
+          AND sp.FinalPrice > 0
+    ) RETURN 404;
 
-    DELETE FROM SubscriptionPrices WHERE Id = @Id;
-    RETURN 204;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        UPDATE us
+        SET
+            us.CancelledAt = GETUTCDATE(),
+            us.ValidUntil = us.NextBillingDate,
+            us.FrozenAt = NULL,
+            us.FrozenUntil = NULL,
+            us.IsActive = 1,
+            us.UpdatedAt = GETUTCDATE()
+        FROM UserSubscriptions us
+        WHERE us.SubscriptionPriceId = @Id
+          AND (
+                us.IsActive = 1
+                OR (us.FrozenUntil IS NOT NULL AND us.FrozenUntil > GETUTCDATE())
+              );
+
+        IF EXISTS (SELECT 1 FROM UserSubscriptions WHERE SubscriptionPriceId = @Id)
+        BEGIN
+            UPDATE SubscriptionPrices
+            SET FinalPrice = -ABS(FinalPrice)
+            WHERE Id = @Id;
+        END
+        ELSE
+        BEGIN
+            DELETE FROM SubscriptionPrices WHERE Id = @Id;
+        END
+
+        COMMIT TRANSACTION;
+        RETURN 204;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
 END
 GO
 
@@ -493,16 +539,25 @@ GO
    ЖИЗНЕННЫЙ ЦИКЛ ПОДПИСОК ПОЛЬЗОВАТЕЛЯ (USER SUBSCRIPTIONS)
 ========================================================================================= */
 
-CREATE OR ALTER PROCEDURE [sp_UserSubscriptions_GetActiveByUserId]
+CREATE OR ALTER PROCEDURE [dbo].[sp_UserSubscriptions_GetActiveByUserId]
     @UserId UNIQUEIDENTIFIER
 AS
 BEGIN
-    SELECT us.*, sp.FinalPrice, p.Name AS PeriodName, p.MonthsCount, s.Name AS SubscriptionName, s.Category, s.IconUrl,
-        CASE WHEN us.FrozenAt IS NOT NULL AND us.CancelledAt IS NULL THEN 1 ELSE 0 END AS IsFrozen
-    FROM [UserSubscriptions] us
-    INNER JOIN [SubscriptionPrices] sp ON us.[SubscriptionPriceId] = sp.[Id]
-    INNER JOIN [Subscriptions] s ON sp.[SubscriptionId] = s.[Id]
-    INNER JOIN [Periods] p ON sp.[PeriodId] = p.[Id]
+    SELECT
+        us.[Id], us.[UserId], us.[SubscriptionPriceId], us.[StartDate], us.[NextBillingDate],
+        us.[CancelledAt], us.[ValidUntil], us.[IsActive], us.[CreatedAt], us.[UpdatedAt],
+        us.[FrozenAt], us.[FrozenUntil],
+        CASE WHEN us.[FrozenAt] IS NOT NULL AND us.[CancelledAt] IS NULL THEN 1 ELSE 0 END AS IsFrozen,
+        ABS(sp.[FinalPrice]) AS FinalPrice,
+        p.[Name] AS PeriodName,
+        p.[MonthsCount],
+        s.[Name] AS SubscriptionName,
+        s.[Category],
+        s.[IconUrl]
+    FROM [dbo].[UserSubscriptions] us
+    INNER JOIN [dbo].[SubscriptionPrices] sp ON us.[SubscriptionPriceId] = sp.[Id]
+    INNER JOIN [dbo].[Subscriptions] s ON sp.[SubscriptionId] = s.[Id]
+    INNER JOIN [dbo].[Periods] p ON sp.[PeriodId] = p.[Id]
     WHERE us.[UserId] = @UserId AND (
         (us.[IsActive] = 1 AND (us.[CancelledAt] IS NULL OR us.[ValidUntil] >= GETUTCDATE()))
         OR (us.[FrozenAt] IS NOT NULL AND us.[CancelledAt] IS NULL)
@@ -526,7 +581,7 @@ BEGIN
     SELECT us.Id, us.UserId, us.SubscriptionPriceId, us.StartDate, us.NextBillingDate, us.CancelledAt, us.ValidUntil, us.IsActive, us.CreatedAt, us.UpdatedAt,
         us.FrozenAt, us.FrozenUntil,
         CASE WHEN us.FrozenAt IS NOT NULL AND us.CancelledAt IS NULL THEN 1 ELSE 0 END AS IsFrozen,
-        sp.FinalPrice, per.Name AS PeriodName, s.Id AS SubscriptionId, s.Name AS SubscriptionName, s.Category, s.Price, s.IconFileId, s.IconUrl, s.Description, s.DescriptionMarkdown, s.IsActive AS SubscriptionIsActive, s.CreatedAt AS SubscriptionCreatedAt, s.UpdatedAt AS SubscriptionUpdatedAt
+        ABS(sp.FinalPrice) AS FinalPrice, per.Name AS PeriodName, s.Id AS SubscriptionId, s.Name AS SubscriptionName, s.Category, s.Price, s.IconFileId, s.IconUrl, s.Description, s.DescriptionMarkdown, s.IsActive AS SubscriptionIsActive, s.CreatedAt AS SubscriptionCreatedAt, s.UpdatedAt AS SubscriptionUpdatedAt
     FROM [UserSubscriptions] us
     INNER JOIN [SubscriptionPrices] sp ON us.[SubscriptionPriceId] = sp.[Id]
     INNER JOIN [Subscriptions] s ON sp.[SubscriptionId] = s.[Id]
@@ -554,7 +609,7 @@ BEGIN
         CASE WHEN us.FrozenAt IS NOT NULL AND us.CancelledAt IS NULL THEN 1 ELSE 0 END AS IsFrozen,
         CASE WHEN us.FrozenAt IS NOT NULL AND us.CancelledAt IS NULL THEN 0 WHEN us.IsActive = 1 AND (us.ValidUntil IS NULL OR us.ValidUntil >= SYSUTCDATETIME()) THEN 1 ELSE 0 END AS IsValid,
         CASE WHEN us.FrozenAt IS NOT NULL AND us.CancelledAt IS NULL THEN 'Frozen' WHEN us.IsActive = 1 AND (us.ValidUntil IS NULL OR us.ValidUntil >= SYSUTCDATETIME()) THEN 'Active' WHEN us.CancelledAt IS NOT NULL THEN 'Cancelled' WHEN us.ValidUntil IS NOT NULL AND us.ValidUntil < SYSUTCDATETIME() THEN 'Expired' ELSE 'Unknown' END AS Status,
-        s.Name AS SubscriptionName, s.Category, s.Price, s.IconFileId, s.IconUrl, s.IsActive AS SubscriptionIsActive, s.CreatedAt AS SubscriptionCreatedAt, s.UpdatedAt AS SubscriptionUpdatedAt, s.Description, s.DescriptionMarkdown, p.Name AS PeriodName, sp.FinalPrice
+        s.Name AS SubscriptionName, s.Category, s.Price, s.IconFileId, s.IconUrl, s.IsActive AS SubscriptionIsActive, s.CreatedAt AS SubscriptionCreatedAt, s.UpdatedAt AS SubscriptionUpdatedAt, s.Description, s.DescriptionMarkdown, p.Name AS PeriodName, ABS(sp.FinalPrice) AS FinalPrice
     FROM [UserSubscriptions] us
     INNER JOIN [SubscriptionPrices] sp ON us.[SubscriptionPriceId] = sp.[Id]
     INNER JOIN [Subscriptions] s ON sp.[SubscriptionId] = s.[Id]
@@ -582,7 +637,9 @@ BEGIN
     SET NOCOUNT ON;
     DECLARE @SubscriptionId UNIQUEIDENTIFIER, @MonthsCount INT, @IsActive BIT;
     SELECT @SubscriptionId = sp.SubscriptionId, @MonthsCount = p.MonthsCount, @IsActive = s.IsActive FROM SubscriptionPrices sp
-    INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id INNER JOIN Periods p ON sp.PeriodId = p.Id WHERE sp.Id = @SubscriptionPriceId;
+    INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id INNER JOIN Periods p ON sp.PeriodId = p.Id
+    WHERE sp.Id = @SubscriptionPriceId
+      AND sp.FinalPrice > 0;
 
     IF @SubscriptionId IS NULL RETURN 404;
     IF @IsActive = 0 RETURN 400;
@@ -689,7 +746,9 @@ BEGIN
     DECLARE @PromoCodeId UNIQUEIDENTIFIER = NULL;
 
     SELECT @BasePrice = sp.FinalPrice, @SubscriptionId = s.Id, @PeriodId = p.Id, @MonthsCount = p.MonthsCount, @SubName = s.Name, @PeriodName = p.Name, @IsActive = s.IsActive
-    FROM SubscriptionPrices sp INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id INNER JOIN Periods p ON sp.PeriodId = p.Id WHERE sp.Id = @SubscriptionPriceId;
+    FROM SubscriptionPrices sp INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id INNER JOIN Periods p ON sp.PeriodId = p.Id
+    WHERE sp.Id = @SubscriptionPriceId
+      AND sp.FinalPrice > 0;
 
     IF @BasePrice IS NULL THROW 50404, 'Subscription price not found', 1;
     IF @IsActive = 0 THROW 50001, 'Subscription is not active', 1;
@@ -983,7 +1042,8 @@ BEGIN
 
     SELECT @BaseAmount = sp.FinalPrice, @SubscriptionId = sp.SubscriptionId, @PeriodId = sp.PeriodId
     FROM SubscriptionPrices sp
-    WHERE sp.Id = @SubscriptionPriceId;
+    WHERE sp.Id = @SubscriptionPriceId
+      AND sp.FinalPrice > 0;
 
     IF @BaseAmount IS NULL THROW 50040, 'Subscription price not found', 1;
     IF @CodeTrimmed = '' THROW 50041, 'Promo code is required', 1;
@@ -1275,7 +1335,7 @@ CREATE OR ALTER PROCEDURE [sp_Payments_GetHistory]
     @UserId UNIQUEIDENTIFIER
 AS
 BEGIN
-    SELECT p.*, s.[Name] as SubscriptionName, sp.[FinalPrice], per.[Name] as PeriodName
+    SELECT p.*, s.[Name] as SubscriptionName, ABS(sp.[FinalPrice]) AS FinalPrice, per.[Name] as PeriodName
     FROM [Payments] p
     INNER JOIN [UserSubscriptions] us ON p.[UserSubscriptionId] = us.[Id]
     INNER JOIN [SubscriptionPrices] sp ON us.[SubscriptionPriceId] = sp.[Id]
@@ -1290,7 +1350,7 @@ CREATE OR ALTER PROCEDURE [sp_Payments_GetHistoryPaged]
 AS
 BEGIN
     SELECT @TotalCount = COUNT(*) FROM Payments WHERE UserId = @UserId;
-    SELECT p.*, s.Id AS SubscriptionId, s.Name, sp.FinalPrice AS Price, per.Name AS Period
+    SELECT p.*, s.Id AS SubscriptionId, s.Name, ABS(sp.FinalPrice) AS Price, per.Name AS Period
     FROM Payments p
     INNER JOIN UserSubscriptions us ON p.UserSubscriptionId = us.Id INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id INNER JOIN Periods per ON sp.PeriodId = per.Id
     WHERE p.UserId = @UserId ORDER BY p.PaymentDate DESC OFFSET ((@PageNumber - 1) * @PageSize) ROWS FETCH NEXT @PageSize ROWS ONLY;
@@ -1301,7 +1361,7 @@ CREATE OR ALTER PROCEDURE [sp_GetRecentPayments]
     @UserId UNIQUEIDENTIFIER
 AS
 BEGIN
-    SELECT TOP 10 p.*, s.Id AS SubscriptionId, s.Name AS SubscriptionName, sp.FinalPrice AS Price, per.Name AS PeriodName
+    SELECT TOP 10 p.*, s.Id AS SubscriptionId, s.Name AS SubscriptionName, ABS(sp.FinalPrice) AS Price, per.Name AS PeriodName
     FROM Payments p INNER JOIN UserSubscriptions us ON p.UserSubscriptionId = us.Id INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id INNER JOIN Periods per ON sp.PeriodId = per.Id
     WHERE p.UserId = @UserId ORDER BY p.PaymentDate DESC;
 END
@@ -1311,7 +1371,7 @@ CREATE OR ALTER PROCEDURE [sp_GetUpcomingPayments]
     @UserId UNIQUEIDENTIFIER
 AS
 BEGIN
-    SELECT us.NextBillingDate, s.Id AS SubscriptionId, s.Name AS SubscriptionName, sp.FinalPrice AS Amount, per.Name AS PeriodName
+    SELECT us.NextBillingDate, s.Id AS SubscriptionId, s.Name AS SubscriptionName, ABS(sp.FinalPrice) AS Amount, per.Name AS PeriodName
     FROM UserSubscriptions us INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id INNER JOIN Periods per ON sp.PeriodId = per.Id
     WHERE us.UserId = @UserId AND us.IsActive = 1 AND us.CancelledAt IS NULL AND us.NextBillingDate > GETUTCDATE() ORDER BY us.NextBillingDate;
 END
@@ -1570,7 +1630,7 @@ CREATE OR ALTER PROCEDURE [dbo].[sp_Report_UserSubscriptions]
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT us.Id AS UserSubscriptionId, us.UserId, s.Id AS SubscriptionId, s.Name AS SubscriptionName, s.Category, p.Name AS PeriodName, sp.FinalPrice, us.StartDate, us.NextBillingDate, us.CancelledAt, us.ValidUntil, us.IsActive
+    SELECT us.Id AS UserSubscriptionId, us.UserId, s.Id AS SubscriptionId, s.Name AS SubscriptionName, s.Category, p.Name AS PeriodName, ABS(sp.FinalPrice) AS FinalPrice, us.StartDate, us.NextBillingDate, us.CancelledAt, us.ValidUntil, us.IsActive
     FROM UserSubscriptions us 
     INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id 
     INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id 

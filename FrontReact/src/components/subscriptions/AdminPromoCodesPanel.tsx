@@ -8,6 +8,7 @@ import {
   Chip,
   Divider,
   FormControl,
+  FormHelperText,
   InputLabel,
   MenuItem,
   Select,
@@ -59,7 +60,8 @@ const MAX_TOP_USERS_COUNT = 10000;
 
 export const AdminPromoCodesPanel: React.FC = () => {
   const [form, setForm] = useState<PromoCreateRequest>(defaultForm);
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({});
   const [previewUsers, setPreviewUsers] = useState<PromoAudienceUser[]>([]);
   const [promos, setPromos] = useState<PromoCode[]>([]);
   const [selectedPromoId, setSelectedPromoId] = useState<string>('');
@@ -79,88 +81,125 @@ export const AdminPromoCodesPanel: React.FC = () => {
 
   const isPositiveInteger = (value: number): boolean => Number.isInteger(value) && value > 0;
 
-  const validatePromoForm = (candidate: PromoCreateRequest): string[] => {
-    const errors: string[] = [];
+  const buildPromoFormErrors = (candidate: PromoCreateRequest): Record<string, string[]> => {
+    const errors: Record<string, string[]> = {};
+    const addError = (key: string, message: string) => {
+      if (!errors[key]) {
+        errors[key] = [];
+      }
+      errors[key].push(message);
+    };
 
     if (!normalizeText(candidate.code)) {
-      errors.push('Введите код промокода.');
+      addError('code', 'Введите код промокода.');
     }
     if (!normalizeText(candidate.title)) {
-      errors.push('Введите название промокода.');
+      addError('title', 'Введите название промокода.');
     }
 
     if (candidate.discountType !== 1 && candidate.discountType !== 2) {
-      errors.push('Некорректный тип скидки.');
+      addError('discountType', 'Некорректный тип скидки.');
     }
     if (!Number.isFinite(candidate.discountValue) || candidate.discountValue <= 0) {
-      errors.push('Значение скидки должно быть больше 0.');
+      addError('discountValue', 'Значение скидки должно быть больше 0.');
     }
     if (candidate.discountType === 1 && candidate.discountValue > MAX_PERCENT_DISCOUNT) {
-      errors.push(`Процент скидки не может быть больше ${MAX_PERCENT_DISCOUNT}.`);
+      addError('discountValue', `Процент скидки не может быть больше ${MAX_PERCENT_DISCOUNT}.`);
     }
 
     if (candidate.maxDiscountAmount !== undefined) {
       if (!Number.isFinite(candidate.maxDiscountAmount) || candidate.maxDiscountAmount <= 0) {
-        errors.push('Максимальная сумма скидки должна быть больше 0.');
+        addError('maxDiscountAmount', 'Максимальная сумма скидки должна быть больше 0.');
       } else if (candidate.maxDiscountAmount > MAX_MONETARY_VALUE) {
-        errors.push(`Максимальная сумма скидки не может быть больше ${MAX_MONETARY_VALUE}.`);
+        addError('maxDiscountAmount', `Максимальная сумма скидки не может быть больше ${MAX_MONETARY_VALUE}.`);
       }
     }
 
     if (candidate.discountType === 2 && candidate.discountValue > MAX_MONETARY_VALUE) {
-      errors.push(`Фиксированная скидка не может быть больше ${MAX_MONETARY_VALUE}.`);
+      addError('discountValue', `Фиксированная скидка не может быть больше ${MAX_MONETARY_VALUE}.`);
     }
 
     if (!isPositiveInteger(candidate.perUserUsageLimit)) {
-      errors.push('Лимит использования на пользователя должен быть целым числом больше 0.');
+      addError('perUserUsageLimit', 'Лимит использования на пользователя должен быть целым числом больше 0.');
     }
     if (candidate.totalUsageLimit !== undefined) {
       if (!isPositiveInteger(candidate.totalUsageLimit)) {
-        errors.push('Общий лимит использования должен быть целым числом больше 0.');
+        addError('totalUsageLimit', 'Общий лимит использования должен быть целым числом больше 0.');
       }
       if (candidate.totalUsageLimit < candidate.perUserUsageLimit) {
-        errors.push('Общий лимит не может быть меньше лимита на пользователя.');
+        addError('totalUsageLimit', 'Общий лимит не может быть меньше лимита на пользователя.');
       }
     }
 
     const validFromDate = new Date(candidate.validFrom);
     const validToDate = new Date(candidate.validTo);
     if (Number.isNaN(validFromDate.getTime()) || Number.isNaN(validToDate.getTime())) {
-      errors.push('Укажите корректные даты действия промокода.');
+      addError('validFrom', 'Укажите корректные даты действия промокода.');
+      addError('validTo', 'Укажите корректные даты действия промокода.');
     } else if (validToDate <= validFromDate) {
-      errors.push('Дата окончания должна быть позже даты начала.');
+      addError('validTo', 'Дата окончания должна быть позже даты начала.');
     }
 
     if (![1, 2, 3, 4].includes(candidate.audienceType)) {
-      errors.push('Некорректный тип аудитории.');
+      addError('audienceType', 'Некорректный тип аудитории.');
     }
     if (!isPositiveInteger(candidate.daysBack)) {
-      errors.push('Количество дней должно быть целым числом больше 0.');
+      addError('daysBack', 'Количество дней должно быть целым числом больше 0.');
     } else if (candidate.daysBack > MAX_AUDIENCE_DAYS_BACK) {
-      errors.push(`Количество дней не может быть больше ${MAX_AUDIENCE_DAYS_BACK}.`);
+      addError('daysBack', `Количество дней не может быть больше ${MAX_AUDIENCE_DAYS_BACK}.`);
     }
     if (!isPositiveInteger(candidate.topUsersCount)) {
-      errors.push('Количество пользователей должно быть целым числом больше 0.');
+      addError('topUsersCount', 'Количество пользователей должно быть целым числом больше 0.');
     } else if (candidate.topUsersCount > MAX_TOP_USERS_COUNT) {
-      errors.push(`Количество пользователей не может быть больше ${MAX_TOP_USERS_COUNT}.`);
+      addError('topUsersCount', `Количество пользователей не может быть больше ${MAX_TOP_USERS_COUNT}.`);
     }
 
     if (!candidate.conditions.length) {
-      errors.push('Добавьте хотя бы одно условие применимости.');
+      addError('conditions', 'Добавьте хотя бы одно условие применимости.');
     }
 
     candidate.conditions.forEach((condition, index) => {
       if (condition.minAmount !== undefined) {
         if (!Number.isFinite(condition.minAmount) || condition.minAmount < 0) {
-          errors.push(`Минимальная сумма в условии ${index + 1} не может быть отрицательной.`);
+          addError(`conditionMinAmount-${index}`, `Минимальная сумма в условии ${index + 1} не может быть отрицательной.`);
         } else if (condition.minAmount > MAX_MONETARY_VALUE) {
-          errors.push(`Минимальная сумма в условии ${index + 1} не может быть больше ${MAX_MONETARY_VALUE}.`);
+          addError(`conditionMinAmount-${index}`, `Минимальная сумма в условии ${index + 1} не может быть больше ${MAX_MONETARY_VALUE}.`);
         }
       }
     });
 
     return errors;
   };
+
+  const extractValidationErrors = (candidate: PromoCreateRequest): { messages: string[]; fields: Record<string, string> } => {
+    const groupedErrors = buildPromoFormErrors(candidate);
+    const fields = Object.fromEntries(
+      Object.entries(groupedErrors).map(([key, messages]) => [key, messages[0]])
+    );
+    const messages = Object.values(groupedErrors).flat();
+    return { messages, fields };
+  };
+
+  const markFieldTouched = (field: string) => {
+    setTouchedFields((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
+  };
+
+  const markInvalidFieldsTouched = (fields: Record<string, string>) => {
+    if (Object.keys(fields).length === 0) {
+      return;
+    }
+
+    setTouchedFields((prev) => {
+      const next = { ...prev };
+      Object.keys(fields).forEach((key) => {
+        next[key] = true;
+      });
+      return next;
+    });
+  };
+
+  const getVisibleFieldError = (field: string): string | undefined =>
+    touchedFields[field] ? fieldErrors[field] : undefined;
 
   const sanitizeForm = (candidate: PromoCreateRequest): PromoCreateRequest => ({
     ...candidate,
@@ -206,6 +245,12 @@ export const AdminPromoCodesPanel: React.FC = () => {
     loadInitialData();
   }, []);
 
+  useEffect(() => {
+    const sanitized = sanitizeForm(form);
+    const validation = extractValidationErrors(sanitized);
+    setFieldErrors(validation.fields);
+  }, [form]);
+
   const updateCondition = (index: number, value: PromoConditionRequest) => {
     const next = [...form.conditions];
     next[index] = value;
@@ -236,9 +281,10 @@ export const AdminPromoCodesPanel: React.FC = () => {
   const handlePreview = async () => {
     setError(null);
     const sanitized = sanitizeForm(form);
-    const errors = validatePromoForm(sanitized);
-    setValidationErrors(errors);
-    if (errors.length > 0) {
+    const validation = extractValidationErrors(sanitized);
+    setFieldErrors(validation.fields);
+    markInvalidFieldsTouched(validation.fields);
+    if (validation.messages.length > 0) {
       setError('Исправьте ошибки в форме перед предпросмотром аудитории.');
       return;
     }
@@ -254,9 +300,10 @@ export const AdminPromoCodesPanel: React.FC = () => {
 
   const handleCreate = async () => {
     const sanitized = sanitizeForm(form);
-    const errors = validatePromoForm(sanitized);
-    setValidationErrors(errors);
-    if (errors.length > 0) {
+    const validation = extractValidationErrors(sanitized);
+    setFieldErrors(validation.fields);
+    markInvalidFieldsTouched(validation.fields);
+    if (validation.messages.length > 0) {
       setError('Исправьте ошибки в форме перед созданием промокода.');
       return;
     }
@@ -269,7 +316,8 @@ export const AdminPromoCodesPanel: React.FC = () => {
       setSuccess(`Промокод создан и отправлен: ${result.assignedUsersCount} пользователям`);
       setPreviewUsers(result.assignedAccounts);
       setForm({ ...defaultForm, validFrom: sanitized.validFrom, validTo: sanitized.validTo });
-      setValidationErrors([]);
+      setTouchedFields({});
+      setFieldErrors({});
       await loadPromos();
     } catch (e: any) {
       setError(e.response?.data || 'Не удалось создать промокод');
@@ -299,11 +347,6 @@ export const AdminPromoCodesPanel: React.FC = () => {
     <Stack spacing={3}>
       {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
       {success && <Alert severity="success" onClose={() => setSuccess(null)}>{success}</Alert>}
-      {validationErrors.length > 0 && (
-        <Alert severity="warning" onClose={() => setValidationErrors([])}>
-          {validationErrors.map((item) => item).join(' ')}
-        </Alert>
-      )}
 
       <Card>
         <CardContent>
@@ -318,15 +361,23 @@ export const AdminPromoCodesPanel: React.FC = () => {
               <TextField
                 label="Код"
                 value={form.code}
-                onChange={(e) =>
-                  setForm({ ...form, code: removeLeadingSpaces(e.target.value).toUpperCase() })
-                }
+                onChange={(e) => {
+                  markFieldTouched('code');
+                  setForm({ ...form, code: removeLeadingSpaces(e.target.value).toUpperCase() });
+                }}
+                error={Boolean(getVisibleFieldError('code'))}
+                helperText={getVisibleFieldError('code')}
                 fullWidth
               />
               <TextField
                 label="Название"
                 value={form.title}
-                onChange={(e) => setForm({ ...form, title: removeLeadingSpaces(e.target.value) })}
+                onChange={(e) => {
+                  markFieldTouched('title');
+                  setForm({ ...form, title: removeLeadingSpaces(e.target.value) });
+                }}
+                error={Boolean(getVisibleFieldError('title'))}
+                helperText={getVisibleFieldError('title')}
                 fullWidth
               />
             </Stack>
@@ -342,23 +393,27 @@ export const AdminPromoCodesPanel: React.FC = () => {
               2. Параметры скидки
             </Typography>
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-              <FormControl fullWidth>
+              <FormControl fullWidth error={Boolean(getVisibleFieldError('discountType'))}>
                 <InputLabel>Тип скидки</InputLabel>
                 <Select
                   value={form.discountType}
                   label="Тип скидки"
-                  onChange={(e) => setForm({ ...form, discountType: Number(e.target.value) })}
+                  onChange={(e) => {
+                    markFieldTouched('discountType');
+                    setForm({ ...form, discountType: Number(e.target.value) });
+                  }}
                 >
                   <MenuItem value={1}>Процент</MenuItem>
                   <MenuItem value={2}>Фиксированная сумма</MenuItem>
                 </Select>
+                {getVisibleFieldError('discountType') && <FormHelperText>{getVisibleFieldError('discountType')}</FormHelperText>}
               </FormControl>
-              <TextField label="Значение скидки" type="number" inputProps={{ min: 0, max: form.discountType === 1 ? MAX_PERCENT_DISCOUNT : MAX_MONETARY_VALUE, step: 'any' }} value={form.discountValue} onChange={(e) => setForm({ ...form, discountValue: Number(e.target.value) })} fullWidth />
-              <TextField label="Лимит на пользователя" type="number" inputProps={{ min: 1, step: 1 }} value={form.perUserUsageLimit} onChange={(e) => setForm({ ...form, perUserUsageLimit: Number(e.target.value) })} fullWidth />
+              <TextField label="Значение скидки" type="number" inputProps={{ min: 0, max: form.discountType === 1 ? MAX_PERCENT_DISCOUNT : MAX_MONETARY_VALUE, step: 'any' }} value={form.discountValue} onChange={(e) => { markFieldTouched('discountValue'); setForm({ ...form, discountValue: Number(e.target.value) }); }} error={Boolean(getVisibleFieldError('discountValue'))} helperText={getVisibleFieldError('discountValue')} fullWidth />
+              <TextField label="Лимит на пользователя" type="number" inputProps={{ min: 1, step: 1 }} value={form.perUserUsageLimit} onChange={(e) => { markFieldTouched('perUserUsageLimit'); setForm({ ...form, perUserUsageLimit: Number(e.target.value) }); }} error={Boolean(getVisibleFieldError('perUserUsageLimit'))} helperText={getVisibleFieldError('perUserUsageLimit')} fullWidth />
             </Stack>
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-              <TextField label="Действует с" type="datetime-local" value={form.validFrom} onChange={(e) => setForm({ ...form, validFrom: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
-              <TextField label="Действует до" type="datetime-local" value={form.validTo} onChange={(e) => setForm({ ...form, validTo: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
+              <TextField label="Действует с" type="datetime-local" value={form.validFrom} onChange={(e) => { markFieldTouched('validFrom'); setForm({ ...form, validFrom: e.target.value }); }} error={Boolean(getVisibleFieldError('validFrom'))} helperText={getVisibleFieldError('validFrom')} fullWidth InputLabelProps={{ shrink: true }} />
+              <TextField label="Действует до" type="datetime-local" value={form.validTo} onChange={(e) => { markFieldTouched('validTo'); setForm({ ...form, validTo: e.target.value }); }} error={Boolean(getVisibleFieldError('validTo'))} helperText={getVisibleFieldError('validTo')} fullWidth InputLabelProps={{ shrink: true }} />
             </Stack>
 
             <Divider />
@@ -416,11 +471,16 @@ export const AdminPromoCodesPanel: React.FC = () => {
                         inputProps={{ min: 0, max: MAX_MONETARY_VALUE, step: 'any' }}
                         value={condition.minAmount ?? ''}
                         onChange={(e) =>
-                          updateCondition(index, {
-                            ...condition,
-                            minAmount: e.target.value === '' ? undefined : Number(e.target.value),
-                          })
+                          {
+                            markFieldTouched(`conditionMinAmount-${index}`);
+                            updateCondition(index, {
+                              ...condition,
+                              minAmount: e.target.value === '' ? undefined : Number(e.target.value),
+                            });
+                          }
                         }
+                        error={Boolean(getVisibleFieldError(`conditionMinAmount-${index}`))}
+                        helperText={getVisibleFieldError(`conditionMinAmount-${index}`)}
                         fullWidth
                       />
                     </Stack>
@@ -437,21 +497,25 @@ export const AdminPromoCodesPanel: React.FC = () => {
               4. Аудитория рассылки
             </Typography>
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-              <FormControl fullWidth>
+              <FormControl fullWidth error={Boolean(getVisibleFieldError('audienceType'))}>
                 <InputLabel>Аудитория</InputLabel>
                 <Select
                   value={form.audienceType}
                   label="Аудитория"
-                  onChange={(e) => setForm({ ...form, audienceType: Number(e.target.value) })}
+                  onChange={(e) => {
+                    markFieldTouched('audienceType');
+                    setForm({ ...form, audienceType: Number(e.target.value) });
+                  }}
                 >
                   <MenuItem value={1}>Покупали за последние N дней</MenuItem>
                   <MenuItem value={2}>Самые активные пользователи</MenuItem>
                   <MenuItem value={3}>Все пользователи с успешными оплатами</MenuItem>
                   <MenuItem value={4}>Не покупали &gt; N дней (реактивация)</MenuItem>
                 </Select>
+                {getVisibleFieldError('audienceType') && <FormHelperText>{getVisibleFieldError('audienceType')}</FormHelperText>}
               </FormControl>
-              <TextField label={translations.promo.daysBackLabel} type="number" inputProps={{ min: 1, max: MAX_AUDIENCE_DAYS_BACK, step: 1 }} value={form.daysBack} onChange={(e) => setForm({ ...form, daysBack: Number(e.target.value) })} fullWidth />
-              <TextField label={translations.promo.topUsersLabel} type="number" inputProps={{ min: 1, max: MAX_TOP_USERS_COUNT, step: 1 }} value={form.topUsersCount} onChange={(e) => setForm({ ...form, topUsersCount: Number(e.target.value) })} fullWidth />
+              <TextField label={translations.promo.daysBackLabel} type="number" inputProps={{ min: 1, max: MAX_AUDIENCE_DAYS_BACK, step: 1 }} value={form.daysBack} onChange={(e) => { markFieldTouched('daysBack'); setForm({ ...form, daysBack: Number(e.target.value) }); }} error={Boolean(getVisibleFieldError('daysBack'))} helperText={getVisibleFieldError('daysBack')} fullWidth />
+              <TextField label={translations.promo.topUsersLabel} type="number" inputProps={{ min: 1, max: MAX_TOP_USERS_COUNT, step: 1 }} value={form.topUsersCount} onChange={(e) => { markFieldTouched('topUsersCount'); setForm({ ...form, topUsersCount: Number(e.target.value) }); }} error={Boolean(getVisibleFieldError('topUsersCount'))} helperText={getVisibleFieldError('topUsersCount')} fullWidth />
             </Stack>
             <Stack direction="row" spacing={1}>
               <Button variant="outlined" onClick={handlePreview}>Предпросмотр аудитории</Button>

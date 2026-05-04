@@ -233,6 +233,9 @@ export const translations = {
   // Управление пользователями (админ)
   adminUsers: {
     title: 'Управление пользователями',
+    filterBySubscription: 'Фильтр по подписке',
+    allUsersFilter: 'Все пользователи',
+    activeSubscriptionOnly: 'Только с активной подпиской',
     searchPlaceholder: 'Поиск по ID, имени или email...',
     user: 'Пользователь',
     idEmail: 'ID / Email',

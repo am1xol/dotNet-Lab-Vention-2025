@@ -20,6 +20,12 @@ import {
   DialogContent,
   DialogActions,
   Stack,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormControlLabel,
+  Checkbox,
 } from '@mui/material';
 import { debounce } from 'lodash';
 import { User } from '../../types/auth';
@@ -29,12 +35,20 @@ import { translations } from '../../i18n/translations';
 import { reportService } from '../../services/report-service';
 import { UserSubscriptionReportItem } from '../../types/report';
 import { formatDate } from '../../utils/date-utils';
+import { subscriptionService } from '../../services/subscription-service';
 
 const t = translations.adminUsers;
+
+type SubscriptionChoice = { id: string; name: string; category: string };
 
 export const AdminUsersPanel: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [subscriptionChoices, setSubscriptionChoices] = useState<
+    SubscriptionChoice[]
+  >([]);
+  const [selectedSubscriptionId, setSelectedSubscriptionId] = useState('');
+  const [activeSubscriptionOnly, setActiveSubscriptionOnly] = useState(true);
   const [inputValue, setInputValue] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
@@ -61,6 +75,28 @@ export const AdminUsersPanel: React.FC = () => {
     return () => updateSearch.cancel();
   }, [updateSearch]);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const grouped = await subscriptionService.getSubscriptionsForAdmin();
+        const flat: SubscriptionChoice[] = Object.entries(grouped).flatMap(
+          ([category, subs]) =>
+            subs.map((s) => ({ id: s.id, name: s.name, category }))
+        );
+        flat.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+        if (!cancelled) {
+          setSubscriptionChoices(flat);
+        }
+      } catch (error) {
+        console.error('Failed to load subscriptions for admin filter', error);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setInputValue(value);
@@ -70,11 +106,19 @@ export const AdminUsersPanel: React.FC = () => {
   const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await userService.getAllUsers(
-        page + 1,
-        rowsPerPage,
-        debouncedSearch
-      );
+      const data = selectedSubscriptionId
+        ? await userService.getUsersBySubscription(
+            selectedSubscriptionId,
+            page + 1,
+            rowsPerPage,
+            debouncedSearch,
+            activeSubscriptionOnly
+          )
+        : await userService.getAllUsers(
+            page + 1,
+            rowsPerPage,
+            debouncedSearch
+          );
       setUsers(data.items);
       setTotalCount(data.totalCount);
     } catch (error) {
@@ -82,7 +126,13 @@ export const AdminUsersPanel: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, debouncedSearch]);
+  }, [
+    page,
+    rowsPerPage,
+    debouncedSearch,
+    selectedSubscriptionId,
+    activeSubscriptionOnly,
+  ]);
 
   useEffect(() => {
     loadUsers();
@@ -156,39 +206,92 @@ export const AdminUsersPanel: React.FC = () => {
         sx={{
           mb: 3,
           display: 'flex',
-          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 2,
           alignItems: 'center',
+          justifyContent: 'space-between',
           minHeight: '40px',
         }}
       >
         <Typography variant="h6" sx={{ fontWeight: 700, color: '#7E57C2' }}>
           {t.title}
         </Typography>
-        <TextField
-          size="small"
-          placeholder={t.searchPlaceholder}
-          value={inputValue}
-          onChange={handleSearchChange}
-          sx={{
-            width: 350,
-            '& .MuiOutlinedInput-root': {
-              borderRadius: 3,
-              backgroundColor: 'rgba(255, 255, 255, 0.5)',
-            },
-          }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <Search sx={{ color: 'text.secondary' }} />
-              </InputAdornment>
-            ),
-            endAdornment: (
-              <InputAdornment position="end" sx={{ minWidth: 25 }}>
-                {loading && <CircularProgress size={18} color="secondary" />}
-              </InputAdornment>
-            ),
-          }}
-        />
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={2}
+          alignItems={{ xs: 'stretch', sm: 'center' }}
+          sx={{ flex: '1 1 auto', justifyContent: 'flex-end', maxWidth: '100%' }}
+        >
+          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 260 } }}>
+            <InputLabel id="admin-users-subscription-filter-label">
+              {t.filterBySubscription}
+            </InputLabel>
+            <Select<string>
+              labelId="admin-users-subscription-filter-label"
+              label={t.filterBySubscription}
+              value={selectedSubscriptionId}
+              onChange={(e) => {
+                setSelectedSubscriptionId(e.target.value);
+                setPage(0);
+              }}
+              sx={{
+                borderRadius: 3,
+                backgroundColor: 'rgba(255, 255, 255, 0.5)',
+              }}
+            >
+              <MenuItem value="">
+                <em>{t.allUsersFilter}</em>
+              </MenuItem>
+              {subscriptionChoices.map((s) => (
+                <MenuItem key={s.id} value={s.id}>
+                  {`${s.name} (${s.category})`}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControlLabel
+            sx={{ mr: 0, ml: { xs: 0, sm: 0 } }}
+            control={
+              <Checkbox
+                checked={activeSubscriptionOnly}
+                disabled={!selectedSubscriptionId}
+                onChange={(_, checked) => {
+                  setActiveSubscriptionOnly(checked);
+                  setPage(0);
+                }}
+                color="secondary"
+              />
+            }
+            label={
+              <Typography variant="body2">{t.activeSubscriptionOnly}</Typography>
+            }
+          />
+          <TextField
+            size="small"
+            placeholder={t.searchPlaceholder}
+            value={inputValue}
+            onChange={handleSearchChange}
+            sx={{
+              width: { xs: '100%', sm: 350 },
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 3,
+                backgroundColor: 'rgba(255, 255, 255, 0.5)',
+              },
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search sx={{ color: 'text.secondary' }} />
+                </InputAdornment>
+              ),
+              endAdornment: (
+                <InputAdornment position="end" sx={{ minWidth: 25 }}>
+                  {loading && <CircularProgress size={18} color="secondary" />}
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Stack>
       </Box>
 
       <TableContainer

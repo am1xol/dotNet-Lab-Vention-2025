@@ -721,6 +721,77 @@ BEGIN
 END
 GO
 
+CREATE OR ALTER PROCEDURE [sp_Admin_GetUsersBySubscriptionPaged]
+    @SubscriptionId UNIQUEIDENTIFIER,
+    @PageNumber INT,
+    @PageSize INT,
+    @SearchTerm NVARCHAR(MAX) = NULL,
+    @ActiveOnly BIT = 1,
+    @TotalCount INT OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF NOT EXISTS (SELECT 1 FROM Subscriptions WHERE Id = @SubscriptionId)
+    BEGIN
+        SET @TotalCount = 0;
+        RETURN;
+    END
+
+    DECLARE @Search NVARCHAR(MAX) = NULLIF(LTRIM(RTRIM(@SearchTerm)), N'');
+
+    DECLARE @DistinctUsers TABLE (
+        Id UNIQUEIDENTIFIER PRIMARY KEY,
+        Email NVARCHAR(256) NOT NULL,
+        FirstName NVARCHAR(MAX) NOT NULL,
+        LastName NVARCHAR(MAX) NOT NULL,
+        IsEmailVerified BIT NOT NULL,
+        IsBlocked BIT NOT NULL,
+        CreatedAt DATETIME2 NOT NULL,
+        Role NVARCHAR(5) NOT NULL,
+        SubscriptionExpiryReminderDays INT NOT NULL
+    );
+
+    ;WITH Base AS (
+        SELECT
+            u.Id,
+            u.Email,
+            u.FirstName,
+            u.LastName,
+            u.IsEmailVerified,
+            u.IsBlocked,
+            u.CreatedAt,
+            u.Role,
+            ISNULL(u.SubscriptionExpiryReminderDays, 3) AS SubscriptionExpiryReminderDays,
+            ROW_NUMBER() OVER (PARTITION BY u.Id ORDER BY us.UpdatedAt DESC) AS rn
+        FROM dbo.UserSubscriptions us
+        INNER JOIN dbo.SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id
+        INNER JOIN AuthDb.dbo.Users u ON u.Id = us.UserId
+        WHERE sp.SubscriptionId = @SubscriptionId
+          AND (@ActiveOnly = 0 OR us.IsActive = 1)
+          AND (
+              @Search IS NULL
+              OR u.Email LIKE N'%' + @Search + N'%'
+              OR u.FirstName LIKE N'%' + @Search + N'%'
+              OR u.LastName LIKE N'%' + @Search + N'%'
+              OR CAST(u.Id AS NVARCHAR(36)) LIKE N'%' + @Search + N'%'
+          )
+    )
+    INSERT INTO @DistinctUsers (Id, Email, FirstName, LastName, IsEmailVerified, IsBlocked, CreatedAt, Role, SubscriptionExpiryReminderDays)
+    SELECT Id, Email, FirstName, LastName, IsEmailVerified, IsBlocked, CreatedAt, Role, SubscriptionExpiryReminderDays
+    FROM Base
+    WHERE rn = 1;
+
+    SELECT @TotalCount = COUNT(*) FROM @DistinctUsers;
+
+    SELECT Id, Email, FirstName, LastName, IsEmailVerified, IsBlocked, CreatedAt, Role, SubscriptionExpiryReminderDays
+    FROM @DistinctUsers
+    ORDER BY Email ASC
+    OFFSET ((@PageNumber - 1) * @PageSize) ROWS
+    FETCH NEXT @PageSize ROWS ONLY;
+END
+GO
+
 
 /* =========================================================================================
    ПЛАТЕЖИ И БИЛЛИНГ (PAYMENTS)

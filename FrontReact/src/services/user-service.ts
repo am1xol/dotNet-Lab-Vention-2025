@@ -1,5 +1,8 @@
 import api from './api';
 import { User } from '../types/auth';
+
+const SUBSCRIPTIONS_API_BASE =
+  import.meta.env.VITE_SUBSCRIPTIONS_API_URL + '/api';
 import {
   UpdateProfileRequest,
   ChangePasswordRequest,
@@ -34,6 +37,25 @@ export const userService = {
         pageNumber: page,
         pageSize: size,
         searchTerm: search,
+      },
+    });
+    return response.data as { items: User[]; totalCount: number };
+  },
+
+  async getUsersBySubscription(
+    subscriptionId: string,
+    page: number,
+    size: number,
+    search?: string,
+    activeOnly = true
+  ): Promise<{ items: User[]; totalCount: number }> {
+    const response = await api.get(`${SUBSCRIPTIONS_API_BASE}/admin/subscribed-users`, {
+      params: {
+        subscriptionId,
+        pageNumber: page,
+        pageSize: size,
+        searchTerm: search || undefined,
+        activeOnly,
       },
     });
     return response.data as { items: User[]; totalCount: number };

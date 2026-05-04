@@ -31,12 +31,6 @@ export const features = [
   },
 ];
 
-export const stats = [
-  { value: '50+', label: 'Типов подписок' },
-  { value: '1K+', label: 'Активных пользователей' },
-  { value: '99%', label: 'Удовлетворённость' },
-];
-
 export const steps = [
   {
     step: 1,

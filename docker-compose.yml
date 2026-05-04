@@ -75,6 +75,7 @@ services:
       - ConnectionStrings__AuthConnection=${AUTH_DB_CONNECTION_STRING}
       - Jwt__Secret=${JWT_SECRET}
       - MinIO__Endpoint=minio:9000
+      - MinIO__ExternalEndpoint=127.0.0.1:19000
       - MinIO__AccessKey=${MINIO_ROOT_USER}
       - MinIO__SecretKey=${MINIO_ROOT_PASSWORD}
       - MinIO__BucketName=subscriptions
@@ -167,8 +168,8 @@ services:
     image: minio/minio
     container_name: minio
     ports:
-      - "127.0.0.1:9000:9000"
-      - "127.0.0.1:9001:9001"
+      - "127.0.0.1:19000:9000"
+      - "127.0.0.1:19001:9001"
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}

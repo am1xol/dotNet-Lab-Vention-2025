@@ -60,12 +60,12 @@ export const SubscriptionFormDialog: React.FC<SubscriptionFormDialogProps> = ({
   );
 
   const categories = [
-    'Streaming',
-    'Software',
-    'Gaming',
-    'Productivity',
-    'Entertainment',
-    'Other',
+    'Стриминг',
+    'Программы',
+    'Игры',
+    'Продуктивность',
+    'Развлечения',
+    'Другое',
   ];
   const ALLOWED_PRICES = [10, 20, 50];
   const removeLeadingSpaces = (value: string) => value.replace(/^\s+/, '');

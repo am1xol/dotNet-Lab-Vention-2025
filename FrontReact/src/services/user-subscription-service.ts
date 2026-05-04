@@ -58,7 +58,7 @@ export const userSubscriptionService = {
 
     const grouped = items.reduce(
       (acc: GroupedUserSubscriptions, us: UserSubscription) => {
-        const category = us.subscription?.category || 'Other';
+        const category = us.subscription?.category || 'Другое';
         if (!acc[category]) {
           acc[category] = [];
         }

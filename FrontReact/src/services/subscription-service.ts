@@ -40,7 +40,7 @@ async function fetchAllSubscriptions(): Promise<Subscription[]> {
 function groupSubscriptionsByCategory(items: Subscription[]): GroupedSubscriptions {
   const grouped: GroupedSubscriptions = {};
   for (const sub of items) {
-    const cat = sub.category?.trim() || 'Other';
+    const cat = sub.category?.trim() || 'Другое';
     if (!grouped[cat]) grouped[cat] = [];
     grouped[cat].push(sub);
   }

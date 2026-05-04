@@ -202,6 +202,34 @@ BEGIN
 END
 GO
 
+CREATE OR ALTER PROCEDURE [sp_Users_UpdateEmailVerificationCode]
+    @Id UNIQUEIDENTIFIER,
+    @VerificationCode NVARCHAR(MAX),
+    @ExpiresAt DATETIME2,
+    @UpdatedAt DATETIME2
+AS
+BEGIN
+    UPDATE [Users]
+    SET EmailVerificationCode = @VerificationCode,
+        EmailVerificationCodeExpiresAt = @ExpiresAt,
+        UpdatedAt = @UpdatedAt
+    WHERE Id = @Id;
+END
+GO
+
+CREATE OR ALTER PROCEDURE [sp_Users_UpdateSubscriptionExpiryReminderDays]
+    @Id UNIQUEIDENTIFIER,
+    @ReminderDays INT,
+    @UpdatedAt DATETIME2
+AS
+BEGIN
+    UPDATE [Users]
+    SET SubscriptionExpiryReminderDays = @ReminderDays,
+        UpdatedAt = @UpdatedAt
+    WHERE Id = @Id;
+END
+GO
+
 
 /* =========================================================================================
    УПРАВЛЕНИЕ ТОКЕНАМИ (REFRESH TOKENS)
@@ -219,10 +247,6 @@ AS
 BEGIN
     INSERT INTO [RefreshTokens] (Id, UserId, Token, DeviceName, ExpiresAt, CreatedAt, IsRevoked)
     VALUES (@Id, @UserId, @Token, @DeviceName, @ExpiresAt, @CreatedAt, 0);
-    
-    -- Для отладки: выбираем только что вставленную строку
-    SELECT @Id AS Id, @UserId AS UserId, @Token AS Token, @DeviceName AS DeviceName, 
-           @ExpiresAt AS ExpiresAt, @CreatedAt AS CreatedAt, 0 AS IsRevoked;
 END
 GO
 
@@ -259,7 +283,6 @@ BEGIN
       AND rt.[IsRevoked] = 0
       AND rt.[ExpiresAt] > GETUTCDATE();
 END
-GO
 GO
 
 -- Обновление статуса токена
@@ -372,9 +395,23 @@ ALTER PROCEDURE [sp_ChatConversations_GetAll]
     @Status NVARCHAR(20) = NULL
 AS
 BEGIN
-    SELECT * FROM [ChatConversations] 
-    WHERE @Status IS NULL OR [Status] = @Status
-    ORDER BY [LastMessageAt] DESC;
+    SELECT
+        c.[Id],
+        c.[UserId],
+        c.[AdminId],
+        c.[Status],
+        c.[LastMessageAt],
+        c.[CreatedAt],
+        c.[UpdatedAt],
+        u.[FirstName] AS [UserFirstName],
+        u.[LastName] AS [UserLastName],
+        u.[Email] AS [UserEmail],
+        (SELECT COUNT(*) FROM [ChatMessages] m
+         WHERE m.[ConversationId] = c.[Id] AND m.[IsRead] = 0 AND m.[SenderRole] = N'User') AS [UnreadCount]
+    FROM [ChatConversations] c
+    INNER JOIN [Users] u ON c.[UserId] = u.[Id]
+    WHERE @Status IS NULL OR c.[Status] = @Status
+    ORDER BY c.[LastMessageAt] DESC;
 END
 GO
 
@@ -433,9 +470,35 @@ ALTER PROCEDURE [sp_ChatMessages_GetByConversation]
     @ConversationId UNIQUEIDENTIFIER
 AS
 BEGIN
-    SELECT * FROM [ChatMessages] 
-    WHERE [ConversationId] = @ConversationId
-    ORDER BY [CreatedAt] ASC;
+    SELECT
+        m.[Id],
+        m.[ConversationId],
+        m.[SenderId],
+        m.[SenderRole],
+        m.[Content],
+        m.[IsRead],
+        m.[CreatedAt],
+        u.[FirstName] AS [SenderFirstName],
+        u.[LastName] AS [SenderLastName]
+    FROM [ChatMessages] m
+    INNER JOIN [Users] u ON m.[SenderId] = u.[Id]
+    WHERE m.[ConversationId] = @ConversationId
+    ORDER BY m.[CreatedAt] ASC;
+END
+GO
+
+CREATE OR ALTER PROCEDURE [sp_ChatConversations_CreateOpen]
+    @Id UNIQUEIDENTIFIER,
+    @UserId UNIQUEIDENTIFIER,
+    @CreatedAt DATETIME2,
+    @UpdatedAt DATETIME2,
+    @LastMessageAt DATETIME2
+AS
+BEGIN
+    INSERT INTO [ChatConversations] ([Id], [UserId], [Status], [CreatedAt], [UpdatedAt], [LastMessageAt])
+    VALUES (@Id, @UserId, N'Open', @CreatedAt, @UpdatedAt, @LastMessageAt);
+
+    SELECT * FROM [ChatConversations] WHERE [Id] = @Id;
 END
 GO
 

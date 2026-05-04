@@ -26,14 +26,7 @@ public class RefreshTokenRepository : IRefreshTokenRepository
     {
         _logger.LogInformation("GetByTokenAsync - Looking for token: {Token}", token);
         
-        const string sql = @"
-            SELECT rt.Id, rt.UserId, rt.Token, rt.DeviceName, rt.ExpiresAt, rt.CreatedAt, rt.IsRevoked,
-                   u.Id AS Id, u.Email, u.PasswordHash, u.FirstName, u.LastName, 
-                   u.IsEmailVerified, u.EmailVerificationCode, u.EmailVerificationCodeExpiresAt,
-                   u.CreatedAt, u.UpdatedAt, u.Role, u.PasswordResetCode, u.PasswordResetExpiresAt, u.IsBlocked
-            FROM [RefreshTokens] rt
-            INNER JOIN [Users] u ON rt.[UserId] = u.[Id]
-            WHERE rt.[Token] = @Token AND rt.[IsRevoked] = 0 AND rt.[ExpiresAt] > GETUTCDATE()";
+        const string sql = "sp_RefreshTokens_GetByTokenWithUser";
             
         using var connection = CreateConnection();
         connection.Open();
@@ -46,7 +39,8 @@ public class RefreshTokenRepository : IRefreshTokenRepository
                 return refreshToken;
             },
             new { Token = token },
-            splitOn: "Id");
+            splitOn: "Id",
+            commandType: CommandType.StoredProcedure);
 
         _logger.LogInformation("GetByTokenAsync - Query returned {Count} results", result.Count());
         
@@ -73,9 +67,7 @@ public class RefreshTokenRepository : IRefreshTokenRepository
 
     public async Task AddAsync(RefreshToken refreshToken)
     {
-        const string sql = @"
-            INSERT INTO [RefreshTokens] (Id, UserId, Token, DeviceName, ExpiresAt, CreatedAt, IsRevoked)
-            VALUES (@Id, @UserId, @Token, @DeviceName, @ExpiresAt, @CreatedAt, 0)";
+        const string sql = "sp_RefreshTokens_Insert";
             
         using var connection = CreateConnection();
         connection.Open();
@@ -97,35 +89,35 @@ public class RefreshTokenRepository : IRefreshTokenRepository
 
         var createdAt = DateTime.UtcNow;
         
-        var parameters = new DynamicParameters();
-        parameters.Add("Id", refreshToken.Id == Guid.Empty ? Guid.NewGuid() : refreshToken.Id);
-        parameters.Add("UserId", refreshToken.UserId);
-        parameters.Add("Token", refreshToken.Token);
-        parameters.Add("DeviceName", refreshToken.DeviceName);
-        parameters.Add("ExpiresAt", expiresAt, DbType.DateTime2);
-        parameters.Add("CreatedAt", createdAt, DbType.DateTime2);
-        
-        await connection.ExecuteAsync(sql, parameters);
+        await connection.ExecuteAsync(sql, new
+        {
+            Id = refreshToken.Id == Guid.Empty ? Guid.NewGuid() : refreshToken.Id,
+            refreshToken.UserId,
+            refreshToken.Token,
+            refreshToken.DeviceName,
+            ExpiresAt = expiresAt,
+            CreatedAt = createdAt
+        }, commandType: CommandType.StoredProcedure);
         
         _logger.LogInformation("RefreshTokenRepository.AddAsync - Execute completed");
     }
 
     public async Task UpdateAsync(RefreshToken refreshToken)
     {
-        const string sql = "UPDATE [RefreshTokens] SET [IsRevoked] = @IsRevoked WHERE [Id] = @Id";
+        const string sql = "sp_RefreshTokens_Update";
         using var connection = CreateConnection();
         connection.Open();
 
-        await connection.ExecuteAsync(sql, new { refreshToken.Id, refreshToken.IsRevoked });
+        await connection.ExecuteAsync(sql, new { refreshToken.Id, refreshToken.IsRevoked }, commandType: CommandType.StoredProcedure);
     }
 
     public async Task RevokeAllUserTokensAsync(Guid userId)
     {
-        const string sql = "UPDATE [RefreshTokens] SET [IsRevoked] = 1 WHERE [UserId] = @UserId AND [IsRevoked] = 0";
+        const string sql = "sp_RefreshTokens_RevokeAllUserTokens";
         using var connection = CreateConnection();
         connection.Open();
 
-        await connection.ExecuteAsync(sql, new { UserId = userId });
+        await connection.ExecuteAsync(sql, new { UserId = userId }, commandType: CommandType.StoredProcedure);
     }
 
     public Task SaveChangesAsync() => Task.CompletedTask;

@@ -267,9 +267,10 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
                     }
 
                     var promo = await connection.QueryFirstOrDefaultAsync<PromoNotificationInfo>(
-                        "SELECT TOP 1 Id, Code, Title, Description FROM PromoCodes WHERE Id = @Id",
+                        "sp_PromoCodes_GetNotificationHeader",
                         new { Id = request.PromoCodeId },
-                        transaction);
+                        transaction,
+                        commandType: CommandType.StoredProcedure);
 
                     var promoConditions = promo == null
                         ? Array.Empty<PromoNotificationConditionRow>()
@@ -362,12 +363,8 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         {
             using var connection = new SqlConnection(_connectionString);
             var promos = await connection.QueryAsync<PromoCodeDto>(
-                @"SELECT pc.Id, pc.Code, pc.Title, pc.Description, pc.DiscountType, pc.DiscountValue, pc.MaxDiscountAmount,
-                         pc.ValidFrom, pc.ValidTo, pc.TotalUsageLimit, pc.PerUserUsageLimit,
-                         c.SubscriptionId, c.PeriodId, c.MinAmount, 0 AS UserUsageCount
-                  FROM PromoCodes pc
-                  LEFT JOIN PromoCodeConditions c ON c.PromoCodeId = pc.Id
-                  ORDER BY pc.CreatedAt DESC");
+                "sp_PromoCodes_GetAdminList",
+                commandType: CommandType.StoredProcedure);
 
             return Ok(promos);
         }
@@ -461,10 +458,9 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
         private async Task<PromoNotificationInfo> GetPromoNotificationInfoAsync(SqlConnection connection, Guid promoCodeId)
         {
             return await connection.QueryFirstAsync<PromoNotificationInfo>(
-                @"SELECT TOP 1 Id, Code, Title, Description
-                  FROM PromoCodes
-                  WHERE Id = @Id",
-                new { Id = promoCodeId });
+                "sp_PromoCodes_GetNotificationHeader",
+                new { Id = promoCodeId },
+                commandType: CommandType.StoredProcedure);
         }
 
         private async Task<IEnumerable<PromoNotificationConditionRow>> GetPromoNotificationConditionsAsync(
@@ -473,18 +469,10 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             IDbTransaction? transaction = null)
         {
             return await connection.QueryAsync<PromoNotificationConditionRow>(
-                @"SELECT
-                    c.SubscriptionId,
-                    s.Name AS SubscriptionName,
-                    c.PeriodId,
-                    p.Name AS PeriodName,
-                    c.MinAmount
-                  FROM PromoCodeConditions c
-                  LEFT JOIN Subscriptions s ON s.Id = c.SubscriptionId
-                  LEFT JOIN Periods p ON p.Id = c.PeriodId
-                  WHERE c.PromoCodeId = @PromoCodeId",
+                "sp_PromoCodes_GetNotificationConditions",
                 new { PromoCodeId = promoCodeId },
-                transaction);
+                transaction,
+                commandType: CommandType.StoredProcedure);
         }
 
         private static string BuildPromoNotificationMessage(

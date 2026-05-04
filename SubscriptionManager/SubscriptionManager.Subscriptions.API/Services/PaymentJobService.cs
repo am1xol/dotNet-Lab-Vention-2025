@@ -93,17 +93,13 @@ namespace SubscriptionManager.Subscriptions.API.Services
                 commandType: CommandType.StoredProcedure);
 
             var fallbackPendingPayments = await connection.QueryAsync<Payment>(
-                """
-                SELECT p.*
-                FROM Payments p
-                WHERE p.Status = @PendingStatus
-                  AND p.PaymentDate <= DATEADD(MINUTE, -@TimeoutMinutes, GETUTCDATE());
-                """,
+                "sp_Jobs_GetPendingPaymentsTimedOut",
                 new
                 {
                     PendingStatus = (int)PaymentStatus.Pending,
                     TimeoutMinutes = PendingPaymentTimeoutMinutes
-                });
+                },
+                commandType: CommandType.StoredProcedure);
 
             var mergedById = stuckPayments
                 .Concat(fallbackPendingPayments)
@@ -150,26 +146,8 @@ namespace SubscriptionManager.Subscriptions.API.Services
             using var connection = new SqlConnection(_connectionString);
 
             var reminders = await connection.QueryAsync<SubscriptionExpiryReminderItem>(
-                """
-                SELECT
-                    us.Id AS UserSubscriptionId,
-                    us.UserId,
-                    s.Name AS SubscriptionName,
-                    us.NextBillingDate,
-                    ISNULL(NULLIF(u.SubscriptionExpiryReminderDays, 0), 3) AS ReminderDays
-                FROM UserSubscriptions us
-                INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id
-                INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id
-                INNER JOIN AuthDb.dbo.Users u ON u.Id = us.UserId
-                WHERE us.IsActive = 1
-                  AND us.CancelledAt IS NULL
-                  AND us.NextBillingDate > GETUTCDATE()
-                  AND CAST(us.NextBillingDate AS DATE) = DATEADD(
-                        DAY,
-                        ISNULL(NULLIF(u.SubscriptionExpiryReminderDays, 0), 3),
-                        CAST(GETUTCDATE() AS DATE)
-                    );
-                """);
+                "sp_Jobs_GetSubscriptionExpiryReminders",
+                commandType: CommandType.StoredProcedure);
 
             foreach (var item in reminders)
             {
@@ -180,20 +158,14 @@ namespace SubscriptionManager.Subscriptions.API.Services
                     $"Напоминаем за {item.ReminderDays} дн.";
 
                 var wasSentToday = await connection.ExecuteScalarAsync<int>(
-                    """
-                    SELECT COUNT(1)
-                    FROM Notifications
-                    WHERE UserId = @UserId
-                      AND Title = @Title
-                      AND Message = @Message
-                      AND CreatedAt >= CAST(GETUTCDATE() AS DATE);
-                    """,
+                    "sp_Notifications_CountSentTodayByUserTitleMessage",
                     new
                     {
                         item.UserId,
                         Title = ExpiryReminderTitle,
                         Message = message
-                    });
+                    },
+                    commandType: CommandType.StoredProcedure);
 
                 if (wasSentToday > 0)
                 {

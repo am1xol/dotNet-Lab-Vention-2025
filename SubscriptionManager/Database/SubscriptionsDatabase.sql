@@ -1759,3 +1759,103 @@ BEGIN
     RETURN 200;
 END
 GO
+
+/* =========================================================================================
+   ФОНОВЫЕ ЗАДАЧИ / УВЕДОМЛЕНИЯ / ПРОМОКОДЫ (INLINE SQL → PROCEDURES)
+========================================================================================= */
+
+CREATE OR ALTER PROCEDURE [sp_Jobs_GetPendingPaymentsTimedOut]
+    @PendingStatus INT,
+    @TimeoutMinutes INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT p.*
+    FROM [Payments] p
+    WHERE p.[Status] = @PendingStatus
+      AND p.[PaymentDate] <= DATEADD(MINUTE, -@TimeoutMinutes, GETUTCDATE());
+END
+GO
+
+CREATE OR ALTER PROCEDURE [sp_Jobs_GetSubscriptionExpiryReminders]
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT
+        us.[Id] AS [UserSubscriptionId],
+        us.[UserId],
+        s.[Name] AS [SubscriptionName],
+        us.[NextBillingDate],
+        ISNULL(NULLIF(u.[SubscriptionExpiryReminderDays], 0), 3) AS [ReminderDays]
+    FROM [UserSubscriptions] us
+    INNER JOIN [SubscriptionPrices] sp ON us.[SubscriptionPriceId] = sp.[Id]
+    INNER JOIN [Subscriptions] s ON sp.[SubscriptionId] = s.[Id]
+    INNER JOIN [AuthDb].[dbo].[Users] u ON u.[Id] = us.[UserId]
+    WHERE us.[IsActive] = 1
+      AND us.[CancelledAt] IS NULL
+      AND us.[NextBillingDate] > GETUTCDATE()
+      AND CAST(us.[NextBillingDate] AS DATE) = DATEADD(
+            DAY,
+            ISNULL(NULLIF(u.[SubscriptionExpiryReminderDays], 0), 3),
+            CAST(GETUTCDATE() AS DATE)
+        );
+END
+GO
+
+CREATE OR ALTER PROCEDURE [sp_Notifications_CountSentTodayByUserTitleMessage]
+    @UserId UNIQUEIDENTIFIER,
+    @Title NVARCHAR(MAX),
+    @Message NVARCHAR(MAX)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT COUNT(1)
+    FROM [Notifications]
+    WHERE [UserId] = @UserId
+      AND [Title] = @Title
+      AND [Message] = @Message
+      AND [CreatedAt] >= CAST(GETUTCDATE() AS DATE);
+END
+GO
+
+CREATE OR ALTER PROCEDURE [sp_PromoCodes_GetAdminList]
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT pc.[Id], pc.[Code], pc.[Title], pc.[Description], pc.[DiscountType], pc.[DiscountValue], pc.[MaxDiscountAmount],
+           pc.[ValidFrom], pc.[ValidTo], pc.[TotalUsageLimit], pc.[PerUserUsageLimit],
+           c.[SubscriptionId], c.[PeriodId], c.[MinAmount], 0 AS [UserUsageCount]
+    FROM [PromoCodes] pc
+    LEFT JOIN [PromoCodeConditions] c ON c.[PromoCodeId] = pc.[Id]
+    ORDER BY pc.[CreatedAt] DESC;
+END
+GO
+
+CREATE OR ALTER PROCEDURE [sp_PromoCodes_GetNotificationHeader]
+    @Id UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT TOP (1) [Id], [Code], [Title], [Description]
+    FROM [PromoCodes]
+    WHERE [Id] = @Id;
+END
+GO
+
+CREATE OR ALTER PROCEDURE [sp_PromoCodes_GetNotificationConditions]
+    @PromoCodeId UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT
+        c.[SubscriptionId],
+        s.[Name] AS [SubscriptionName],
+        c.[PeriodId],
+        p.[Name] AS [PeriodName],
+        c.[MinAmount]
+    FROM [PromoCodeConditions] c
+    LEFT JOIN [Subscriptions] s ON s.[Id] = c.[SubscriptionId]
+    LEFT JOIN [Periods] p ON p.[Id] = c.[PeriodId]
+    WHERE c.[PromoCodeId] = @PromoCodeId;
+END
+GO

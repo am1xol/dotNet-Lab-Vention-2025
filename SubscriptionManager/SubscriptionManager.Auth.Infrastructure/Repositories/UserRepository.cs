@@ -165,12 +165,7 @@ public class UserRepository : IUserRepository
 
     public async Task UpdateEmailVerificationCodeAsync(Guid userId, string verificationCode, DateTime expiresAt, DateTime updatedAt)
     {
-        const string sql = @"
-            UPDATE Users
-            SET EmailVerificationCode = @VerificationCode,
-                EmailVerificationCodeExpiresAt = @ExpiresAt,
-                UpdatedAt = @UpdatedAt
-            WHERE Id = @Id";
+        const string sql = "sp_Users_UpdateEmailVerificationCode";
 
         using var connection = CreateConnection();
         await connection.ExecuteAsync(sql, new
@@ -179,16 +174,12 @@ public class UserRepository : IUserRepository
             VerificationCode = verificationCode,
             ExpiresAt = expiresAt,
             UpdatedAt = updatedAt
-        });
+        }, commandType: CommandType.StoredProcedure);
     }
 
     public async Task UpdateSubscriptionExpiryReminderDaysAsync(Guid userId, int reminderDays)
     {
-        const string sql = @"
-            UPDATE Users
-            SET SubscriptionExpiryReminderDays = @ReminderDays,
-                UpdatedAt = @UpdatedAt
-            WHERE Id = @Id";
+        const string sql = "sp_Users_UpdateSubscriptionExpiryReminderDays";
 
         using var connection = CreateConnection();
         await connection.ExecuteAsync(sql, new
@@ -196,6 +187,6 @@ public class UserRepository : IUserRepository
             Id = userId,
             ReminderDays = reminderDays,
             UpdatedAt = DateTime.UtcNow
-        });
+        }, commandType: CommandType.StoredProcedure);
     }
 }

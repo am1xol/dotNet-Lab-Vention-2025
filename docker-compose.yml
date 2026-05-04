@@ -80,7 +80,9 @@ services:
       - MinIO__BucketName=subscriptions
       - BePaid__ShopId=${BEPAID_SHOP_ID}
       - BePaid__SecretKey=${BEPAID_SECRET_KEY}
-      - BEPAID_NOTIFICATION_URL=${BEPAID_NOTIFICATION_URL:-}
+      - BePaid__ApiUrl=${BEPAID_API_URL:-https://checkout.bepaid.by/ctp/api/checkouts}
+      - BePaid__ReturnUrl=${BEPAID_RETURN_URL:-http://127.0.0.1:3000/dashboard}
+      - BEPAID_NOTIFICATION_URL=${BEPAID_NOTIFICATION_URL:-https://eddy-unhatched-synaptically.ngrok-free.dev/api/payments/webhook}
       - EmailSettings__SmtpServer=${SMTP_SERVER:-mailpit}
       - EmailSettings__SmtpPort=${SMTP_PORT:-1025}
       - EmailSettings__EnableSsl=${SMTP_ENABLE_SSL:-false}
@@ -111,10 +113,8 @@ services:
           export BePaid__NotificationUrl="$${BEPAID_NOTIFICATION_URL}"
           echo "Using webhook URL from BEPAID_NOTIFICATION_URL: $${BePaid__NotificationUrl}"
         else
-          echo "Waiting for public tunnel URL from cloudflared..."
-          while [ ! -s /shared/public_base_url ]; do sleep 1; done
-          export BePaid__NotificationUrl="$$(cat /shared/public_base_url)/api/payments/webhook"
-          echo "Using generated webhook URL: $${BePaid__NotificationUrl}"
+          echo "BEPAID_NOTIFICATION_URL is empty; set it to your public API base (e.g. ngrok) + /api/payments/webhook"
+          exit 1
         fi
         dotnet SubscriptionManager.Subscriptions.API.dll
     depends_on:
@@ -122,12 +122,8 @@ services:
         condition: service_healthy
       aspire-dashboard:
         condition: service_started
-      tunnel-url-writer:
-        condition: service_started
     networks:
       - app-network
-    volumes:
-      - tunnel_data:/shared
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health/live"]
       interval: 30s
@@ -195,52 +191,9 @@ services:
     networks:
       - app-network
 
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    user: "0:0"
-    command:
-      - tunnel
-      - --no-autoupdate
-      - --url
-      - http://subscriptions-api:8080
-      - --loglevel
-      - info
-      - --logfile
-      - /shared/cloudflared.log
-    volumes:
-      - tunnel_data:/shared
-    networks:
-      - app-network
-
-  tunnel-url-writer:
-    image: alpine:3.20
-    command:
-      - /bin/sh
-      - -c
-      - |
-        touch /shared/cloudflared.log
-        echo "Waiting for trycloudflare URL in /shared/cloudflared.log..."
-        while [ ! -s /shared/public_base_url ]; do
-          url="$$(sed -nE 's#.*(https://[a-zA-Z0-9-]+\.trycloudflare\.com).*#\1#p' /shared/cloudflared.log | head -n1)"
-          if [ -n "$$url" ]; then
-            echo "$$url" > /shared/public_base_url
-            echo "Generated public URL: $$url"
-            break
-          fi
-          sleep 1
-        done
-        tail -f /dev/null
-    depends_on:
-      - cloudflared
-    volumes:
-      - tunnel_data:/shared
-    networks:
-      - app-network
-
 volumes:
   minio_data:
   sqlserver_data:
-  tunnel_data:
 
 networks:
   app-network:

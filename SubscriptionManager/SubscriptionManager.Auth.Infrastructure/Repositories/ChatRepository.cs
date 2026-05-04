@@ -57,23 +57,12 @@ public class ChatRepository : IChatRepository
 
     public async Task<IEnumerable<ChatConversationDto>> GetAllConversationsAsync(string? status = null)
     {
-        const string sql = @"
-            SELECT 
-                c.*,
-                u.FirstName AS UserFirstName,
-                u.LastName AS UserLastName,
-                u.Email AS UserEmail,
-                (SELECT COUNT(*) FROM [ChatMessages] m 
-                 WHERE m.ConversationId = c.Id AND m.IsRead = 0 AND m.SenderRole = 'User') AS UnreadCount
-            FROM [ChatConversations] c
-            INNER JOIN [Users] u ON c.UserId = u.Id
-            WHERE (@Status IS NULL OR c.Status = @Status)
-            ORDER BY c.LastMessageAt DESC";
-        
+        const string sql = "sp_ChatConversations_GetAll";
         using var connection = CreateConnection();
         return await connection.QueryAsync<ChatConversationDto>(
             sql,
-            new { Status = status });
+            new { Status = status },
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task UpdateConversationStatusAsync(Guid conversationId, string status, Guid? adminId = null)
@@ -108,20 +97,12 @@ public class ChatRepository : IChatRepository
 
     public async Task<IEnumerable<ChatMessageDto>> GetMessagesByConversationAsync(Guid conversationId)
     {
-        const string sql = @"
-            SELECT 
-                m.*,
-                u.FirstName AS SenderFirstName,
-                u.LastName AS SenderLastName
-            FROM [ChatMessages] m
-            INNER JOIN [Users] u ON m.SenderId = u.Id
-            WHERE m.ConversationId = @ConversationId
-            ORDER BY m.CreatedAt ASC";
-        
+        const string sql = "sp_ChatMessages_GetByConversation";
         using var connection = CreateConnection();
         return await connection.QueryAsync<ChatMessageDto>(
             sql,
-            new { ConversationId = conversationId });
+            new { ConversationId = conversationId },
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task<IEnumerable<ChatMessageDto>> GetUnreadMessagesForAdminAsync()
@@ -159,10 +140,7 @@ public class ChatRepository : IChatRepository
 
     public async Task<ChatConversation> CreateNewConversationAsync(Guid userId)
     {
-        const string sql = @"
-            INSERT INTO [ChatConversations] (Id, UserId, Status, CreatedAt, UpdatedAt, LastMessageAt)
-            VALUES (@Id, @UserId, 'Open', @CreatedAt, @UpdatedAt, @LastMessageAt);
-            SELECT * FROM [ChatConversations] WHERE Id = @Id;";
+        const string sql = "sp_ChatConversations_CreateOpen";
 
         using var connection = CreateConnection();
         try
@@ -176,7 +154,8 @@ public class ChatRepository : IChatRepository
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow,
                     LastMessageAt = DateTime.UtcNow
-                });
+                },
+                commandType: CommandType.StoredProcedure);
 
             return newConversation;
         }

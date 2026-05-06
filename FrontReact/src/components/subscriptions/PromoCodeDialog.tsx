@@ -4,11 +4,14 @@ import {
   Backdrop,
   Box,
   Button,
+  Checkbox,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
+  Link,
   Stack,
   TextField,
   Typography,
@@ -40,6 +43,7 @@ export const PromoCodeDialog: React.FC<PromoCodeDialogProps> = ({
   const [isChecking, setIsChecking] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
   const [isUiLocked, setIsUiLocked] = useState(false);
+  const [personalDataConsent, setPersonalDataConsent] = useState(false);
 
   const finalAmount = useMemo(() => validation?.finalAmount ?? baseAmount, [validation, baseAmount]);
 
@@ -85,6 +89,11 @@ export const PromoCodeDialog: React.FC<PromoCodeDialogProps> = ({
   };
 
   const handleConfirm = async () => {
+    if (!personalDataConsent) {
+      setError('Для перехода к оплате необходимо согласие на обработку персональных данных');
+      return;
+    }
+
     setIsUiLocked(true);
     setIsPaying(true);
     setError(null);
@@ -92,6 +101,7 @@ export const PromoCodeDialog: React.FC<PromoCodeDialogProps> = ({
       await onConfirm(validation?.promoCode ?? undefined);
       setPromoCode('');
       setValidation(null);
+      setPersonalDataConsent(false);
       onClose();
     } catch (e: any) {
       setError(e.response?.data?.message || 'Не удалось инициировать оплату');
@@ -106,6 +116,7 @@ export const PromoCodeDialog: React.FC<PromoCodeDialogProps> = ({
     setPromoCode('');
     setValidation(null);
     setError(null);
+    setPersonalDataConsent(false);
     onClose();
   };
 
@@ -152,11 +163,39 @@ export const PromoCodeDialog: React.FC<PromoCodeDialogProps> = ({
                 К оплате: <BynAmount amount={finalAmount} />
               </Typography>
             </Box>
+
+            <Box>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={personalDataConsent}
+                    onChange={(e) => {
+                      setPersonalDataConsent(e.target.checked);
+                      if (e.target.checked) setError(null);
+                    }}
+                    disabled={isChecking || isPaying}
+                  />
+                }
+                label={
+                  <Typography variant="body2">
+                    Я даю согласие на обработку персональных данных и принимаю условия{' '}
+                    <Link href="/user-agreement.html" target="_blank" rel="noreferrer">
+                      пользовательского соглашения
+                    </Link>
+                    .
+                  </Typography>
+                }
+              />
+            </Box>
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose} disabled={isChecking || isPaying}>Отмена</Button>
-          <Button variant="contained" onClick={handleConfirm} disabled={isChecking || isPaying || !subscriptionPriceId}>
+          <Button
+            variant="contained"
+            onClick={handleConfirm}
+            disabled={isChecking || isPaying || !subscriptionPriceId || !personalDataConsent}
+          >
             {isPaying ? <CircularProgress size={18} /> : 'Перейти к оплате'}
           </Button>
         </DialogActions>

@@ -236,6 +236,7 @@ export const translations = {
     filterBySubscription: 'Фильтр по подписке',
     allUsersFilter: 'Все пользователи',
     activeSubscriptionOnly: 'Только с активной подпиской',
+    withPurchasesOnly: 'Только с покупками',
     searchPlaceholder: 'Поиск по ID, имени или email...',
     user: 'Пользователь',
     idEmail: 'ID / Email',

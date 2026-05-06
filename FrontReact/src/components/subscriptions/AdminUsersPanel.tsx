@@ -49,6 +49,7 @@ export const AdminUsersPanel: React.FC = () => {
   >([]);
   const [selectedSubscriptionId, setSelectedSubscriptionId] = useState('');
   const [activeSubscriptionOnly, setActiveSubscriptionOnly] = useState(true);
+  const [withPurchasesOnly, setWithPurchasesOnly] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
@@ -112,12 +113,14 @@ export const AdminUsersPanel: React.FC = () => {
             page + 1,
             rowsPerPage,
             debouncedSearch,
-            activeSubscriptionOnly
+            activeSubscriptionOnly,
+            withPurchasesOnly
           )
         : await userService.getAllUsers(
             page + 1,
             rowsPerPage,
-            debouncedSearch
+            debouncedSearch,
+            withPurchasesOnly
           );
       setUsers(data.items);
       setTotalCount(data.totalCount);
@@ -132,6 +135,7 @@ export const AdminUsersPanel: React.FC = () => {
     debouncedSearch,
     selectedSubscriptionId,
     activeSubscriptionOnly,
+    withPurchasesOnly,
   ]);
 
   useEffect(() => {
@@ -217,62 +221,97 @@ export const AdminUsersPanel: React.FC = () => {
           {t.title}
         </Typography>
         <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={2}
-          alignItems={{ xs: 'stretch', sm: 'center' }}
+          direction="column"
+          spacing={1.5}
           sx={{ flex: '1 1 auto', justifyContent: 'flex-end', maxWidth: '100%' }}
         >
-          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 260 } }}>
-            <InputLabel id="admin-users-subscription-filter-label">
-              {t.filterBySubscription}
-            </InputLabel>
-            <Select<string>
-              labelId="admin-users-subscription-filter-label"
-              label={t.filterBySubscription}
-              value={selectedSubscriptionId}
-              onChange={(e) => {
-                setSelectedSubscriptionId(e.target.value);
-                setPage(0);
-              }}
-              sx={{
-                borderRadius: 3,
-                backgroundColor: 'rgba(255, 255, 255, 0.5)',
-              }}
-            >
-              <MenuItem value="">
-                <em>{t.allUsersFilter}</em>
-              </MenuItem>
-              {subscriptionChoices.map((s) => (
-                <MenuItem key={s.id} value={s.id}>
-                  {`${s.name} (${s.category})`}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControlLabel
-            sx={{ mr: 0, ml: { xs: 0, sm: 0 } }}
-            control={
-              <Checkbox
-                checked={activeSubscriptionOnly}
-                disabled={!selectedSubscriptionId}
-                onChange={(_, checked) => {
-                  setActiveSubscriptionOnly(checked);
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={2}
+            alignItems={{ xs: 'stretch', sm: 'center' }}
+            sx={{ justifyContent: 'flex-end' }}
+          >
+            <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 280 } }}>
+              <InputLabel id="admin-users-subscription-filter-label">
+                {t.filterBySubscription}
+              </InputLabel>
+              <Select<string>
+                labelId="admin-users-subscription-filter-label"
+                label={t.filterBySubscription}
+                value={selectedSubscriptionId}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setSelectedSubscriptionId(next);
+                  if (!next) {
+                    setActiveSubscriptionOnly(true);
+                  }
                   setPage(0);
                 }}
-                color="secondary"
+                sx={{
+                  borderRadius: 3,
+                  backgroundColor: 'rgba(255, 255, 255, 0.5)',
+                }}
+              >
+                <MenuItem value="">
+                  <em>{t.allUsersFilter}</em>
+                </MenuItem>
+                {subscriptionChoices.map((s) => (
+                  <MenuItem key={s.id} value={s.id}>
+                    {`${s.name} (${s.category})`}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1.5}
+              alignItems={{ xs: 'stretch', sm: 'center' }}
+              sx={{ flexWrap: 'wrap' }}
+            >
+              <FormControlLabel
+                sx={{ mr: 0, ml: { xs: 0, sm: 0 } }}
+                control={
+                  <Checkbox
+                    checked={activeSubscriptionOnly}
+                    disabled={!selectedSubscriptionId}
+                    onChange={(_, checked) => {
+                      setActiveSubscriptionOnly(checked);
+                      setPage(0);
+                    }}
+                    color="secondary"
+                  />
+                }
+                label={
+                  <Typography variant="body2">{t.activeSubscriptionOnly}</Typography>
+                }
               />
-            }
-            label={
-              <Typography variant="body2">{t.activeSubscriptionOnly}</Typography>
-            }
-          />
+
+              <FormControlLabel
+                sx={{ mr: 0, ml: { xs: 0, sm: 0 } }}
+                control={
+                  <Checkbox
+                    checked={withPurchasesOnly}
+                    onChange={(_, checked) => {
+                      setWithPurchasesOnly(checked);
+                      setPage(0);
+                    }}
+                    color="secondary"
+                  />
+                }
+                label={<Typography variant="body2">{t.withPurchasesOnly}</Typography>}
+              />
+            </Stack>
+          </Stack>
+
           <TextField
             size="small"
             placeholder={t.searchPlaceholder}
             value={inputValue}
             onChange={handleSearchChange}
             sx={{
-              width: { xs: '100%', sm: 350 },
+              width: { xs: '100%', sm: 520 },
+              alignSelf: 'flex-end',
               '& .MuiOutlinedInput-root': {
                 borderRadius: 3,
                 backgroundColor: 'rgba(255, 255, 255, 0.5)',

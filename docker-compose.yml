@@ -22,6 +22,7 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=${AUTH_DB_CONNECTION_STRING}
       - ConnectionStrings__AuthConnection=${AUTH_DB_CONNECTION_STRING}
+      - ConnectionStrings__SubscriptionsConnection=${SUBSCRIPTIONS_DB_CONNECTION_STRING}
       - Jwt__Secret=${JWT_SECRET}
       - MinIO__Endpoint=minio:9000
       - MinIO__AccessKey=${MINIO_ROOT_USER}

@@ -30,13 +30,15 @@ export const userService = {
   async getAllUsers(
     page: number,
     size: number,
-    search?: string
+    search?: string,
+    withPurchasesOnly = false
   ): Promise<{ items: User[]; totalCount: number }> {
     const response = await api.get('/all-users', {
       params: {
         pageNumber: page,
         pageSize: size,
         searchTerm: search,
+        withPurchasesOnly,
       },
     });
     return response.data as { items: User[]; totalCount: number };
@@ -47,7 +49,8 @@ export const userService = {
     page: number,
     size: number,
     search?: string,
-    activeOnly = true
+    activeOnly = true,
+    withPurchasesOnly = false
   ): Promise<{ items: User[]; totalCount: number }> {
     const response = await api.get(`${SUBSCRIPTIONS_API_BASE}/admin/subscribed-users`, {
       params: {
@@ -56,6 +59,7 @@ export const userService = {
         pageSize: size,
         searchTerm: search || undefined,
         activeOnly,
+        withPurchasesOnly,
       },
     });
     return response.data as { items: User[]; totalCount: number };

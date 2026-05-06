@@ -1,9 +1,13 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Dapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
+using SubscriptionManager.Core;
 using SubscriptionManager.Core.Constants;
 using SubscriptionManager.Core.Interfaces;
 using SubscriptionManager.Core.Models.Requests;
 using SubscriptionManager.Core.Models.Responses;
+using System.Data;
 using System.Security.Claims;
 
 namespace SubscriptionManager.Auth.API.Controllers
@@ -16,15 +20,19 @@ namespace SubscriptionManager.Auth.API.Controllers
         private readonly IUserRepository _userRepository;
         private readonly IPasswordHasher _passwordHasher;
         private readonly ILogger<UsersController> _logger;
+        private readonly string _subscriptionsConnectionString;
 
         public UsersController(
             IUserRepository userRepository,
             IPasswordHasher passwordHasher,
-            ILogger<UsersController> logger)
+            ILogger<UsersController> logger,
+            IConfiguration configuration)
         {
             _userRepository = userRepository;
             _passwordHasher = passwordHasher;
             _logger = logger;
+            _subscriptionsConnectionString = configuration.GetConnectionString("SubscriptionsConnection")
+                ?? throw new InvalidOperationException("Connection string 'SubscriptionsConnection' not found.");
         }
 
         [HttpGet("me")]
@@ -159,11 +167,94 @@ namespace SubscriptionManager.Auth.API.Controllers
         public async Task<ActionResult<PagedResponse<UserDetailsResponse>>> GetAllUsers(
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10,
-            [FromQuery] string? searchTerm = null)
+            [FromQuery] string? searchTerm = null,
+            [FromQuery] bool withPurchasesOnly = false)
         {
-            var (users, totalCount) = await _userRepository.GetPagedUsersAsync(pageNumber, pageSize, searchTerm);
+            if (!withPurchasesOnly)
+            {
+                var (users, totalCount) = await _userRepository.GetPagedUsersAsync(pageNumber, pageSize, searchTerm);
 
-            var userDetails = users.Select(user => new UserDetailsResponse
+                var userDetails = users.Select(user => new UserDetailsResponse
+                {
+                    Id = user.Id.ToString(),
+                    Email = user.Email,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    IsEmailVerified = user.IsEmailVerified,
+                    IsBlocked = user.IsBlocked,
+                    CreatedAt = user.CreatedAt,
+                    Role = user.Role,
+                    SubscriptionExpiryReminderDays = user.SubscriptionExpiryReminderDays
+                });
+
+                return Ok(new PagedResponse<UserDetailsResponse>
+                {
+                    Items = userDetails,
+                    TotalCount = totalCount,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize
+                });
+            }
+
+            const int scanPageSize = 200;
+            var normalizedSearch = string.IsNullOrWhiteSpace(searchTerm) ? null : searchTerm.Trim();
+            var desiredStartIndex = (pageNumber - 1) * pageSize;
+            var desiredEndExclusive = desiredStartIndex + pageSize;
+
+            var filteredTotalCount = 0;
+            var pageUsers = new List<Core.Models.User>(capacity: pageSize);
+
+            int? unfilteredTotal = null;
+            var scanPageNumber = 1;
+
+            using var subsConn = new SqlConnection(_subscriptionsConnectionString);
+
+            while (!unfilteredTotal.HasValue || (scanPageNumber - 1) * scanPageSize < unfilteredTotal.Value)
+            {
+                var (scanUsers, scanTotal) = await _userRepository.GetPagedUsersAsync(
+                    scanPageNumber,
+                    scanPageSize,
+                    normalizedSearch);
+                unfilteredTotal ??= scanTotal;
+
+                var scanList = scanUsers.ToList();
+                if (scanList.Count == 0)
+                {
+                    break;
+                }
+
+                var userIds = scanList.Select(u => u.Id).Distinct().ToArray();
+                var paidUserIds = new HashSet<Guid>(await subsConn.QueryAsync<Guid>(
+                    """
+                    SELECT DISTINCT UserId
+                    FROM Payments
+                    WHERE Status = @CompletedStatus AND UserId IN @UserIds
+                    """,
+                    new
+                    {
+                        CompletedStatus = (int)PaymentStatus.Completed,
+                        UserIds = userIds
+                    }));
+
+                foreach (var user in scanList)
+                {
+                    if (!paidUserIds.Contains(user.Id))
+                    {
+                        continue;
+                    }
+
+                    if (filteredTotalCount >= desiredStartIndex && filteredTotalCount < desiredEndExclusive)
+                    {
+                        pageUsers.Add(user);
+                    }
+
+                    filteredTotalCount++;
+                }
+
+                scanPageNumber++;
+            }
+
+            var pagedUserDetails = pageUsers.Select(user => new UserDetailsResponse
             {
                 Id = user.Id.ToString(),
                 Email = user.Email,
@@ -178,8 +269,8 @@ namespace SubscriptionManager.Auth.API.Controllers
 
             return Ok(new PagedResponse<UserDetailsResponse>
             {
-                Items = userDetails,
-                TotalCount = totalCount,
+                Items = pagedUserDetails,
+                TotalCount = filteredTotalCount,
                 PageNumber = pageNumber,
                 PageSize = pageSize
             });

@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
 using SubscriptionManager.Auth.API.Controllers;
@@ -28,7 +29,13 @@ namespace SubscriptionManager.Tests
 
             var userRepository = new TestUserRepository(user);
             var mockLogger = new Mock<ILogger<UsersController>>();
-            var controller = new UsersController(userRepository, null!, mockLogger.Object);
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["ConnectionStrings:SubscriptionsConnection"] = "Server=(localdb)\\mssqllocaldb;Database=TestDb;Trusted_Connection=true;TrustServerCertificate=true;"
+                })
+                .Build();
+            var controller = new UsersController(userRepository, null!, mockLogger.Object, configuration);
 
             var claims = new[]
             {
@@ -58,7 +65,13 @@ namespace SubscriptionManager.Tests
         {
             var userRepository = new TestUserRepository(null!);
             var mockLogger = new Mock<ILogger<UsersController>>();
-            var controller = new UsersController(userRepository, null!, mockLogger.Object);
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["ConnectionStrings:SubscriptionsConnection"] = "Server=(localdb)\\mssqllocaldb;Database=TestDb;Trusted_Connection=true;TrustServerCertificate=true;"
+                })
+                .Build();
+            var controller = new UsersController(userRepository, null!, mockLogger.Object, configuration);
 
             var claims = new Claim[] { };
             var identity = new ClaimsIdentity(claims, "Test");
@@ -79,7 +92,13 @@ namespace SubscriptionManager.Tests
         {
             var userRepository = new TestUserRepository(null!);
             var mockLogger = new Mock<ILogger<UsersController>>();
-            var controller = new UsersController(userRepository, null!, mockLogger.Object);
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["ConnectionStrings:SubscriptionsConnection"] = "Server=(localdb)\\mssqllocaldb;Database=TestDb;Trusted_Connection=true;TrustServerCertificate=true;"
+                })
+                .Build();
+            var controller = new UsersController(userRepository, null!, mockLogger.Object, configuration);
 
             var claims = new[]
             {
@@ -104,7 +123,13 @@ namespace SubscriptionManager.Tests
             var userId = Guid.NewGuid();
             var userRepository = new TestUserRepository(null!);
             var mockLogger = new Mock<ILogger<UsersController>>();
-            var controller = new UsersController(userRepository, null!, mockLogger.Object);
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["ConnectionStrings:SubscriptionsConnection"] = "Server=(localdb)\\mssqllocaldb;Database=TestDb;Trusted_Connection=true;TrustServerCertificate=true;"
+                })
+                .Build();
+            var controller = new UsersController(userRepository, null!, mockLogger.Object, configuration);
 
             var claims = new[]
             {

@@ -252,12 +252,12 @@ const FinancialOverviewBento = memo(function FinancialOverviewBento({
             alignItems="baseline"
             sx={{ mb: 0.75 }}
           >
-            <Typography variant="caption" color="text.secondary" fontWeight={600}>
+             <Typography variant="subtitle1" color="text.secondary" fontWeight={700}>
               {translations.statistics.totalSubscriptionsTitle}
-            </Typography>
-            <Typography variant="caption" fontWeight={700} sx={{ color: '#7E57C2' }}>
-              {activeSubscriptionsCount} / {totalSubscriptionsCount}
-            </Typography>
+             </Typography>
+             <Typography variant="h5" fontWeight={800} sx={{ color: '#7E57C2', lineHeight: 1.2 }}>
+               {activeSubscriptionsCount} / {totalSubscriptionsCount}
+             </Typography>
           </Stack>
           <LinearProgress
             variant="determinate"

@@ -70,17 +70,46 @@ export const SubscriptionHistoryTab: React.FC = () => {
     loadHistory(nextPage);
   };
 
-  const getStatusColor = (status?: string) => {
-    switch (status) {
-      case 'Active':
-        return 'success';
-      case 'Expired':
-        return 'default';
-      case 'Cancelled':
-        return 'warning';
-      default:
-        return 'default';
+  type ChipColor = 'default' | 'success' | 'warning' | 'error' | 'info';
+
+  const getDerivedStatus = (sub: UserSubscription): { label: string; color: ChipColor } => {
+    const now = new Date();
+    const validUntilDate = sub.validUntil ? new Date(sub.validUntil) : null;
+
+    const raw = (sub.status || '').trim();
+    if (raw && raw !== 'Unknown') {
+      switch (raw) {
+        case 'Active':
+          return { label: translations.subscriptions.active, color: 'success' };
+        case 'Expired':
+          return { label: translations.subscriptions.expired, color: 'default' };
+        case 'Cancelled':
+          return { label: translations.subscriptions.cancelled, color: 'warning' };
+        case 'Frozen':
+          return { label: translations.subscriptions.frozen, color: 'info' };
+        case 'Failed':
+          return { label: translations.subscriptions.paymentFailed, color: 'error' };
+        case 'Pending':
+          return { label: translations.subscriptions.pendingPayment, color: 'warning' };
+        default:
+          break;
+      }
     }
+
+    if (sub.isFrozen) return { label: translations.subscriptions.frozen, color: 'info' };
+    if (sub.cancelledAt) return { label: translations.subscriptions.cancelled, color: 'warning' };
+    if (sub.isActive) return { label: translations.subscriptions.active, color: 'success' };
+
+    if (sub.isValid === false) return { label: translations.subscriptions.paymentFailed, color: 'error' };
+
+    if (validUntilDate && validUntilDate < now) {
+      return { label: translations.subscriptions.expired, color: 'default' };
+    }
+
+    return {
+      label: translations.common.inactive,
+      color: 'default',
+    };
   };
 
   if (loading && subscriptions.length === 0) {
@@ -155,12 +184,17 @@ export const SubscriptionHistoryTab: React.FC = () => {
                               </Typography>
                             </Box>
                             <Box textAlign="right">
+                              {(() => {
+                                const ds = getDerivedStatus(sub);
+                                return (
                               <Chip
-                                label={sub.status || (sub.isActive ? translations.common.active : translations.common.inactive)}
+                                    label={ds.label}
                                 size="small"
-                                color={getStatusColor(sub.status || undefined)}
+                                    color={ds.color}
                                 sx={{ mt: 1 }}
                               />
+                                );
+                              })()}
                             </Box>
                           </Box>
                         }

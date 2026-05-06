@@ -200,6 +200,8 @@ export const PaymentHistoryTab: React.FC<PaymentHistoryTabProps> = ({
                                       ? translations.payments.completed
                                       : payment.status === 'Failed'
                                         ? translations.payments.failed
+                                        : payment.status === 'Pending'
+                                          ? translations.payments.pending
                                         : payment.status
                                   }
                                   size="small"
@@ -208,6 +210,8 @@ export const PaymentHistoryTab: React.FC<PaymentHistoryTabProps> = ({
                                       ? 'success'
                                       : payment.status === 'Failed'
                                         ? 'error'
+                                        : payment.status === 'Pending'
+                                          ? 'warning'
                                         : 'default'
                                   }
                                   sx={{ mt: 1 }}

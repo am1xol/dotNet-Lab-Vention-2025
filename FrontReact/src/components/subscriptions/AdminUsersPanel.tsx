@@ -534,8 +534,29 @@ export const AdminUsersPanel: React.FC = () => {
                   <Chip
                     sx={{ mt: 1 }}
                     size="small"
-                    label={item.isActive ? 'Активна' : 'Неактивна'}
-                    color={item.isActive ? 'success' : 'default'}
+                    label={(() => {
+                      const now = new Date();
+                      const validUntilDate = item.validUntil
+                        ? new Date(item.validUntil)
+                        : null;
+
+                      if (item.cancelledAt) return translations.subscriptions.cancelled;
+                      if (item.isActive) return translations.subscriptions.active;
+                      if (validUntilDate && validUntilDate < now)
+                        return translations.subscriptions.expired;
+                      return translations.common.inactive;
+                    })()}
+                    color={(() => {
+                      const now = new Date();
+                      const validUntilDate = item.validUntil
+                        ? new Date(item.validUntil)
+                        : null;
+
+                      if (item.isActive) return 'success';
+                      if (item.cancelledAt) return 'warning';
+                      if (validUntilDate && validUntilDate < now) return 'default';
+                      return 'default';
+                    })()}
                     variant={item.isActive ? 'filled' : 'outlined'}
                   />
                 </Box>

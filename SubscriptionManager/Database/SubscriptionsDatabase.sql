@@ -36,18 +36,26 @@ GO
 CREATE TABLE [UserSubscriptions] (
     [Id] UNIQUEIDENTIFIER PRIMARY KEY,
     [UserId] UNIQUEIDENTIFIER NOT NULL,
+    [SubscriptionId] UNIQUEIDENTIFIER NOT NULL,
+    [SubscriptionPriceId] UNIQUEIDENTIFIER NOT NULL,
     [StartDate] DATETIME2 NOT NULL,
-    [NextBillingDate] DATETIME2 NOT NULL,
+    [NextBillingDate] DATETIME2 NULL,
     [CancelledAt] DATETIME2 NULL,
     [ValidUntil] DATETIME2 NULL,
     [IsActive] BIT NOT NULL DEFAULT 1,
     [CreatedAt] DATETIME2 NOT NULL,
     [UpdatedAt] DATETIME2 NOT NULL,
     [FrozenAt] DATETIME2 NULL,
-    [FrozenUntil] DATETIME2 NULL
+    [FrozenUntil] DATETIME2 NULL,
+    CONSTRAINT [FK_UserSubscriptions_Subscriptions] FOREIGN KEY ([SubscriptionId])
+        REFERENCES [Subscriptions] ([Id])
 );
 GO
 CREATE INDEX [IX_UserSubscriptions_UserId] ON [UserSubscriptions] ([UserId]);
+GO
+CREATE INDEX [IX_UserSubscriptions_SubscriptionId] ON [UserSubscriptions] ([SubscriptionId]);
+GO
+CREATE INDEX [IX_UserSubscriptions_SubscriptionPriceId] ON [UserSubscriptions] ([SubscriptionPriceId]);
 GO
 IF COL_LENGTH('dbo.UserSubscriptions', 'FrozenAt') IS NULL
 BEGIN
@@ -79,6 +87,10 @@ CREATE INDEX [IX_SubscriptionCancellationReasons_UserId] ON [SubscriptionCancell
 GO
 CREATE INDEX [IX_SubscriptionCancellationReasons_SubscriptionId] ON [SubscriptionCancellationReasons] ([SubscriptionId]);
 GO
+ALTER TABLE [SubscriptionCancellationReasons] WITH CHECK
+ADD CONSTRAINT [FK_SubscriptionCancellationReasons_Subscriptions] FOREIGN KEY ([SubscriptionId])
+    REFERENCES [Subscriptions] ([Id]);
+GO
 
 CREATE TABLE [Payments] (
     [Id] UNIQUEIDENTIFIER PRIMARY KEY,
@@ -93,12 +105,15 @@ CREATE TABLE [Payments] (
     [CardLastFour] NVARCHAR(4) NOT NULL DEFAULT '',
     [CardBrand] NVARCHAR(20) NOT NULL DEFAULT '',
     [ExternalTransactionId] NVARCHAR(100) NULL,
+    [AppliedPromoCodeId] UNIQUEIDENTIFIER NULL,
+    [DiscountAmount] DECIMAL(18, 2) NOT NULL CONSTRAINT [DF_Payments_DiscountAmount] DEFAULT 0,
     CONSTRAINT [FK_Payments_UserSubscriptions] FOREIGN KEY ([UserSubscriptionId]) 
         REFERENCES [UserSubscriptions] ([Id]) ON DELETE CASCADE
 );
 GO
-ALTER TABLE [Payments] ADD CONSTRAINT [DF_Payments_CardLastFour] DEFAULT ('') FOR [CardLastFour];
-ALTER TABLE [Payments] ADD CONSTRAINT [DF_Payments_CardBrand] DEFAULT ('') FOR [CardBrand];
+CREATE INDEX [IX_Payments_UserId] ON [Payments] ([UserId]);
+GO
+CREATE INDEX [IX_Payments_UserSubscriptionId] ON [Payments] ([UserSubscriptionId]);
 GO
 
 CREATE TABLE [Notifications] (
@@ -129,6 +144,13 @@ CREATE TABLE [SubscriptionPrices] (
     CONSTRAINT [FK_SubscriptionPrices_Periods] FOREIGN KEY ([PeriodId]) 
         REFERENCES [Periods] ([Id])
 );
+GO
+CREATE UNIQUE INDEX [UX_SubscriptionPrices_SubscriptionId_PeriodId] ON [SubscriptionPrices] ([SubscriptionId], [PeriodId]);
+GO
+
+ALTER TABLE [UserSubscriptions] WITH CHECK
+ADD CONSTRAINT [FK_UserSubscriptions_SubscriptionPrices] FOREIGN KEY ([SubscriptionPriceId])
+    REFERENCES [SubscriptionPrices] ([Id]);
 GO
 
 CREATE TABLE [PromoCodes] (
@@ -912,7 +934,8 @@ BEGIN
         DECLARE @UserSubId UNIQUEIDENTIFIER = NEWID(), @PaymentId UNIQUEIDENTIFIER = NEWID(), @Now DATETIME2 = GETUTCDATE();
         DECLARE @NextBillingDate DATETIME2 = DATEADD(MONTH, @MonthsCount, @Now);
 
-        INSERT INTO UserSubscriptions (Id, UserId, SubscriptionPriceId, StartDate, NextBillingDate, IsActive, CreatedAt, UpdatedAt) VALUES (@UserSubId, @UserId, @SubscriptionPriceId, @Now, @NextBillingDate, 0, @Now, @Now);
+        INSERT INTO UserSubscriptions (Id, UserId, SubscriptionId, SubscriptionPriceId, StartDate, NextBillingDate, IsActive, CreatedAt, UpdatedAt)
+        VALUES (@UserSubId, @UserId, @SubscriptionId, @SubscriptionPriceId, @Now, @NextBillingDate, 0, @Now, @Now);
         INSERT INTO Payments (Id, UserSubscriptionId, UserId, Amount, Currency, Status, PaymentDate, PeriodStart, PeriodEnd, AppliedPromoCodeId, DiscountAmount)
         VALUES (@PaymentId, @UserSubId, @UserId, @FinalPrice, 'BYN', 0, @Now, @Now, @NextBillingDate, @PromoCodeId, @DiscountAmount);
         COMMIT TRANSACTION;

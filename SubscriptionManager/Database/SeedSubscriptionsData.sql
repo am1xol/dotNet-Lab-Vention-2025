@@ -7,6 +7,16 @@
 USE [SubscriptionsDb];
 GO
 
+-- =========================================================================================
+-- Periods (обязательно должны существовать, иначе SubscriptionPrices не заполнится)
+-- =========================================================================================
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Periods] WHERE [MonthsCount] = 1)
+    INSERT INTO [dbo].[Periods] ([Id], [Name], [MonthsCount]) VALUES (NEWID(), N'Месяц', 1);
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Periods] WHERE [MonthsCount] = 3)
+    INSERT INTO [dbo].[Periods] ([Id], [Name], [MonthsCount]) VALUES (NEWID(), N'Квартал', 3);
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Periods] WHERE [MonthsCount] = 12)
+    INSERT INTO [dbo].[Periods] ([Id], [Name], [MonthsCount]) VALUES (NEWID(), N'Год', 12);
+
 -- Названия периодов в справочнике — на русском (по MonthsCount, без зависимости от старых строк)
 UPDATE [dbo].[Periods] SET [Name] = N'Месяц' WHERE [MonthsCount] = 1;
 UPDATE [dbo].[Periods] SET [Name] = N'Квартал' WHERE [MonthsCount] = 3;

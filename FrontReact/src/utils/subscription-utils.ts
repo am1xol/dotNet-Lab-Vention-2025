@@ -39,5 +39,6 @@ export function canRestoreCancelledUserSubscription(
 ): boolean {
   if (!us?.cancelledAt || us.isFrozen) return false;
   if (!us.validUntil) return false;
+  if (us.subscription?.isActive === false) return false;
   return new Date(us.validUntil) > new Date();
 }

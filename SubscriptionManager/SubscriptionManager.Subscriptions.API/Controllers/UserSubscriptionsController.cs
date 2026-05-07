@@ -497,15 +497,31 @@ namespace SubscriptionManager.Subscriptions.API.Controllers
             parameters.Add("@Now", DateTime.UtcNow);
             parameters.Add("@ReturnValue", dbType: DbType.Int32, direction: ParameterDirection.ReturnValue);
 
-            await connection.ExecuteAsync(
-                "sp_UserSubscriptions_RestoreCancelled",
-                parameters,
-                commandType: CommandType.StoredProcedure);
+            try
+            {
+                await connection.ExecuteAsync(
+                    "sp_UserSubscriptions_RestoreCancelled",
+                    parameters,
+                    commandType: CommandType.StoredProcedure);
 
-            if (parameters.Get<int>("@ReturnValue") == 404)
-                return NotFound("Cancelled subscription not found or cannot be restored");
+                if (parameters.Get<int>("@ReturnValue") == 404)
+                    return NotFound(new { message = "Cancelled subscription not found or cannot be restored" });
 
-            return Ok(new { Message = "Subscription restored" });
+                return Ok(new { message = "Subscription restored" });
+            }
+            catch (SqlException ex)
+            {
+                if (ex.Number >= 50000)
+                    return BadRequest(new { message = ex.Message });
+
+                _logger.LogError(ex, "SQL error restoring cancelled subscription for SubscriptionId: {SubscriptionId}", subscriptionId);
+                return StatusCode(500, new { message = "Internal server error" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error restoring cancelled subscription for SubscriptionId: {SubscriptionId}", subscriptionId);
+                return StatusCode(500, new { message = "Internal server error" });
+            }
         }
 
         [HttpPost("admin/expire/{userSubscriptionId}")]

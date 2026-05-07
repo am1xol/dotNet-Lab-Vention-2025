@@ -405,8 +405,29 @@ BEGIN
         BEGIN TRANSACTION;
         IF @IsActive = 0
         BEGIN
-            UPDATE UserSubscriptions SET CancelledAt = GETUTCDATE(), ValidUntil = NextBillingDate
-            WHERE SubscriptionId = @Id AND IsActive = 1;
+            DECLARE @Now DATETIME2 = GETUTCDATE();
+            DECLARE @Cancelled TABLE (UserSubscriptionId UNIQUEIDENTIFIER, UserId UNIQUEIDENTIFIER, SubscriptionId UNIQUEIDENTIFIER, CancelledAt DATETIME2);
+
+            UPDATE us
+            SET
+                us.CancelledAt = @Now,
+                us.ValidUntil = us.NextBillingDate,
+                us.FrozenAt = NULL,
+                us.FrozenUntil = NULL,
+                us.IsActive = 1,
+                us.UpdatedAt = @Now
+            OUTPUT inserted.Id, inserted.UserId, inserted.SubscriptionId, inserted.CancelledAt
+                INTO @Cancelled(UserSubscriptionId, UserId, SubscriptionId, CancelledAt)
+            FROM UserSubscriptions us
+            WHERE us.SubscriptionId = @Id
+              AND (
+                    us.IsActive = 1
+                    OR (us.FrozenUntil IS NOT NULL AND us.FrozenUntil > @Now)
+                  );
+
+            INSERT INTO SubscriptionCancellationReasons (Id, UserSubscriptionId, UserId, SubscriptionId, Reason, CustomReason, CancelledAt)
+            SELECT NEWID(), c.UserSubscriptionId, c.UserId, c.SubscriptionId, N'SUBSCRIPTION_DEACTIVATED', NULL, c.CancelledAt
+            FROM @Cancelled c;
         END
         UPDATE Subscriptions SET IsActive = @IsActive, UpdatedAt = GETUTCDATE() WHERE Id = @Id;
         COMMIT TRANSACTION;
@@ -520,20 +541,29 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
+        DECLARE @Now DATETIME2 = GETUTCDATE();
+        DECLARE @Cancelled TABLE (UserSubscriptionId UNIQUEIDENTIFIER, UserId UNIQUEIDENTIFIER, SubscriptionId UNIQUEIDENTIFIER, CancelledAt DATETIME2);
+
         UPDATE us
         SET
-            us.CancelledAt = GETUTCDATE(),
+            us.CancelledAt = @Now,
             us.ValidUntil = us.NextBillingDate,
             us.FrozenAt = NULL,
             us.FrozenUntil = NULL,
             us.IsActive = 1,
-            us.UpdatedAt = GETUTCDATE()
+            us.UpdatedAt = @Now
+        OUTPUT inserted.Id, inserted.UserId, inserted.SubscriptionId, inserted.CancelledAt
+            INTO @Cancelled(UserSubscriptionId, UserId, SubscriptionId, CancelledAt)
         FROM UserSubscriptions us
         WHERE us.SubscriptionPriceId = @Id
           AND (
                 us.IsActive = 1
-                OR (us.FrozenUntil IS NOT NULL AND us.FrozenUntil > GETUTCDATE())
+                OR (us.FrozenUntil IS NOT NULL AND us.FrozenUntil > @Now)
               );
+
+        INSERT INTO SubscriptionCancellationReasons (Id, UserSubscriptionId, UserId, SubscriptionId, Reason, CustomReason, CancelledAt)
+        SELECT NEWID(), c.UserSubscriptionId, c.UserId, c.SubscriptionId, N'PLAN_UNAVAILABLE', NULL, c.CancelledAt
+        FROM @Cancelled c;
 
         IF EXISTS (SELECT 1 FROM UserSubscriptions WHERE SubscriptionPriceId = @Id)
         BEGIN
@@ -1893,16 +1923,39 @@ AS
 BEGIN
     SET NOCOUNT ON;
     DECLARE @UserSubId UNIQUEIDENTIFIER;
-    SELECT TOP 1 @UserSubId = us.Id
+    DECLARE @SubscriptionIsActive BIT;
+    DECLARE @PriceFinal DECIMAL(18,2);
+
+    SELECT TOP 1
+        @UserSubId = us.Id,
+        @SubscriptionIsActive = s.IsActive,
+        @PriceFinal = sp.FinalPrice
     FROM UserSubscriptions us
     INNER JOIN SubscriptionPrices sp ON us.SubscriptionPriceId = sp.Id
+    INNER JOIN Subscriptions s ON sp.SubscriptionId = s.Id
     WHERE us.UserId = @UserId AND sp.SubscriptionId = @SubscriptionId
         AND us.CancelledAt IS NOT NULL
         AND us.ValidUntil IS NOT NULL
         AND us.ValidUntil >= @Now
-        AND us.FrozenAt IS NULL;
+        AND us.FrozenAt IS NULL
+    ORDER BY us.CancelledAt DESC;
 
     IF @UserSubId IS NULL RETURN 404;
+
+    IF @SubscriptionIsActive = 0
+        THROW 50070, 'Подписка больше недействительна: тариф деактивирован администратором.', 1;
+
+    IF @PriceFinal IS NULL OR @PriceFinal <= 0
+        THROW 50071, 'Подписка больше недействительна: выбранный тариф/план больше недоступен.', 1;
+
+    DECLARE @LastReason NVARCHAR(100) = NULL;
+    SELECT TOP 1 @LastReason = scr.Reason
+    FROM SubscriptionCancellationReasons scr
+    WHERE scr.UserSubscriptionId = @UserSubId
+    ORDER BY scr.CancelledAt DESC;
+
+    IF @LastReason IN (N'SUBSCRIPTION_DEACTIVATED', N'PLAN_UNAVAILABLE')
+        THROW 50072, 'Подписка больше недействительна и не может быть восстановлена (отменена системой).', 1;
 
     UPDATE UserSubscriptions
     SET CancelledAt = NULL,

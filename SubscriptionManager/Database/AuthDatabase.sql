@@ -38,11 +38,71 @@ GO
 CREATE UNIQUE INDEX [IX_RefreshTokens_Token] ON [RefreshTokens] ([Token]);
 GO
 
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ChatConversations')
+BEGIN
+    CREATE TABLE [ChatConversations] (
+        [Id] UNIQUEIDENTIFIER PRIMARY KEY,
+        [UserId] UNIQUEIDENTIFIER NOT NULL,
+        [AdminId] UNIQUEIDENTIFIER NULL,
+        [Status] NVARCHAR(20) NOT NULL DEFAULT 'Open',
+        [LastMessageAt] DATETIME2 NULL,
+        [CreatedAt] DATETIME2 NOT NULL,
+        [UpdatedAt] DATETIME2 NOT NULL,
+        CONSTRAINT [FK_ChatConversations_Users] FOREIGN KEY ([UserId]) 
+            REFERENCES [Users] ([Id]) ON DELETE CASCADE
+    );
+    
+    IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ChatConversations_UserId' AND object_id = OBJECT_ID('ChatConversations'))
+        CREATE UNIQUE INDEX [IX_ChatConversations_UserId] ON [ChatConversations] ([UserId]);
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ChatMessages')
+BEGIN
+    CREATE TABLE [ChatMessages] (
+        [Id] UNIQUEIDENTIFIER PRIMARY KEY,
+        [ConversationId] UNIQUEIDENTIFIER NOT NULL,
+        [SenderId] UNIQUEIDENTIFIER NOT NULL,
+        [SenderRole] NVARCHAR(10) NOT NULL,
+        [Content] NVARCHAR(MAX) NOT NULL,
+        [IsRead] BIT NOT NULL DEFAULT 0,
+        [CreatedAt] DATETIME2 NOT NULL,
+        CONSTRAINT [FK_ChatMessages_Conversations] FOREIGN KEY ([ConversationId]) 
+            REFERENCES [ChatConversations] ([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_ChatMessages_Sender] FOREIGN KEY ([SenderId]) 
+            REFERENCES [Users] ([Id]) ON DELETE NO ACTION
+    );
+    
+    IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ChatMessages_ConversationId' AND object_id = OBJECT_ID('ChatMessages'))
+        CREATE INDEX [IX_ChatMessages_ConversationId] ON [ChatMessages] ([ConversationId]);
+    
+    IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ChatMessages_IsRead' AND object_id = OBJECT_ID('ChatMessages'))
+        CREATE INDEX [IX_ChatMessages_IsRead] ON [ChatMessages] ([IsRead]);
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Feedbacks')
+BEGIN
+    CREATE TABLE [Feedbacks] (
+        [Id] UNIQUEIDENTIFIER PRIMARY KEY,
+        [UserId] UNIQUEIDENTIFIER NOT NULL,
+        [Rating] INT NOT NULL CHECK ([Rating] >= 1 AND [Rating] <= 5),
+        [Comment] NVARCHAR(MAX) NULL,
+        [CreatedAt] DATETIME2 NOT NULL,
+        [UpdatedAt] DATETIME2 NOT NULL,
+        CONSTRAINT [FK_Feedbacks_Users] FOREIGN KEY ([UserId]) 
+            REFERENCES [Users] ([Id]) ON DELETE CASCADE
+    );
+    
+    IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Feedbacks_UserId' AND object_id = OBJECT_ID('Feedbacks'))
+        CREATE UNIQUE INDEX [IX_Feedbacks_UserId] ON [Feedbacks] ([UserId]);
+END
+GO
+
 
 /* =========================================================================================
    АУТЕНТИФИКАЦИЯ И РЕГИСТРАЦИЯ
 ========================================================================================= */
-
 -- Регистрация нового пользователя
 CREATE OR ALTER PROCEDURE [sp_Users_Insert]
     @Id UNIQUEIDENTIFIER,
@@ -312,54 +372,6 @@ GO
 /* =========================================================================================
    ЧАТ С АДМИНИСТРАТОРОМ
 ========================================================================================= */
-USE [AuthDb];
-GO
-
--- Таблица диалогов пользователей с администратором
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ChatConversations')
-BEGIN
-    CREATE TABLE [ChatConversations] (
-        [Id] UNIQUEIDENTIFIER PRIMARY KEY,
-        [UserId] UNIQUEIDENTIFIER NOT NULL,
-        [AdminId] UNIQUEIDENTIFIER NULL,
-        [Status] NVARCHAR(20) NOT NULL DEFAULT 'Open',
-        [LastMessageAt] DATETIME2 NULL,
-        [CreatedAt] DATETIME2 NOT NULL,
-        [UpdatedAt] DATETIME2 NOT NULL,
-        CONSTRAINT [FK_ChatConversations_Users] FOREIGN KEY ([UserId]) 
-            REFERENCES [Users] ([Id]) ON DELETE CASCADE
-    );
-    
-    IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ChatConversations_UserId' AND object_id = OBJECT_ID('ChatConversations'))
-        CREATE UNIQUE INDEX [IX_ChatConversations_UserId] ON [ChatConversations] ([UserId]);
-END
-GO
-
--- Таблица сообщений чата
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ChatMessages')
-BEGIN
-    CREATE TABLE [ChatMessages] (
-        [Id] UNIQUEIDENTIFIER PRIMARY KEY,
-        [ConversationId] UNIQUEIDENTIFIER NOT NULL,
-        [SenderId] UNIQUEIDENTIFIER NOT NULL,
-        [SenderRole] NVARCHAR(10) NOT NULL,
-        [Content] NVARCHAR(MAX) NOT NULL,
-        [IsRead] BIT NOT NULL DEFAULT 0,
-        [CreatedAt] DATETIME2 NOT NULL,
-        CONSTRAINT [FK_ChatMessages_Conversations] FOREIGN KEY ([ConversationId]) 
-            REFERENCES [ChatConversations] ([Id]) ON DELETE CASCADE,
-        CONSTRAINT [FK_ChatMessages_Sender] FOREIGN KEY ([SenderId]) 
-            REFERENCES [Users] ([Id]) ON DELETE NO ACTION
-    );
-    
-    IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ChatMessages_ConversationId' AND object_id = OBJECT_ID('ChatMessages'))
-        CREATE INDEX [IX_ChatMessages_ConversationId] ON [ChatMessages] ([ConversationId]);
-    
-    IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ChatMessages_IsRead' AND object_id = OBJECT_ID('ChatMessages'))
-        CREATE INDEX [IX_ChatMessages_IsRead] ON [ChatMessages] ([IsRead]);
-END
-GO
-
 -- Получить или создать диалог пользователя
 IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'sp_ChatConversations_GetOrCreate')
 BEGIN
@@ -541,28 +553,6 @@ GO
 /* =========================================================================================
     ОТЗЫВЫ И ОЦЕНКИ ПОЛЬЗОВАТЕЛЕЙ
 ========================================================================================= */
-
-use [AuthDb];
-go
--- Таблица отзывов пользователей
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Feedbacks')
-BEGIN
-    CREATE TABLE [Feedbacks] (
-        [Id] UNIQUEIDENTIFIER PRIMARY KEY,
-        [UserId] UNIQUEIDENTIFIER NOT NULL,
-        [Rating] INT NOT NULL CHECK ([Rating] >= 1 AND [Rating] <= 5),
-        [Comment] NVARCHAR(MAX) NULL,
-        [CreatedAt] DATETIME2 NOT NULL,
-        [UpdatedAt] DATETIME2 NOT NULL,
-        CONSTRAINT [FK_Feedbacks_Users] FOREIGN KEY ([UserId]) 
-            REFERENCES [Users] ([Id]) ON DELETE CASCADE
-    );
-    
-    IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Feedbacks_UserId' AND object_id = OBJECT_ID('Feedbacks'))
-        CREATE UNIQUE INDEX [IX_Feedbacks_UserId] ON [Feedbacks] ([UserId]);
-END
-GO
-
 -- Создать отзыв или обновить существующий
 IF NOT EXISTS (SELECT * FROM sys.procedures WHERE name = 'sp_Feedbacks_Upsert')
 BEGIN

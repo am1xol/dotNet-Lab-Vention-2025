@@ -249,7 +249,12 @@ const exportToWord = async (
         children: [
           new Paragraph({
             children: [new TextRun({ text: column.header, bold: true, color: 'FFFFFF' })],
-            alignment: AlignmentType.CENTER,
+            alignment:
+              column.align === 'right'
+                ? AlignmentType.RIGHT
+                : column.align === 'center'
+                  ? AlignmentType.CENTER
+                  : AlignmentType.LEFT,
           }),
         ],
         shading: { fill: '7E57C2' },
@@ -410,6 +415,11 @@ const exportToPdf = async (
     alternateRowStyles: {
       fillColor: [248, 245, 255],
     },
+    didParseCell: (data) => {
+      const columnDef = columns[data.column.index];
+      const halign = columnDef?.align ?? 'left';
+      data.cell.styles.halign = halign;
+    },
   });
 
   pdf.save(`${filename}.pdf`);
@@ -477,10 +487,10 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({ currentUse
               return `${userRow.firstName} ${userRow.lastName}`.trim() || '-';
             },
           },
-          { header: 'Платежей', align: 'right', value: (row) => String((row as UserActivityByPeriod).successfulPaymentsCount) },
+          { header: 'Платежей', align: 'center', value: (row) => String((row as UserActivityByPeriod).successfulPaymentsCount) },
           { header: 'Сумма', align: 'right', value: (row) => formatMoney((row as UserActivityByPeriod).totalSpent) },
-          { header: 'Стартов подписок', align: 'right', value: (row) => String((row as UserActivityByPeriod).subscriptionsStartedCount) },
-          { header: 'Отмен подписок', align: 'right', value: (row) => String((row as UserActivityByPeriod).subscriptionsCancelledCount) },
+          { header: 'Стартов подписок', align: 'center', value: (row) => String((row as UserActivityByPeriod).subscriptionsStartedCount) },
+          { header: 'Отмен подписок', align: 'center', value: (row) => String((row as UserActivityByPeriod).subscriptionsCancelledCount) },
           {
             header: 'Последняя активность',
             value: (row) => {
@@ -504,9 +514,9 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({ currentUse
         columns: [
           { header: 'Подписка', value: (row) => (row as SubscriptionsByPeriod).subscriptionName },
           { header: 'Период', value: (row) => (row as SubscriptionsByPeriod).periodName },
-          { header: 'Новых', align: 'right', value: (row) => String((row as SubscriptionsByPeriod).newSubscriptionsCount) },
-          { header: 'Активных', align: 'right', value: (row) => String((row as SubscriptionsByPeriod).activeSubscribersCount) },
-          { header: 'Успешных платежей', align: 'right', value: (row) => String((row as SubscriptionsByPeriod).successfulPaymentsCount) },
+          { header: 'Новых', align: 'center', value: (row) => String((row as SubscriptionsByPeriod).newSubscriptionsCount) },
+          { header: 'Активных', align: 'center', value: (row) => String((row as SubscriptionsByPeriod).activeSubscribersCount) },
+          { header: 'Успешных платежей', align: 'center', value: (row) => String((row as SubscriptionsByPeriod).successfulPaymentsCount) },
           { header: 'Выручка', align: 'right', value: (row) => formatMoney((row as SubscriptionsByPeriod).revenue) },
         ],
       };
@@ -562,10 +572,10 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({ currentUse
             <TableRow>
               <TableCell sx={{ fontWeight: 700 }}>{translations.admin.userEmail}</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>Имя</TableCell>
-              <TableCell sx={{ fontWeight: 700 }} align="right">Платежей</TableCell>
+              <TableCell sx={{ fontWeight: 700 }} align="center">Платежей</TableCell>
               <TableCell sx={{ fontWeight: 700 }} align="right">Сумма</TableCell>
-              <TableCell sx={{ fontWeight: 700 }} align="right">Стартов подписок</TableCell>
-              <TableCell sx={{ fontWeight: 700 }} align="right">Отмен подписок</TableCell>
+              <TableCell sx={{ fontWeight: 700 }} align="center">Стартов подписок</TableCell>
+              <TableCell sx={{ fontWeight: 700 }} align="center">Отмен подписок</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>Последняя активность</TableCell>
             </TableRow>
           </TableHead>
@@ -574,10 +584,10 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({ currentUse
               <TableRow key={row.userId} hover>
                 <TableCell>{row.email}</TableCell>
                 <TableCell>{`${row.firstName} ${row.lastName}`.trim() || '-'}</TableCell>
-                <TableCell align="right">{row.successfulPaymentsCount}</TableCell>
+                <TableCell align="center">{row.successfulPaymentsCount}</TableCell>
                 <TableCell align="right">{formatMoney(row.totalSpent)}</TableCell>
-                <TableCell align="right">{row.subscriptionsStartedCount}</TableCell>
-                <TableCell align="right">{row.subscriptionsCancelledCount}</TableCell>
+                <TableCell align="center">{row.subscriptionsStartedCount}</TableCell>
+                <TableCell align="center">{row.subscriptionsCancelledCount}</TableCell>
                 <TableCell>{row.lastActivityAt ? formatDateShort(row.lastActivityAt) : '-'}</TableCell>
               </TableRow>
             ))}
@@ -593,9 +603,9 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({ currentUse
             <TableRow>
               <TableCell sx={{ fontWeight: 700 }}>{translations.admin.subscription}</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>{translations.admin.period}</TableCell>
-              <TableCell sx={{ fontWeight: 700 }} align="right">Новых</TableCell>
-              <TableCell sx={{ fontWeight: 700 }} align="right">Активных</TableCell>
-              <TableCell sx={{ fontWeight: 700 }} align="right">Успешных платежей</TableCell>
+              <TableCell sx={{ fontWeight: 700 }} align="center">Новых</TableCell>
+              <TableCell sx={{ fontWeight: 700 }} align="center">Активных</TableCell>
+              <TableCell sx={{ fontWeight: 700 }} align="center">Успешных платежей</TableCell>
               <TableCell sx={{ fontWeight: 700 }} align="right">Выручка</TableCell>
             </TableRow>
           </TableHead>
@@ -604,9 +614,9 @@ export const AdminReportsPanel: React.FC<AdminReportsPanelProps> = ({ currentUse
               <TableRow key={`${row.subscriptionId}-${row.periodId}`} hover>
                 <TableCell>{row.subscriptionName}</TableCell>
                 <TableCell>{row.periodName}</TableCell>
-                <TableCell align="right">{row.newSubscriptionsCount}</TableCell>
-                <TableCell align="right">{row.activeSubscribersCount}</TableCell>
-                <TableCell align="right">{row.successfulPaymentsCount}</TableCell>
+                <TableCell align="center">{row.newSubscriptionsCount}</TableCell>
+                <TableCell align="center">{row.activeSubscribersCount}</TableCell>
+                <TableCell align="center">{row.successfulPaymentsCount}</TableCell>
                 <TableCell align="right">{formatMoney(row.revenue)}</TableCell>
               </TableRow>
             ))}

@@ -21,6 +21,7 @@ import { chatRealtimeService } from '../../services/chat-realtime-service';
 import { formatRelativeTime } from '../../utils/date-utils';
 import { ChatConversationDto, ChatMessageDto } from '../../types/chat';
 import { translations } from '../../i18n/translations';
+import { ChatMessageBubble } from './ChatMessageBubble';
 
 export const AdminChatPanel: React.FC = () => {
   const [conversations, setConversations] = useState<ChatConversationDto[]>([]);
@@ -338,48 +339,31 @@ export const AdminChatPanel: React.FC = () => {
                 gap: 1,
               }}
             >
-              {messages.map((msg) => (
-                <Box
-                  key={msg.id}
-                  sx={{
-                    display: 'flex',
-                    justifyContent: msg.senderRole === 'Admin' ? 'flex-end' : 'flex-start',
-                  }}
-                >
+              {messages.map((msg) => {
+                const isOwn = msg.senderRole === 'Admin';
+                return (
                   <Box
+                    key={msg.id}
                     sx={{
-                      maxWidth: '70%',
-                      p: 1.5,
-                      borderRadius: 2,
-                      bgcolor: msg.senderRole === 'Admin' ? 'primary.main' : 'white',
-                      color: msg.senderRole === 'Admin' ? 'white' : 'text.primary',
-                      boxShadow: 1,
+                      display: 'flex',
+                      justifyContent: isOwn ? 'flex-end' : 'flex-start',
                     }}
                   >
-                    <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
-                      {msg.content}
-                    </Typography>
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: msg.senderRole === 'Admin' ? 'flex-end' : 'flex-start',
-                        gap: 0.5,
-                        mt: 0.5,
-                      }}
-                    >
-                      {msg.senderRole === 'User' && (
-                        <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                          {msg.senderFirstName}
-                        </Typography>
-                      )}
-                      <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                        {formatTime(msg.createdAt)}
-                      </Typography>
-                    </Box>
+                    <ChatMessageBubble
+                      content={msg.content}
+                      isOwn={isOwn}
+                      timestamp={formatTime(msg.createdAt)}
+                      footer={
+                        !isOwn ? (
+                          <Typography variant="caption" sx={{ opacity: 0.7, fontSize: '0.7rem' }}>
+                            {msg.senderFirstName}
+                          </Typography>
+                        ) : undefined
+                      }
+                    />
                   </Box>
-                </Box>
-              ))}
+                );
+              })}
             </Box>
 
             {/* Input */}

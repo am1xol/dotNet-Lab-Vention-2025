@@ -38,7 +38,9 @@ public class ProfanityFilter : IProfanityFilter
 
         return WordRegex.Replace(
             text,
-            match => IsForbiddenWord(match.Value) ? "***" : match.Value);
+            match => IsForbiddenWord(match.Value)
+                ? new string('*', match.Value.Length)
+                : match.Value);
     }
 
     private static string NormalizeWord(string value)

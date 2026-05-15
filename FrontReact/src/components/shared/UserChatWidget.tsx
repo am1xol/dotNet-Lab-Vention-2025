@@ -8,6 +8,7 @@ import { ChatMessageDto } from '../../types/chat';
 import { useAuthStore } from '../../store/auth-store';
 import { translations } from '../../i18n/translations';
 import { formatTime } from '../../utils/date-utils';
+import { ChatMessageBubble } from '../chat/ChatMessageBubble';
 
 const POLL_INTERVAL = 10000;
 const t = translations.userChat;
@@ -333,41 +334,25 @@ const UserChatWidget: React.FC = () => {
                 {t.startConversation}
               </Typography>
             ) : (
-              messages.map((msg) => (
-                <Box
-                  key={msg.id}
-                  sx={{
-                    display: 'flex',
-                    justifyContent: msg.senderRole === 'User' ? 'flex-end' : 'flex-start',
-                  }}
-                >
+              messages.map((msg) => {
+                const isOwn = msg.senderRole === 'User';
+                return (
                   <Box
+                    key={msg.id}
                     sx={{
-                      maxWidth: '80%',
-                      p: 1.5,
-                      borderRadius: 2,
-                      bgcolor: msg.senderRole === 'User' ? 'primary.main' : 'white',
-                      color: msg.senderRole === 'User' ? 'white' : 'text.primary',
-                      boxShadow: 1,
+                      display: 'flex',
+                      justifyContent: isOwn ? 'flex-end' : 'flex-start',
                     }}
                   >
-                    <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
-                      {msg.content}
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        opacity: 0.7,
-                        display: 'block',
-                        textAlign: msg.senderRole === 'User' ? 'right' : 'left',
-                        mt: 0.5,
-                      }}
-                    >
-                      {formatTime(msg.createdAt)}
-                    </Typography>
+                    <ChatMessageBubble
+                      content={msg.content}
+                      isOwn={isOwn}
+                      timestamp={formatTime(msg.createdAt)}
+                      maxWidth="80%"
+                    />
                   </Box>
-                </Box>
-              ))
+                );
+              })
             )}
             <div ref={messagesEndRef} />
           </Box>

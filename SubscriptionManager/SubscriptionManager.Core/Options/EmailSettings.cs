@@ -15,7 +15,7 @@
         public int TimeoutMs { get; set; } = 10000;
         public bool EnableSecondaryDelivery { get; set; } = false;
         public string SecondarySmtpServer { get; set; } = string.Empty;
-        public int SecondarySmtpPort { get; set; } = 465;
+        public int SecondarySmtpPort { get; set; } = 587;
         public bool SecondaryEnableSsl { get; set; } = true;
         public bool SecondaryUseAuthentication { get; set; } = true;
         public string SecondaryUserName { get; set; } = string.Empty;
